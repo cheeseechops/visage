@@ -1,0 +1,35 @@
+Flask==2.3.3
+Flask-SQLAlchemy==3.0.5
+Pillow==10.2.0
+Werkzeug==2.3.7
+insightface==0.7.3
+opencv-python==4.8.1.78
+numpy==1.26.4  # Updated for better compatibility with pickle files and Python 3.11
+# Use GPU version of ONNX Runtime for InsightFace GPU acceleration
+# If you have CUDA 11.8, use: onnxruntime-gpu==1.22.1
+# If you have CUDA 12.x, use: onnxruntime-gpu>=1.23.0
+# Uncomment the appropriate version based on your CUDA setup:
+# ONNX Runtime GPU: Version 1.20.0 may be better for CUDA 11.8
+# If CUDA DLL errors persist, may need to use CPU version or upgrade CUDA
+onnxruntime-gpu==1.22.0  # Try 1.20.0 if 1.22.0 has CUDA DLL issues
+# onnxruntime==1.22.1  # Fallback CPU version
+# onnxruntime==1.22.1  # Fallback to CPU version if GPU version causes issues
+psutil==5.9.6
+# For face detection and matching
+ultralytics==8.0.196
+imagehash==4.3.1
+scikit-learn==1.3.0
+# PyTorch is installed separately to select the correct CUDA/CPU wheel
+# See: https://pytorch.org/get-started/locally/
+# Example for CUDA 11.8 on Windows:
+# pip install --index-url https://download.pytorch.org/whl/cu118 torch torchvision torchaudio
+# For frontend manual cropping
+# Cropper.js (CDN used in auto_cropper.html)
+# For Google Photos API integration
+requests==2.31.0 
+tqdm==4.66.1
+# For Chromecast support
+PyChromecast==13.1.0
+# For mDNS/Bonjour support (.local hostname)
+zeroconf==0.132.2
+gunicorn==21.2.0

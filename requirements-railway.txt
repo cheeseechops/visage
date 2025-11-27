@@ -1,0 +1,20 @@
+# Railway deployment requirements
+# Uses CPU version of ONNX Runtime (no GPU on Railway)
+Flask==2.3.3
+Flask-SQLAlchemy==3.0.5
+Pillow==10.2.0
+Werkzeug==2.3.7
+insightface==0.7.3
+opencv-python==4.8.1.78
+numpy==1.26.4
+onnxruntime==1.22.1  # CPU version for Railway (no GPU available)
+psutil==5.9.6
+ultralytics==8.0.196
+imagehash==4.3.1
+scikit-learn==1.3.0
+requests==2.31.0
+tqdm==4.66.1
+PyChromecast==13.1.0
+zeroconf==0.132.2
+gunicorn==21.2.0
+

@@ -1,0 +1,19 @@
+# Nixpacks configuration for Railway
+# This tells Railway to use the CPU-only requirements file
+
+[phases.setup]
+nixPkgs = ["python311"]
+
+[phases.install]
+cmds = [
+  "pip install -r requirements-railway.txt"
+]
+
+[phases.build]
+cmds = [
+  "echo 'Build complete'"
+]
+
+[start]
+cmd = "gunicorn app:app --bind 0.0.0.0:$PORT --workers 2 --threads 2 --timeout 120"
+

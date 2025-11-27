@@ -1,0 +1,1117 @@
+{% extends "base.html" %}
+
+{% block title %}All Images - People Viewer{% endblock %}
+
+{% block content %}
+<style>
+  .invisible-grid { display: none; }
+  .dark-card {
+    background: #181a20;
+    border: 1px solid #23263a;
+    color: #e5e7eb;
+  }
+  .dark-card .gallery-image {
+    background: #23263a;
+  }
+  .dark-card .bg-white\/80, .dark-card .bg-white { background: #23263a !important; }
+  .dark-card .text-gray-900, .dark-card .text-gray-700, .dark-card .text-gray-600 { color: #e5e7eb !important; }
+  .dark-card .bg-green-100 { background: #234d20 !important; color: #a7f3d0 !important; }
+  .dark-card .bg-orange-100 { background: #4b2e05 !important; color: #fdba74 !important; }
+  .dark-card .bg-blue-100 { background: #1e293b !important; color: #60a5fa !important; }
+  .dark-card .text-blue-800 { color: #60a5fa !important; }
+  .dark-card .text-green-800 { color: #6ee7b7 !important; }
+  .dark-card .text-orange-800 { color: #fdba74 !important; }
+  .dark-card .shadow-sm { box-shadow: 0 2px 8px 0 rgba(0,0,0,0.25); }
+  .dark-card .border-gray-200 { border-color: #23263a !important; }
+  .dark-card .border { border-color: #23263a !important; }
+  .dark-card .bg-black\/40 { background: rgba(20,20,30,0.7) !important; }
+  .dark-card .rounded { border-radius: 0.75rem; }
+  .dark-card .bg-white\/80 { background: rgba(36,37,50,0.8) !important; }
+  .dark-card .hover\:bg-white:hover { background: #23263a !important; }
+  .dark-card .text-gray-400 { color: #9ca3af !important; }
+  .dark-card .text-red-500 { color: #f87171 !important; }
+  .dark-card .text-gray-300 { color: #d1d5db !important; }
+  .dark-card .text-gray-200 { color: #e5e7eb !important; }
+  .dark-card .bg-gray-200 { background: #23263a !important; }
+  .dark-card .bg-gray-100 { background: #23263a !important; }
+  .dark-card .bg-gray-50 { background: #181a20 !important; }
+  .dark-card .bg-primary { background: #6366f1 !important; }
+  .dark-card .text-primary { color: #6366f1 !important; }
+</style>
+<div class="fade-in">
+    <!-- Page Header -->
+    <div class="mb-8">
+        <h1 class="text-3xl font-bold text-gray-100 mb-2">All Images</h1>
+        <p class="text-gray-400">Browse all cropped people images with filters</p>
+    </div>
+
+    <!-- Control Panel - Based on Viewer Design -->
+    <div class="bg-gray-800 border-b border-gray-700 p-4 mb-8">
+        <div class="flex items-center justify-between mb-4">
+            <!-- Left side controls -->
+            <div class="flex items-center space-x-6">
+                <!-- View Selector - Redesigned as Tabs -->
+                <div class="flex items-center space-x-3">
+                    <label class="text-sm font-medium text-gray-300">View:</label>
+                    <div class="flex bg-gray-700 rounded-lg p-1">
+                        <!-- All Images Tab -->
+                        <button id="view-all-tab" class="flex items-center space-x-2 px-4 py-2 rounded-md text-sm font-medium transition-all duration-200 bg-blue-600 text-white shadow-sm">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                            </svg>
+                            <span>All Images</span>
+                        </button>
+                        
+                        <!-- Favorites Tab -->
+                        <button id="view-favorites-tab" class="flex items-center space-x-2 px-4 py-2 rounded-md text-sm font-medium transition-all duration-200 text-gray-300 hover:text-white hover:bg-gray-600">
+                            <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                                <path fill-rule="evenodd" d="M3.172 5.172a4 4 0 015.656 0L10 6.343l1.172-1.171a4 4 0 115.656 5.656L10 17.657l-6.828-6.829a4 4 0 010-5.656z" clip-rule="evenodd"></path>
+                            </svg>
+                            <span>Favorites</span>
+                        </button>
+                        
+                        <!-- People Tab -->
+                        <button id="view-people-tab" class="flex items-center space-x-2 px-4 py-2 rounded-md text-sm font-medium transition-all duration-200 text-gray-300 hover:text-white hover:bg-gray-600">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
+                            </svg>
+                            <span>People</span>
+                        </button>
+                        
+                        <!-- People Selection Button -->
+                        <button id="people-selection-btn" class="flex items-center space-x-2 px-3 py-2 rounded-md text-sm font-medium transition-all duration-200 text-gray-300 hover:text-white hover:bg-gray-600">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z"></path>
+                            </svg>
+                            <span>Select</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Sort Controls -->
+                <div class="flex items-center space-x-3">
+                    <label class="text-sm font-medium text-gray-300">Sort:</label>
+                    <select id="order-combo" class="px-3 py-2 border border-gray-600 rounded-lg text-sm bg-gray-700 text-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <option value="id-desc">ID (High→Low)</option>
+                        <option value="id-asc">ID (Low→High)</option>
+                        <option value="name-asc">Name (A→Z)</option>
+                        <option value="name-desc">Name (Z→A)</option>
+                        <option value="date-newest">Date (Newest First)</option>
+                        <option value="date-oldest">Date (Oldest First)</option>
+                        <option value="size-large">Size (Large to Small)</option>
+                        <option value="size-small">Size (Small to Large)</option>
+                        <option value="favorites">Favorites First</option>
+                        <option value="random">Random</option>
+                    </select>
+                    <!-- Randomize button (only shown when random sort is selected) -->
+                    <button id="randomize-btn" class="hidden px-2 py-2 bg-blue-600 text-white rounded text-sm hover:bg-blue-700 transition-colors" title="Randomize sort">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Right side controls -->
+            <div class="flex items-center space-x-4">
+                <!-- Multi-Select Controls -->
+                <div id="multi-select-controls" class="hidden flex items-center space-x-2">
+                    <span id="selected-count-display" class="text-sm text-gray-300">0 selected</span>
+                    <button id="remove-all-names-btn" 
+                            class="inline-flex justify-center items-center px-4 py-2 border border-red-600 rounded-md shadow-sm text-sm font-medium text-red-200 bg-red-700 hover:bg-red-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 transition-colors">
+                        <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                        </svg>
+                        Remove All Names
+                    </button>
+                    <button id="cancel-multi-select-btn" 
+                            class="inline-flex justify-center items-center px-4 py-2 border border-gray-600 rounded-md shadow-sm text-sm font-medium text-gray-200 bg-gray-700 hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors">
+                        Cancel
+                    </button>
+                </div>
+                
+                <!-- Multi-Select Toggle -->
+                <button id="multi-select-toggle" 
+                        class="inline-flex justify-center items-center px-4 py-2 border border-blue-600 rounded-md shadow-sm text-sm font-medium text-blue-200 bg-blue-700 hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors">
+                    <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                    </svg>
+                    Multi-Select
+                </button>
+                
+                <!-- Clear Filters -->
+                <button onclick="clearFilters()" 
+                        class="inline-flex justify-center items-center px-4 py-2 border border-gray-600 rounded-md shadow-sm text-sm font-medium text-gray-200 bg-gray-700 hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors">
+                    Clear Filters
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- People Selection Overlay -->
+    <div id="people-overlay" class="fixed inset-0 bg-black bg-opacity-75 z-50 hidden flex items-center justify-center">
+        <div class="bg-gray-800 rounded-xl shadow-2xl max-w-6xl w-full mx-4 max-h-[90vh] overflow-hidden">
+            <!-- Header -->
+            <div class="flex items-center justify-between p-6 border-b border-gray-700">
+                <div class="flex items-center space-x-3">
+                    <h3 class="text-xl font-semibold text-gray-200">Select People to View</h3>
+                    <span id="selected-count" class="px-2 py-1 bg-blue-600 text-white text-sm rounded-full">0 selected</span>
+                </div>
+                <div class="flex items-center space-x-3">
+                    <button id="select-all-people-btn" class="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700 transition-colors">
+                        Select All
+                    </button>
+                    <button id="clear-selection-btn" class="px-4 py-2 bg-gray-600 text-white rounded-lg text-sm hover:bg-gray-700 transition-colors">
+                        Clear All
+                    </button>
+                    <button id="close-people-overlay" class="p-2 text-gray-400 hover:text-white transition-colors">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+            
+            <!-- Search Bar -->
+            <div class="p-6 border-b border-gray-700">
+                <div class="relative">
+                    <svg class="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                    </svg>
+                    <input type="text" id="people-search" placeholder="Search people..." 
+                           class="w-full pl-10 pr-4 py-3 rounded-lg bg-gray-700 text-gray-200 border border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                </div>
+            </div>
+            
+            <!-- People Grid -->
+            <div class="p-6 overflow-y-auto max-h-[60vh]">
+                <div id="people-grid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
+                    {% for person in people %}
+                    <div class="person-card bg-gray-700 rounded-xl p-4 cursor-pointer hover:bg-gray-600 transition-all duration-200 border-2 border-transparent hover:border-blue-500 group" 
+                         data-person-id="{{ person.id }}" data-person-name="{{ person.name }}">
+                        <div class="flex flex-col items-center space-y-3">
+                            <!-- Profile Picture -->
+                            <div class="relative">
+                                <div class="w-16 h-16 rounded-full overflow-hidden bg-gray-600 flex items-center justify-center">
+                                    <img src="{{ person.thumbnail_path or ('https://via.placeholder.com/64x64/6B7280/FFFFFF?text=' ~ person.name[:2]) }}"
+                                         alt="{{ person.name }}"
+                                         class="w-full h-full object-cover">
+                                </div>
+                                <!-- Selection Indicator -->
+                                <div class="absolute -top-1 -right-1 w-6 h-6 bg-blue-600 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                                    <svg class="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 20 20">
+                                        <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path>
+                                    </svg>
+                                </div>
+                                <!-- Selected State -->
+                                <div class="absolute -top-1 -right-1 w-6 h-6 bg-green-600 rounded-full flex items-center justify-center opacity-0 selected-indicator">
+                                    <svg class="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 20 20">
+                                        <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path>
+                                    </svg>
+                                </div>
+                            </div>
+                            <!-- Name -->
+                            <div class="text-center">
+                                <p class="text-sm font-medium text-gray-200 truncate max-w-full">{{ person.name }}</p>
+                            </div>
+                            <!-- Hidden Checkbox -->
+                            <input type="checkbox" id="person-{{ person.id }}" 
+                                   class="hidden person-checkbox" 
+                                   data-person-id="{{ person.id }}" data-person-name="{{ person.name }}">
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <!-- Footer -->
+            <div class="flex items-center justify-between p-6 border-t border-gray-700 bg-gray-900">
+                <div class="text-sm text-gray-400">
+                    Click on people to select them. Selected people will be highlighted.
+                </div>
+                <div class="flex items-center space-x-3">
+                    <button id="cancel-people-selection" class="px-4 py-2 bg-gray-600 text-white rounded-lg text-sm hover:bg-gray-700 transition-colors">
+                        Cancel
+                    </button>
+                    <button id="apply-people-selection" class="px-6 py-2 bg-green-600 text-white rounded-lg text-sm hover:bg-green-700 transition-colors font-semibold">
+                        Apply Selection
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="mb-4 text-right">
+        <span id="image-count" class="text-sm text-gray-400 font-medium">Images: <span id="image-count-num">{{ images|length }}</span></span>
+    </div>
+    <!-- Images Grid -->
+    <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 invisible-grid" id="images-grid">
+        {% for image in images %}
+        <div class="dark-card overflow-hidden card-hover" 
+             data-people="{{ image.people|join(' ') }}"
+             data-favorite="{{ 'true' if image.is_favorite else 'false' }}"
+             data-tags="{{ image.tags|join(' ') if image.tags else '' }}"
+             data-width="{{ image.width or 0 }}"
+             data-height="{{ image.height or 0 }}"
+             data-created="{{ image.created_at or '' }}">
+            <div class="relative">
+                <!-- Multi-Select Checkbox -->
+                <div id="multi-select-checkbox-{{ image.id }}" class="absolute top-2 left-2 z-10 hidden">
+                    <input type="checkbox" id="image-checkbox-{{ image.id }}" 
+                           data-image-id="{{ image.id }}"
+                           class="w-5 h-5 text-blue-600 bg-gray-800 border-gray-600 rounded focus:ring-blue-500 focus:ring-2">
+                </div>
+                
+                <div class="w-full h-[500px] bg-[#23263a] relative overflow-hidden rounded">
+                    <a href="{{ url_for('image_detail', image_id=image.id) }}" class="block w-full h-full">
+                        <img src="{{ image.image_url }}"
+                             alt="Image {{ image.id }}"
+                             data-full="{{ image.image_url }}"
+                             loading="lazy"
+                             class="absolute inset-0 w-full h-full object-contain transition-all duration-200 cursor-pointer gallery-image hover:scale-105" />
+                    </a>
+                    <div class="absolute bottom-2 left-1/2 -translate-x-1/2 px-3 py-1 bg-black/60 text-gray-100 text-xs rounded shadow">
+                        #{{ image.id }}
+                    </div>
+                </div>
+                <!-- Favorite Button -->
+                <button onclick="toggleFavorite('image', {{ image.id }})"
+                        data-image-id="{{ image.id }}"
+                        class="absolute top-2 right-2 p-2 bg-[#23263a] backdrop-blur-sm rounded-full shadow-sm hover:bg-[#181a20] transition-colors">
+                    <svg class="w-5 h-5 {% if image.is_favorite %}text-red-500{% else %}text-gray-400{% endif %}" 
+                         fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd" d="M3.172 5.172a4 4 0 015.656 0L10 6.343l1.172-1.171a4 4 0 115.656 5.656L10 17.657l-6.828-6.829a4 4 0 010-5.656z" clip-rule="evenodd"></path>
+                    </svg>
+                </button>
+                <!-- People Badge -->
+                <div class="absolute top-2 left-2">
+                    {% if image.people %}
+                        {% set first_person = people|selectattr('name', 'equalto', image.people[0])|first %}
+                        <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium 
+                                     {% if first_person and first_person.is_confirmed %}bg-green-100 text-green-800
+                                     {% else %}bg-orange-100 text-orange-800{% endif %}">
+                            {% if image.people|length == 1 %}
+                                {{ image.people[0] }}
+                            {% else %}
+                                {{ image.people[0] }} +{{ image.people|length - 1 }}
+                            {% endif %}
+                        </span>
+                    {% else %}
+                        <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-orange-100 text-orange-800">
+                            Unidentified
+                        </span>
+                    {% endif %}
+                </div>
+                <!-- Tags -->
+                {% if image.tags %}
+                <div class="absolute bottom-2 left-2 flex flex-wrap gap-1">
+                    {% for tag in image.tags %}
+                    <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                        {{ tag }}
+                    </span>
+                    {% endfor %}
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    <!-- Empty State -->
+    {% if not images %}
+    <div class="text-center py-12">
+        <svg class="mx-auto h-12 w-12 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+        </svg>
+        <h3 class="mt-2 text-sm font-medium text-gray-200">No images found</h3>
+        <p class="mt-1 text-sm text-gray-400">Try adjusting your filters or upload some images.</p>
+    </div>
+    {% endif %}
+
+    <!-- Full Image Modal -->
+    <div id="full-image-modal" class="fixed inset-0 z-50 hidden bg-black/95 flex items-center justify-center">
+        <button onclick="closeFullImageModal()" class="absolute top-4 right-4 bg-[#23263a] hover:bg-[#181a20] rounded-full p-2 shadow text-gray-200">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+        </button>
+        <img id="full-image-modal-img" src="" alt="Full image" class="w-full h-full object-contain rounded shadow-lg">
+    </div>
+
+    <script>
+    let people = {{ people|tojson }};
+    let totalImages = {{ total_images|default(0) }};
+    let pageSize = {{ page_size|default(50) }};
+    let currentPage = 1;
+    let isLoading = false;
+    let allImages = Array.from(document.getElementById('images-grid').children);
+    let lastLoadedId = null;
+    let lastLoadedName = null;
+    let lastLoadedCreatedAt = null;
+    let lastLoadedSize = null;
+    let lastLoadedFav = null;
+
+    const imagesContainer = document.getElementById('images-grid');
+    const loadingSpinner = document.createElement('div');
+    loadingSpinner.id = 'loading-spinner';
+    loadingSpinner.className = 'text-center py-4';
+    loadingSpinner.innerHTML = '<span class="text-gray-500">Loading more images...</span>';
+    
+    // localStorage keys for this page
+    const STORAGE_KEYS = {
+        SORT_BY: 'all_images_sort_by',
+        SELECTED_PEOPLE: 'all_images_selected_people',
+        CURRENT_VIEW: 'all_images_current_view'
+    };
+    
+    // Track selected people and current view
+    let selectedPeople = new Set();
+    let currentView = 'all'; // 'all', 'favorites', 'people'
+    
+    function loadViewerPreferences() {
+        const sortBy = localStorage.getItem(STORAGE_KEYS.SORT_BY) || 'id-desc';
+        const savedView = localStorage.getItem(STORAGE_KEYS.CURRENT_VIEW) || 'all';
+        const savedPeople = localStorage.getItem(STORAGE_KEYS.SELECTED_PEOPLE);
+        
+        if (document.getElementById('order-combo')) document.getElementById('order-combo').value = sortBy;
+        
+        // Show/hide randomize button based on sort selection
+        const randomizeBtn = document.getElementById('randomize-btn');
+        if (randomizeBtn) {
+            if (sortBy === 'random') {
+                randomizeBtn.classList.remove('hidden');
+            } else {
+                randomizeBtn.classList.add('hidden');
+            }
+        }
+        
+        // Set current view
+        setCurrentView(savedView);
+        
+        if (savedPeople) {
+            try {
+                const peopleData = JSON.parse(savedPeople);
+                selectedPeople = new Set(peopleData.people || []);
+            } catch (e) {
+                console.error('Error loading saved people selection:', e);
+            }
+        }
+    }
+    
+    function saveViewerPreferences() {
+        if (document.getElementById('order-combo')) localStorage.setItem(STORAGE_KEYS.SORT_BY, document.getElementById('order-combo').value);
+        localStorage.setItem(STORAGE_KEYS.CURRENT_VIEW, currentView);
+        
+        const peopleData = {
+            people: Array.from(selectedPeople)
+        };
+        localStorage.setItem(STORAGE_KEYS.SELECTED_PEOPLE, JSON.stringify(peopleData));
+    }
+    
+    function setCurrentView(view) {
+        currentView = view;
+        
+        // Update tab styling
+        document.getElementById('view-all-tab').classList.remove('bg-blue-600', 'text-white');
+        document.getElementById('view-all-tab').classList.add('text-gray-300', 'hover:text-white', 'hover:bg-gray-600');
+        
+        document.getElementById('view-favorites-tab').classList.remove('bg-blue-600', 'text-white');
+        document.getElementById('view-favorites-tab').classList.add('text-gray-300', 'hover:text-white', 'hover:bg-gray-600');
+        
+        document.getElementById('view-people-tab').classList.remove('bg-blue-600', 'text-white');
+        document.getElementById('view-people-tab').classList.add('text-gray-300', 'hover:text-white', 'hover:bg-gray-600');
+        
+        // Set active tab
+        if (view === 'all') {
+            document.getElementById('view-all-tab').classList.add('bg-blue-600', 'text-white');
+            document.getElementById('view-all-tab').classList.remove('text-gray-300', 'hover:text-white', 'hover:bg-gray-600');
+            // Clear people selection when switching to all view
+            selectedPeople.clear();
+        } else if (view === 'favorites') {
+            document.getElementById('view-favorites-tab').classList.add('bg-blue-600', 'text-white');
+            document.getElementById('view-favorites-tab').classList.remove('text-gray-300', 'hover:text-white', 'hover:bg-gray-600');
+        } else if (view === 'people') {
+            document.getElementById('view-people-tab').classList.add('bg-blue-600', 'text-white');
+            document.getElementById('view-people-tab').classList.remove('text-gray-300', 'hover:text-white', 'hover:bg-gray-600');
+        }
+        
+        saveViewerPreferences();
+    }
+    
+    function showPeopleOverlay() {
+        document.getElementById('people-overlay').classList.remove('hidden');
+        document.getElementById('people-search').focus();
+        updatePeopleGrid();
+        updateSelectedCount();
+    }
+    
+    function hidePeopleOverlay() {
+        document.getElementById('people-overlay').classList.add('hidden');
+    }
+    
+    function updateSelectedCount() {
+        const count = selectedPeople.size;
+        const countElement = document.getElementById('selected-count');
+        if (countElement) {
+            countElement.textContent = `${count} selected`;
+        }
+    }
+    
+    function updatePeopleGrid() {
+        const searchInput = document.getElementById('people-search');
+        const searchTerm = searchInput ? searchInput.value.toLowerCase() : '';
+        
+        // Update all person cards
+        document.querySelectorAll('.person-card').forEach(card => {
+            const personName = card.dataset.personName.toLowerCase();
+            const checkbox = card.querySelector('.person-checkbox');
+            const selectedIndicator = card.querySelector('.selected-indicator');
+            
+            if (personName.includes(searchTerm)) {
+                card.style.display = 'block';
+                if (selectedPeople.has(checkbox.dataset.personId)) {
+                    card.classList.add('border-green-500', 'bg-green-900');
+                    card.classList.remove('border-transparent');
+                    checkbox.checked = true;
+                    selectedIndicator.classList.remove('opacity-0');
+                    selectedIndicator.classList.add('opacity-100');
+                } else {
+                    card.classList.remove('border-green-500', 'bg-green-900');
+                    card.classList.add('border-transparent');
+                    checkbox.checked = false;
+                    selectedIndicator.classList.add('opacity-0');
+                    selectedIndicator.classList.remove('opacity-100');
+                }
+            } else {
+                card.style.display = 'none';
+            }
+        });
+        
+        updateSelectedCount();
+    }
+    
+    function clearFilters() {
+        selectedPeople.clear();
+        setCurrentView('all');
+        if (document.getElementById('order-combo')) {
+            document.getElementById('order-combo').value = 'id-desc';
+        }
+        saveViewerPreferences();
+        resetAndReloadImages();
+    }
+    
+    function resetAndReloadImages() {
+        // Reset state and reload from page 1
+        lastLoadedId = null;
+        lastLoadedName = null;
+        lastLoadedCreatedAt = null;
+        lastLoadedSize = null;
+        lastLoadedFav = null;
+        allImages = [];
+        imagesContainer.innerHTML = '';
+        
+        // Check if we're in people view with no people selected
+        if (currentView === 'people' && selectedPeople.size === 0) {
+            showNoPeopleSelectedMessage();
+        } else {
+            fetchFirstPage();
+        }
+    }
+    
+    async function fetchFirstPage() {
+        isLoading = true;
+        imagesContainer.appendChild(loadingSpinner);
+        
+        // Check if we're in people view with no people selected
+        if (currentView === 'people' && selectedPeople.size === 0) {
+            imagesContainer.innerHTML = '';
+            showNoPeopleSelectedMessage();
+            isLoading = false;
+            if (loadingSpinner.parentNode) loadingSpinner.parentNode.removeChild(loadingSpinner);
+            return;
+        }
+        
+        const params = new URLSearchParams({
+            page_size: pageSize,
+            favorites_only: currentView === 'favorites' ? 'true' : 'false',
+            person_filter: selectedPeople.size > 0 ? Array.from(selectedPeople).join(',') : '',
+            sort_by: document.getElementById('order-combo').value
+        });
+        
+        try {
+            const resp = await fetch(`/api/images_paginated?${params.toString()}`);
+            const data = await resp.json();
+            totalImages = data.total;
+            imagesContainer.innerHTML = '';
+            allImages = data.images.map(img => createImageCard(img));
+            allImages.forEach(card => {
+                imagesContainer.appendChild(card);
+                addContextMenu(card);
+            });
+            setupLazyLoadingForNewImages(allImages);
+            // Set cursor fields from the last image in the batch
+            lastLoadedId = data.last_id;
+            lastLoadedName = data.last_name || '';
+            lastLoadedCreatedAt = data.last_created_at || '';
+            lastLoadedSize = data.last_size !== undefined ? data.last_size : null;
+            lastLoadedFav = data.last_fav !== undefined ? data.last_fav : null;
+            updateImageCount();
+            imagesContainer.classList.remove('invisible-grid');
+        } finally {
+            isLoading = false;
+            if (loadingSpinner.parentNode) loadingSpinner.parentNode.removeChild(loadingSpinner);
+        }
+    }
+    
+    async function fetchNextPage() {
+        if (isLoading) return;
+        
+        // For random sorting, we can't use pagination - just return
+        if (document.getElementById('order-combo').value === 'random') {
+            return;
+        }
+        
+        // Check if we have cursor fields for pagination
+        if (!lastLoadedId) return;
+        
+        isLoading = true;
+        imagesContainer.appendChild(loadingSpinner);
+        
+        const params = new URLSearchParams({
+            page_size: pageSize,
+            favorites_only: currentView === 'favorites' ? 'true' : 'false',
+            person_filter: selectedPeople.size > 0 ? Array.from(selectedPeople).join(',') : '',
+            sort_by: document.getElementById('order-combo').value,
+            last_id: lastLoadedId
+        });
+        
+        // Add additional cursor fields based on sort type
+        const sortBy = document.getElementById('order-combo').value;
+        if (sortBy.startsWith('name') && lastLoadedName) {
+            params.append('last_name', lastLoadedName);
+        }
+        if (sortBy.startsWith('date') && lastLoadedCreatedAt) {
+            params.append('last_created_at', lastLoadedCreatedAt);
+        }
+        if (sortBy.startsWith('size') && lastLoadedSize !== null) {
+            params.append('last_size', lastLoadedSize);
+        }
+        if (sortBy === 'favorites' && lastLoadedFav !== null) {
+            params.append('last_fav', lastLoadedFav);
+        }
+        
+        try {
+            const resp = await fetch(`/api/images_paginated?${params.toString()}`);
+            const data = await resp.json();
+            
+            if (data.images && data.images.length > 0) {
+                const newImages = data.images.map(img => createImageCard(img));
+                newImages.forEach(card => {
+                    imagesContainer.appendChild(card);
+                    addContextMenu(card);
+                });
+                setupLazyLoadingForNewImages(newImages);
+                allImages.push(...newImages);
+                
+                // Update cursor fields
+                lastLoadedId = data.last_id;
+                lastLoadedName = data.last_name || '';
+                lastLoadedCreatedAt = data.last_created_at || '';
+                lastLoadedSize = data.last_size !== undefined ? data.last_size : null;
+                lastLoadedFav = data.last_fav !== undefined ? data.last_fav : null;
+                
+                updateImageCount();
+            }
+        } catch (error) {
+            console.error('Error fetching next page:', error);
+        } finally {
+            isLoading = false;
+            if (loadingSpinner.parentNode) loadingSpinner.parentNode.removeChild(loadingSpinner);
+        }
+    }
+    
+    function updateImageCount() {
+        const countElement = document.getElementById('image-count-num');
+        if (countElement) {
+            countElement.textContent = totalImages || allImages.length;
+        }
+    }
+    
+    function showNoPeopleSelectedMessage() {
+        // Remove any existing no people message
+        const existingMessage = document.getElementById('no-people-message');
+        if (existingMessage) {
+            existingMessage.remove();
+        }
+        
+        // Create the no people message
+        const noPeopleMessage = document.createElement('div');
+        noPeopleMessage.id = 'no-people-message';
+        noPeopleMessage.className = 'flex flex-col items-center justify-center w-full h-64 text-gray-400';
+        noPeopleMessage.innerHTML = `
+            <svg class="w-16 h-16 mb-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
+            </svg>
+            <h2 class="text-xl font-semibold mb-2">No People Selected</h2>
+            <p class="text-center max-w-md">Click the "Select" button to choose people to view their images.</p>
+            <button onclick="showPeopleOverlay()" class="mt-4 px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+                Select People
+            </button>
+        `;
+        
+        imagesContainer.appendChild(noPeopleMessage);
+        imagesContainer.classList.remove('invisible-grid');
+    }
+    
+    function createImageCard(image) {
+        const card = document.createElement('div');
+        card.className = 'dark-card overflow-hidden card-hover';
+        card.setAttribute('data-people', image.people ? image.people.join(' ') : '');
+        card.setAttribute('data-favorite', image.is_favorite ? 'true' : 'false');
+        card.setAttribute('data-tags', image.tags ? image.tags.join(' ') : '');
+        card.setAttribute('data-width', image.width || 0);
+        card.setAttribute('data-height', image.height || 0);
+        card.setAttribute('data-created', image.created_at || '');
+        
+        // Card inner HTML
+        card.innerHTML = `
+            <div class="relative">
+                <!-- Multi-Select Checkbox -->
+                <div id="multi-select-checkbox-${image.id}" class="absolute top-2 left-2 z-10 ${isMultiSelectMode ? '' : 'hidden'}">
+                    <input type="checkbox" id="image-checkbox-${image.id}" 
+                           data-image-id="${image.id}"
+                           class="w-5 h-5 text-blue-600 bg-gray-800 border-gray-600 rounded focus:ring-blue-500 focus:ring-2">
+                </div>
+                
+                <div class="w-full h-[500px] bg-[#23263a] relative overflow-hidden rounded">
+                    <a href="/image/${image.id}" class="block w-full h-full">
+                        <img src="${image.image_url}"
+                             alt="Image ${image.id}"
+                             data-full="${image.image_url}"
+                             loading="lazy"
+                             class="absolute inset-0 w-full h-full object-contain transition-all duration-200 cursor-pointer gallery-image hover:scale-105"
+                             onerror="this.onerror=null;this.src='/static/img/missing.png';" />
+                    </a>
+                    <div class="absolute bottom-2 left-1/2 -translate-x-1/2 px-3 py-1 bg-black/60 text-gray-100 text-xs rounded shadow">
+                        #${image.id}
+                    </div>
+                </div>
+                <button onclick="toggleFavorite('image', ${image.id})"
+                        data-image-id="${image.id}"
+                        class="absolute top-2 right-2 p-2 bg-[#23263a] backdrop-blur-sm rounded-full shadow-sm hover:bg-[#181a20] transition-colors">
+                    <svg class="w-5 h-5 ${image.is_favorite ? 'text-red-500' : 'text-gray-400'}" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd" d="M3.172 5.172a4 4 0 015.656 0L10 6.343l1.172-1.171a4 4 0 115.656 5.656L10 17.657l-6.828-6.829a4 4 0 010-5.656z" clip-rule="evenodd"></path>
+                    </svg>
+                </button>
+                <div class="absolute top-2 left-2">
+                    ${image.people && image.people.length > 0 ?
+                        `<span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${image.people.length === 1 ? 'bg-green-100 text-green-800' : 'bg-orange-100 text-orange-800'}">
+                            ${image.people.length === 1 ? image.people[0] : image.people[0] + ' +' + (image.people.length - 1)}
+                        </span>` :
+                        `<span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-orange-100 text-orange-800">Unidentified</span>`
+                    }
+                </div>
+                ${image.tags && image.tags.length > 0 ?
+                    `<div class="absolute bottom-2 left-2 flex flex-wrap gap-1">
+                        ${image.tags.map(tag => `<span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">${tag}</span>`).join('')}
+                    </div>` : ''}
+            </div>
+        `;
+        
+        // Add event listener for multi-select checkbox
+        const checkbox = card.querySelector(`#image-checkbox-${image.id}`);
+        if (checkbox) {
+            checkbox.addEventListener('change', function() {
+                if (this.checked) {
+                    selectedImageIds.add(parseInt(this.dataset.imageId));
+                } else {
+                    selectedImageIds.delete(parseInt(this.dataset.imageId));
+                }
+                updateSelectedCountDisplay();
+            });
+        }
+        
+        return card;
+    }
+    
+    function addContextMenu(card) {
+        card.addEventListener('contextmenu', function(e) {
+            e.preventDefault();
+            const imageId = card.querySelector('[data-image-id]')?.getAttribute('data-image-id');
+            const isFavorite = card.getAttribute('data-favorite') === 'true';
+            const menuItems = [
+                { label: 'View', action: 'view' },
+                { label: isFavorite ? 'Unfavorite' : 'Favorite', action: 'toggle-favorite' },
+                { label: 'Delete', action: 'delete' }
+            ];
+            showContextMenu(menuItems, e.clientX, e.clientY, function(action) {
+                if (action === 'view') {
+                    const img = card.querySelector('.gallery-image');
+                    if (img) openFullImageModal(img.getAttribute('data-full'));
+                } else if (action === 'toggle-favorite') {
+                    toggleFavorite('image', imageId);
+                } else if (action === 'delete') {
+                    alert('Delete image #' + imageId);
+                }
+            });
+        });
+    }
+    
+    function setupLazyLoadingForNewImages(newImages) {
+        if ('IntersectionObserver' in window) {
+            const imageObserver = new IntersectionObserver((entries, observer) => {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting) {
+                        const img = entry.target;
+                        if (img.dataset.src) {
+                            img.src = img.dataset.src;
+                            img.removeAttribute('data-src');
+                            observer.unobserve(img);
+                        }
+                    }
+                });
+            }, {
+                rootMargin: '50px 0px',
+                threshold: 0.01
+            });
+            newImages.forEach(card => {
+                card.querySelectorAll('.gallery-image').forEach(img => {
+                    imageObserver.observe(img);
+                });
+            });
+        }
+    }
+    
+    // Responsive scroll-based loading
+    function onScroll() {
+        if (isLoading) return;
+        // Trigger loading when user is within 2500px of the bottom
+        if ((window.innerHeight + window.scrollY) >= (document.body.offsetHeight - 2500)) {
+            fetchNextPage();
+        }
+    }
+    window.addEventListener('scroll', onScroll, { passive: true });
+    
+    // Initialize
+    window.addEventListener('DOMContentLoaded', function() {
+        loadViewerPreferences();
+        
+        // Set up event listeners
+        setupEventListeners();
+        
+        // Show the grid after initial load
+        imagesContainer.classList.remove('invisible-grid');
+        
+        // Load initial data
+        fetchFirstPage();
+    });
+    
+    function setupEventListeners() {
+        // View tab buttons
+        document.getElementById('view-all-tab').addEventListener('click', function() {
+            setCurrentView('all');
+            resetAndReloadImages();
+        });
+        
+        document.getElementById('view-favorites-tab').addEventListener('click', function() {
+            setCurrentView('favorites');
+            resetAndReloadImages();
+        });
+        
+        document.getElementById('view-people-tab').addEventListener('click', function() {
+            setCurrentView('people');
+            resetAndReloadImages();
+        });
+        
+        // People selection button
+        document.getElementById('people-selection-btn').addEventListener('click', function() {
+            showPeopleOverlay();
+        });
+        
+        // People search
+        document.getElementById('people-search').addEventListener('input', updatePeopleGrid);
+        
+        // Select all people
+        document.getElementById('select-all-people-btn').addEventListener('click', function() {
+            document.querySelectorAll('.person-checkbox').forEach(checkbox => {
+                checkbox.checked = true;
+                selectedPeople.add(checkbox.dataset.personId);
+            });
+            updatePeopleGrid();
+        });
+        
+        // Clear selection
+        document.getElementById('clear-selection-btn').addEventListener('click', function() {
+            document.querySelectorAll('.person-checkbox').forEach(checkbox => {
+                checkbox.checked = false;
+                selectedPeople.delete(checkbox.dataset.personId);
+            });
+            updatePeopleGrid();
+        });
+        
+        // Apply people selection
+        document.getElementById('apply-people-selection').addEventListener('click', function() {
+            hidePeopleOverlay();
+            setCurrentView('people');
+            resetAndReloadImages();
+        });
+        
+        // Close overlay buttons
+        document.getElementById('close-people-overlay').addEventListener('click', hidePeopleOverlay);
+        document.getElementById('cancel-people-selection').addEventListener('click', hidePeopleOverlay);
+        
+        // Close overlay when clicking outside
+        document.getElementById('people-overlay').addEventListener('click', function(e) {
+            if (e.target === this) {
+                hidePeopleOverlay();
+            }
+        });
+        
+        // Individual person checkboxes
+        document.querySelectorAll('.person-checkbox').forEach(checkbox => {
+            checkbox.addEventListener('change', function() {
+                if (this.checked) {
+                    selectedPeople.add(this.dataset.personId);
+                } else {
+                    selectedPeople.delete(this.dataset.personId);
+                }
+                updatePeopleGrid();
+            });
+        });
+        
+        // Person card clicks
+        document.querySelectorAll('.person-card').forEach(card => {
+            card.addEventListener('click', function(e) {
+                if (e.target.type !== 'checkbox' && !e.target.closest('input')) {
+                    const checkbox = this.querySelector('.person-checkbox');
+                    checkbox.checked = !checkbox.checked;
+                    if (checkbox.checked) {
+                        selectedPeople.add(checkbox.dataset.personId);
+                    } else {
+                        selectedPeople.delete(checkbox.dataset.personId);
+                    }
+                    updatePeopleGrid();
+                }
+            });
+        });
+        
+        // Sort combo
+        document.getElementById('order-combo').addEventListener('change', function() {
+            // Show/hide randomize button based on sort selection
+            const randomizeBtn = document.getElementById('randomize-btn');
+            if (this.value === 'random') {
+                randomizeBtn.classList.remove('hidden');
+            } else {
+                randomizeBtn.classList.add('hidden');
+            }
+            saveViewerPreferences();
+            resetAndReloadImages();
+        });
+        
+        // Randomize button
+        document.getElementById('randomize-btn').addEventListener('click', function() {
+            if (document.getElementById('order-combo').value === 'random') {
+                // For random sorting, shuffle the current images and reload
+                resetAndReloadImages();
+            }
+        });
+    }
+    
+    function openFullImageModal(src) {
+        const modal = document.getElementById('full-image-modal');
+        const img = document.getElementById('full-image-modal-img');
+        img.src = src;
+        modal.classList.remove('hidden');
+    }
+    
+    function closeFullImageModal() {
+        document.getElementById('full-image-modal').classList.add('hidden');
+        document.getElementById('full-image-modal-img').src = '';
+    }
+    
+    function showContextMenu(menuItems, x, y, callback) {
+        // Remove existing context menu
+        const existingMenu = document.querySelector('.context-menu');
+        if (existingMenu) {
+            existingMenu.remove();
+        }
+        
+        // Create context menu
+        const menu = document.createElement('div');
+        menu.className = 'context-menu fixed bg-gray-800 border border-gray-700 rounded-lg shadow-xl z-50';
+        menu.style.left = x + 'px';
+        menu.style.top = y + 'px';
+        
+        menuItems.forEach(item => {
+            const button = document.createElement('button');
+            button.className = 'block w-full text-left px-4 py-2 text-sm text-gray-200 hover:bg-gray-700 transition-colors';
+            button.textContent = item.label;
+            button.onclick = () => {
+                callback(item.action);
+                menu.remove();
+            };
+            menu.appendChild(button);
+        });
+        
+        document.body.appendChild(menu);
+        
+        // Close menu when clicking outside
+        const closeMenu = (e) => {
+            if (!menu.contains(e.target)) {
+                menu.remove();
+                document.removeEventListener('click', closeMenu);
+            }
+        };
+        setTimeout(() => document.addEventListener('click', closeMenu), 0);
+    }
+    
+    // Place cleanupImages at the end of the script block, at top level
+    </script>
+    
+    <!-- Multi-Select Functionality -->
+    <script>
+    // Multi-select state
+    let isMultiSelectMode = false;
+    let selectedImageIds = new Set();
+    
+    // Multi-select toggle button
+    document.getElementById('multi-select-toggle').addEventListener('click', function() {
+        toggleMultiSelectMode();
+    });
+    
+    // Cancel multi-select button
+    document.getElementById('cancel-multi-select-btn').addEventListener('click', function() {
+        exitMultiSelectMode();
+    });
+    
+    // Remove all names button
+    document.getElementById('remove-all-names-btn').addEventListener('click', function() {
+        removeAllNamesFromSelectedImages();
+    });
+    
+    function toggleMultiSelectMode() {
+        if (isMultiSelectMode) {
+            exitMultiSelectMode();
+        } else {
+            enterMultiSelectMode();
+        }
+    }
+    
+    function enterMultiSelectMode() {
+        isMultiSelectMode = true;
+        selectedImageIds.clear();
+        
+        // Show multi-select controls
+        document.getElementById('multi-select-controls').classList.remove('hidden');
+        document.getElementById('multi-select-toggle').classList.add('hidden');
+        
+        // Show checkboxes on all image cards
+        document.querySelectorAll('[id^="multi-select-checkbox-"]').forEach(checkboxContainer => {
+            checkboxContainer.classList.remove('hidden');
+        });
+        
+        // Also show checkboxes on dynamically created cards
+        document.querySelectorAll('.dark-card').forEach(card => {
+            const imageId = card.querySelector('[data-image-id]')?.getAttribute('data-image-id');
+            if (imageId) {
+                let checkboxContainer = card.querySelector(`#multi-select-checkbox-${imageId}`);
+                if (!checkboxContainer) {
+                    // Create checkbox if it doesn't exist
+                    checkboxContainer = document.createElement('div');
+                    checkboxContainer.id = `multi-select-checkbox-${imageId}`;
+                    checkboxContainer.className = 'absolute top-2 left-2 z-10';
+                    
+                    const checkbox = document.createElement('input');
+                    checkbox.type = 'checkbox';
+                    checkbox.id = `image-checkbox-${imageId}`;
+                    checkbox.setAttribute('data-image-id', imageId);
+                    checkbox.className = 'w-5 h-5 text-blue-600 bg-gray-800 border-gray-600 rounded focus:ring-blue-500 focus:ring-2';
+                    
+                    checkbox.addEventListener('change', function() {
+                        if (this.checked) {
+                            selectedImageIds.add(parseInt(this.dataset.imageId));
+                        } else {
+                            selectedImageIds.delete(parseInt(this.dataset.imageId));
+                        }
+                        updateSelectedCountDisplay();
+                    });
+                    
+                    checkboxContainer.appendChild(checkbox);
+                    card.querySelector('.relative').insertBefore(checkboxContainer, card.querySelector('.relative').firstChild);
+                }
+                checkboxContainer.classList.remove('hidden');
+            }
+        });
+        
+        updateSelectedCountDisplay();
+    }
+    
+    function exitMultiSelectMode() {
+        isMultiSelectMode = false;
+        selectedImageIds.clear();
+        
+        // Hide multi-select controls
+        document.getElementById('multi-select-controls').classList.add('hidden');
+        document.getElementById('multi-select-toggle').classList.remove('hidden');
+        
+        // Hide all checkboxes
+        document.querySelectorAll('[id^="multi-select-checkbox-"]').forEach(checkboxContainer => {
+            checkboxContainer.classList.add('hidden');
+        });
+        
+        // Uncheck all checkboxes
+        document.querySelectorAll('[id^="image-checkbox-"]').forEach(checkbox => {
+            checkbox.checked = false;
+        });
+        
+        updateSelectedCountDisplay();
+    }
+    
+    function updateSelectedCountDisplay() {
+        const countElement = document.getElementById('selected-count-display');
+        if (countElement) {
+            countElement.textContent = `${selectedImageIds.size} selected`;
+        }
+    }
+    
+    async function removeAllNamesFromSelectedImages() {
+        if (selectedImageIds.size === 0) {
+            alert('No images selected');
+            return;
+        }
+        
+        const confirmed = confirm(`Are you sure you want to remove all names from ${selectedImageIds.size} selected images? This action cannot be undone.`);
+        if (!confirmed) {
+            return;
+        }
+        
+        try {
+            const response = await fetch('/api/remove_all_people_from_images', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    image_ids: Array.from(selectedImageIds)
+                })
+            });
+            
+            const result = await response.json();
+            
+            if (result.success) {
+                alert(`Successfully removed all names from ${result.removed_count} images`);
+                
+                // Exit multi-select mode
+                exitMultiSelectMode();
+                
+                // Reload the current view to reflect changes
+                resetAndReloadImages();
+            } else {
+                alert(`Error: ${result.error}`);
+            }
+        } catch (error) {
+            console.error('Error removing names from images:', error);
+            alert('An error occurred while removing names from images');
+        }
+    }
+    </script>
+</div>
+{% endblock %} 

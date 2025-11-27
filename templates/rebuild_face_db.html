@@ -1,0 +1,417 @@
+{% extends "base.html" %}
+{% block title %}Rebuild Face Database{% endblock %}
+{% block content %}
+<div class="min-h-screen bg-gray-900 py-8">
+    <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+        <!-- Header -->
+        <div class="text-center mb-8">
+            <h1 class="text-3xl font-bold text-white mb-4">Rebuild Face Recognition Database</h1>
+            <p class="text-gray-300 text-lg">This will rebuild the face recognition database from all named faces in your collection.</p>
+        </div>
+
+        <!-- Current Database Stats -->
+        <div class="bg-gray-800 rounded-lg p-6 mb-8">
+            <h2 class="text-xl font-semibold text-white mb-4">Current Database Statistics</h2>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div class="bg-gray-700 rounded-lg p-4">
+                    <div class="text-2xl font-bold text-blue-400">{{ stats.total_people }}</div>
+                    <div class="text-gray-300 text-sm">Total People</div>
+                </div>
+                <div class="bg-gray-700 rounded-lg p-4">
+                    <div class="text-2xl font-bold text-green-400">{{ stats.total_faces }}</div>
+                    <div class="text-gray-300 text-sm">Total Faces</div>
+                </div>
+                <div class="bg-gray-700 rounded-lg p-4">
+                    <div class="text-2xl font-bold text-yellow-400">{{ stats.confirmed_people }}</div>
+                    <div class="text-gray-300 text-sm">Confirmed People</div>
+                </div>
+            </div>
+            <div class="mt-4 text-sm text-gray-400">
+                Last updated: {{ stats.last_updated }}
+            </div>
+        </div>
+
+        <!-- Backup Management -->
+        <div class="bg-gray-800 rounded-lg p-6 mb-8">
+            <h2 class="text-xl font-semibold text-white mb-4">Database Backups</h2>
+            <p class="text-gray-300 mb-4">
+                Before rebuilding, the system automatically creates a backup of your current face recognition database.
+                You can restore from a previous backup if needed.
+            </p>
+            <div class="flex space-x-4">
+                <button id="view-backups-btn" class="bg-green-600 hover:bg-green-700 text-white font-medium py-2 px-4 rounded-lg transition-colors duration-200">
+                    <svg class="w-4 h-4 inline mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                    </svg>
+                    View Backups
+                </button>
+                <button id="restore-backup-btn" class="bg-orange-600 hover:bg-orange-700 text-white font-medium py-2 px-4 rounded-lg transition-colors duration-200">
+                    <svg class="w-4 h-4 inline mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+                    </svg>
+                    Restore Backup
+                </button>
+            </div>
+        </div>
+
+        <!-- Rebuild Controls -->
+        <div class="bg-gray-800 rounded-lg p-6 mb-8">
+            <h2 class="text-xl font-semibold text-white mb-4">Rebuild Database</h2>
+            <p class="text-gray-300 mb-6">
+                This process will:
+            </p>
+            <ul class="text-gray-300 mb-6 space-y-2">
+                <li class="flex items-center">
+                    <svg class="w-5 h-5 text-green-400 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                    </svg>
+                    Scan all images with named people
+                </li>
+                <li class="flex items-center">
+                    <svg class="w-5 h-5 text-green-400 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                    </svg>
+                    Extract face embeddings using GPU acceleration
+                </li>
+                <li class="flex items-center">
+                    <svg class="w-5 h-5 text-green-400 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                    </svg>
+                    Build a comprehensive face recognition database
+                </li>
+                <li class="flex items-center">
+                    <svg class="w-5 h-5 text-green-400 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                    </svg>
+                    Improve future face recognition accuracy
+                </li>
+            </ul>
+
+            <div class="flex space-x-4">
+                <button id="rebuild-btn" class="bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 px-6 rounded-lg transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-gray-800">
+                    <svg class="w-5 h-5 inline mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+                    </svg>
+                    Start Rebuild
+                </button>
+                <button id="cancel-btn" class="bg-gray-600 hover:bg-gray-700 text-white font-medium py-3 px-6 rounded-lg transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 focus:ring-offset-gray-800 hidden">
+                    Cancel
+                </button>
+            </div>
+        </div>
+
+        <!-- Progress Section -->
+        <div id="progress-section" class="bg-gray-800 rounded-lg p-6 hidden">
+            <h2 class="text-xl font-semibold text-white mb-4">Rebuild Progress</h2>
+            
+            <!-- Progress Bar -->
+            <div class="mb-6">
+                <div class="flex justify-between text-sm text-gray-300 mb-2">
+                    <span id="progress-text">Initializing...</span>
+                    <span id="progress-percentage">0%</span>
+                </div>
+                <div class="w-full bg-gray-700 rounded-full h-3">
+                    <div id="progress-bar" class="bg-blue-600 h-3 rounded-full transition-all duration-300" style="width: 0%"></div>
+                </div>
+            </div>
+
+            <!-- Status Details -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                <div class="bg-gray-700 rounded-lg p-4">
+                    <div class="text-lg font-semibold text-blue-400" id="processed-count">0</div>
+                    <div class="text-gray-300 text-sm">Images Processed</div>
+                </div>
+                <div class="bg-gray-700 rounded-lg p-4">
+                    <div class="text-lg font-semibold text-green-400" id="faces-added">0</div>
+                    <div class="text-gray-300 text-sm">Faces Added</div>
+                </div>
+            </div>
+
+            <!-- Current Status -->
+            <div class="bg-gray-700 rounded-lg p-4">
+                <div class="text-sm text-gray-300 mb-2">Current Status:</div>
+                <div id="current-status" class="text-white font-medium">Ready to start...</div>
+            </div>
+
+            <!-- Log Output -->
+            <div class="mt-6">
+                <h3 class="text-lg font-semibold text-white mb-2">Log Output</h3>
+                <div id="log-output" class="bg-gray-900 rounded-lg p-4 h-64 overflow-y-auto text-sm text-gray-300 font-mono">
+                    <div class="text-gray-500">Waiting for rebuild to start...</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Results Section -->
+        <div id="results-section" class="bg-gray-800 rounded-lg p-6 hidden">
+            <h2 class="text-xl font-semibold text-white mb-4">Rebuild Complete!</h2>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                <div class="bg-gray-700 rounded-lg p-4">
+                    <div class="text-2xl font-bold text-blue-400" id="final-processed">0</div>
+                    <div class="text-gray-300 text-sm">Images Processed</div>
+                </div>
+                <div class="bg-gray-700 rounded-lg p-4">
+                    <div class="text-2xl font-bold text-green-400" id="final-faces">0</div>
+                    <div class="text-gray-300 text-sm">Faces Added</div>
+                </div>
+                <div class="bg-gray-700 rounded-lg p-4">
+                    <div class="text-2xl font-bold text-yellow-400" id="final-people">0</div>
+                    <div class="text-gray-300 text-sm">People Updated</div>
+                </div>
+            </div>
+            <div class="text-center">
+                <button id="view-stats-btn" class="bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 px-6 rounded-lg transition-colors duration-200">
+                    View Updated Statistics
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let rebuildInProgress = false;
+let currentRequest = null;
+
+// Elements
+const rebuildBtn = document.getElementById('rebuild-btn');
+const cancelBtn = document.getElementById('cancel-btn');
+const progressSection = document.getElementById('progress-section');
+const resultsSection = document.getElementById('results-section');
+const progressBar = document.getElementById('progress-bar');
+const progressText = document.getElementById('progress-text');
+const progressPercentage = document.getElementById('progress-percentage');
+const processedCount = document.getElementById('processed-count');
+const facesAdded = document.getElementById('faces-added');
+const currentStatus = document.getElementById('current-status');
+const logOutput = document.getElementById('log-output');
+const finalProcessed = document.getElementById('final-processed');
+const finalFaces = document.getElementById('final-faces');
+const finalPeople = document.getElementById('final-people');
+const viewStatsBtn = document.getElementById('view-stats-btn');
+
+function addLog(message, type = 'info') {
+    const timestamp = new Date().toLocaleTimeString();
+    const logEntry = document.createElement('div');
+    logEntry.className = `mb-1 ${type === 'error' ? 'text-red-400' : type === 'success' ? 'text-green-400' : 'text-gray-300'}`;
+    logEntry.textContent = `[${timestamp}] ${message}`;
+    logOutput.appendChild(logEntry);
+    logOutput.scrollTop = logOutput.scrollHeight;
+}
+
+function updateProgress(processed, total, status, faces = 0) {
+    const percentage = total > 0 ? Math.round((processed / total) * 100) : 0;
+    
+    progressBar.style.width = `${percentage}%`;
+    progressPercentage.textContent = `${percentage}%`;
+    progressText.textContent = `${processed} / ${total} images`;
+    processedCount.textContent = processed;
+    facesAdded.textContent = faces;
+    currentStatus.textContent = status;
+}
+
+function startRebuild() {
+    if (rebuildInProgress) return;
+    
+    rebuildInProgress = true;
+    rebuildBtn.classList.add('hidden');
+    cancelBtn.classList.remove('hidden');
+    progressSection.classList.remove('hidden');
+    resultsSection.classList.add('hidden');
+    
+    // Clear log
+    logOutput.innerHTML = '';
+    addLog('Starting face recognition database rebuild...', 'info');
+    
+    // Reset progress
+    updateProgress(0, 0, 'Initializing...', 0);
+    
+    // Start the rebuild process
+    currentRequest = fetch('/api/rebuild_face_db', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        }
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+        return response.body.getReader();
+    })
+    .then(reader => {
+        const decoder = new TextDecoder();
+        let buffer = '';
+        
+        function readStream() {
+            return reader.read().then(({ done, value }) => {
+                if (done) {
+                    return;
+                }
+                
+                buffer += decoder.decode(value, { stream: true });
+                const lines = buffer.split('\n');
+                buffer = lines.pop(); // Keep incomplete line in buffer
+                
+                for (const line of lines) {
+                    if (line.trim()) {
+                        try {
+                            // Handle Server-Sent Events format: "data: {json}"
+                            if (line.startsWith('data: ')) {
+                                const jsonStr = line.substring(6); // Remove "data: " prefix
+                                const data = JSON.parse(jsonStr);
+                                handleProgressUpdate(data);
+                            } else {
+                                // Fallback for direct JSON lines
+                                const data = JSON.parse(line);
+                                handleProgressUpdate(data);
+                            }
+                        } catch (e) {
+                            addLog(`Error parsing progress update: ${e.message}`, 'error');
+                        }
+                    }
+                }
+                
+                return readStream();
+            });
+        }
+        
+        return readStream();
+    })
+    .catch(error => {
+        addLog(`Rebuild failed: ${error.message}`, 'error');
+        currentStatus.textContent = 'Rebuild failed';
+        rebuildInProgress = false;
+        rebuildBtn.classList.remove('hidden');
+        cancelBtn.classList.add('hidden');
+    });
+}
+
+function handleProgressUpdate(data) {
+    switch (data.type) {
+        case 'progress':
+            updateProgress(data.processed, data.total, data.status, data.faces_added);
+            addLog(data.status);
+            break;
+        case 'log':
+            addLog(data.message, data.level || 'info');
+            break;
+        case 'complete':
+            addLog('Rebuild completed successfully!', 'success');
+            updateProgress(data.processed, data.total, 'Complete', data.faces_added);
+            finalProcessed.textContent = data.processed;
+            finalFaces.textContent = data.faces_added;
+            finalPeople.textContent = data.people_updated;
+            resultsSection.classList.remove('hidden');
+            rebuildInProgress = false;
+            rebuildBtn.classList.remove('hidden');
+            cancelBtn.classList.add('hidden');
+            break;
+        case 'error':
+            addLog(data.message, 'error');
+            currentStatus.textContent = 'Error occurred';
+            rebuildInProgress = false;
+            rebuildBtn.classList.remove('hidden');
+            cancelBtn.classList.add('hidden');
+            break;
+    }
+}
+
+function cancelRebuild() {
+    if (currentRequest) {
+        currentRequest.abort();
+    }
+    addLog('Rebuild cancelled by user', 'info');
+    currentStatus.textContent = 'Cancelled';
+    rebuildInProgress = false;
+    rebuildBtn.classList.remove('hidden');
+    cancelBtn.classList.add('hidden');
+}
+
+// Event listeners
+rebuildBtn.addEventListener('click', startRebuild);
+cancelBtn.addEventListener('click', cancelRebuild);
+viewStatsBtn.addEventListener('click', () => {
+    window.location.reload();
+});
+
+// Backup management
+const viewBackupsBtn = document.getElementById('view-backups-btn');
+const restoreBackupBtn = document.getElementById('restore-backup-btn');
+
+viewBackupsBtn.addEventListener('click', async () => {
+    try {
+        const response = await fetch('/api/backups/list');
+        const data = await response.json();
+        
+        if (data.backups && data.backups.length > 0) {
+            let backupList = 'Available Backups:\n\n';
+            data.backups.forEach(backup => {
+                backupList += `📅 ${backup.date}\n`;
+                backupList += `📁 Files: ${backup.files.join(', ')}\n\n`;
+            });
+            alert(backupList);
+        } else {
+            alert('No backups found. Backups are created automatically before each rebuild.');
+        }
+    } catch (error) {
+        alert('Error loading backups: ' + error.message);
+    }
+});
+
+restoreBackupBtn.addEventListener('click', async () => {
+    try {
+        const response = await fetch('/api/backups/list');
+        const data = await response.json();
+        
+        if (!data.backups || data.backups.length === 0) {
+            alert('No backups available to restore.');
+            return;
+        }
+        
+        // Create backup selection dialog
+        let backupOptions = 'Select a backup to restore:\n\n';
+        data.backups.forEach((backup, index) => {
+            backupOptions += `${index + 1}. ${backup.date}\n`;
+        });
+        
+        const selection = prompt(backupOptions + '\nEnter the number of the backup to restore:');
+        if (!selection) return;
+        
+        const backupIndex = parseInt(selection) - 1;
+        if (backupIndex < 0 || backupIndex >= data.backups.length) {
+            alert('Invalid selection.');
+            return;
+        }
+        
+        const selectedBackup = data.backups[backupIndex];
+        const confirmRestore = confirm(
+            `Are you sure you want to restore the backup from ${selectedBackup.date}?\n\n` +
+            'This will replace your current face recognition database.'
+        );
+        
+        if (confirmRestore) {
+            const restoreResponse = await fetch('/api/backups/restore', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ timestamp: selectedBackup.timestamp })
+            });
+            
+            const restoreData = await restoreResponse.json();
+            
+            if (restoreData.success) {
+                alert(`✅ ${restoreData.message}\n\nPlease refresh the page to see updated statistics.`);
+                window.location.reload();
+            } else {
+                alert('❌ Restore failed: ' + restoreData.error);
+            }
+        }
+    } catch (error) {
+        alert('Error during restore: ' + error.message);
+    }
+});
+</script>
+{% endblock %}

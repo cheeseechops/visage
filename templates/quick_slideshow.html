@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quick Slideshow</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        html, body { height: 100%; margin: 0; padding: 0; background: #111; }
+        body { width: 100vw; height: 100vh; overflow: hidden; }
+        #slideshow-img { max-width: 100vw; max-height: 100vh; display: block; margin: 0 auto; }
+        #slideshow-filename { position: absolute; bottom: 32px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.7); color: #fff; padding: 8px 20px; border-radius: 8px; font-size: 1.1rem; }
+        #slideshow-hint { position: absolute; top: 24px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.7); color: #fff; padding: 6px 16px; border-radius: 8px; font-size: 1rem; }
+    </style>
+</head>
+<body>
+    <div id="slideshow-root" class="w-full h-full flex items-center justify-center relative">
+        <img id="slideshow-img" src="" alt="Slideshow image">
+        <div id="slideshow-filename"></div>
+        <div id="slideshow-hint" class="flex items-center">
+            <img src="/static/logo.png" alt="Visage" class="h-5 w-5 mr-2">
+            Quick Slideshow &mdash; N: Next &nbsp; A: Auto &nbsp; Esc: Exit
+        </div>
+    </div>
+    <script>
+    // Prepare images array
+    let images = {{ images|tojson }};
+    // Images should maintain their sorted order - no randomization
+    let current = 0;
+    let auto = true;
+    let interval = 1000;
+    let timer = null;
+    const imgEl = document.getElementById('slideshow-img');
+    const filenameEl = document.getElementById('slideshow-filename');
+
+    function show(idx) {
+        if (images.length === 0) return;
+        current = ((idx % images.length) + images.length) % images.length;
+        imgEl.src = images[current].image_url || images[current].cropped_path || images[current].original_path;
+        filenameEl.textContent = `#${images[current].id} ${images[current].filename || ''}`;
+    }
+    function next() {
+        show((current + 1) % images.length);
+    }
+    function startAuto() {
+        if (timer) clearInterval(timer);
+        timer = setInterval(next, interval);
+        auto = true;
+    }
+    function stopAuto() {
+        if (timer) clearInterval(timer);
+        timer = null;
+        auto = false;
+    }
+    function toggleAuto() {
+        if (auto) { stopAuto(); } else { startAuto(); }
+    }
+    // Keybinds: N (next), A (auto toggle), Esc (close)
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'N' || e.key === 'n') {
+            next();
+        } else if (e.key === 'A' || e.key === 'a') {
+            toggleAuto();
+        } else if (e.key === 'Escape') {
+            window.close();
+        }
+    });
+    // Start
+    show(0);
+    startAuto();
+    // Go fullscreen automatically
+    document.addEventListener('DOMContentLoaded', function() {
+        if (document.fullscreenEnabled) {
+            document.body.requestFullscreen().catch(()=>{});
+        }
+    });
+    </script>
+</body>
+</html> 

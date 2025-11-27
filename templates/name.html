@@ -1,0 +1,345 @@
+{% extends "base.html" %}
+
+{% block title %}Identify Faces{% endblock %}
+
+{% block content %}
+{% if progress %}
+<div style="width:100%;max-width:100vw;padding:0;margin:0 0 18px 0;">
+  <div style="font-size:1.15rem;color:#7dd3fc;font-weight:600;letter-spacing:0.5px;">Images remaining: {{ progress.total }}</div>
+</div>
+{% endif %}
+<div style="width:100%;min-width:0;display:flex;justify-content:center;align-items:flex-start;min-height:100vh;margin:0;padding:0;">
+  <div style="background:#232336;border-radius:18px;box-shadow:0 6px 32px 0 rgba(0,0,0,0.22);padding:32px 0 32px 0;display:flex;flex-direction:row;align-items:center;max-width:100%;width:100%;min-width:0;border:2.5px solid #444;margin-top:0;">
+    {% if image %}
+      <div style="flex:0 0 800px;display:flex;align-items:center;justify-content:center;height:897px;max-width:800px;max-height:897px;background:#18181b;border-radius:14px;overflow:hidden;position:relative;">
+        <div style="position:absolute;top:16px;right:16px;display:flex;gap:10px;z-index:2;">
+          <button id="auto-rotate-btn" title="Auto-rotate based on face orientation" style="background:#232336;border:none;border-radius:50%;width:38px;height:38px;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 8px #0003;cursor:pointer;transition:background 0.15s;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#38bdf8" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v4"/><path d="M12 18v4"/><path d="M4.93 4.93l2.83 2.83"/><path d="M16.24 16.24l2.83 2.83"/><path d="M2 12h4"/><path d="M18 12h4"/><path d="M4.93 19.07l2.83-2.83"/><path d="M16.24 7.76l2.83-2.83"/></svg></button>
+          <button id="rotate-ccw-btn" title="Rotate left" style="background:#232336;border:none;border-radius:50%;width:38px;height:38px;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 8px #0003;cursor:pointer;transition:background 0.15s;"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#38bdf8" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><g transform="scale(-1,1) translate(-24,0)"><path d="M21 2v6h-6"/><path d="M3 13a9 9 0 0 1 15-7.7L21 8"/></g></svg></button>
+          <button id="rotate-cw-btn" title="Rotate right" style="background:#232336;border:none;border-radius:50%;width:38px;height:38px;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 8px #0003;cursor:pointer;transition:background 0.15s;"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#38bdf8" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 2v6h-6"/><path d="M3 13a9 9 0 0 1 15-7.7L21 8"/></svg></button>
+        </div>
+        <img id="face-image" src="{{ image.image_url }}" alt="Face to identify"
+             style="width:100%;height:100%;object-fit:contain;object-position:center;background:#222;display:block;" />
+      </div>
+      <div style="flex:1 1 0;padding-left:64px;display:flex;flex-direction:column;align-items:flex-start;justify-content:center;min-width:400px;max-width:700px;height:897px;">
+        <div id="face-loading" style="border:4px solid #444;border-top:4px solid #fff;border-radius:50%;width:36px;height:36px;animation:spin 1s linear infinite;display:none;margin:0 auto 24px auto;"></div>
+        <div id="predicted-info" style="width:100%;margin-bottom:24px;">
+          <div style="font-size:1.25rem;color:#7dd3fc;margin-bottom:0.3rem;">AI Guess</div>
+          <div id="predicted-name" style="font-size:1.7rem;font-weight:700;color:#38bdf8;margin-bottom:1.2rem;"></div>
+        </div>
+        <form id="name-form" method="POST" action="/name" style="width:100%;">
+          <input type="hidden" name="image_path" value="{{ image.path }}" />
+          <input type="hidden" id="delete-input" name="delete" value="0" />
+          <label for="name-input" style="font-weight:600;display:block;margin-bottom:10px;font-size:1.2rem;">Name:</label>
+          <div style="width:100%;position:relative;">
+            <input id="name-input" name="name" type="text" autocomplete="off" required
+                   style="background:#232323;color:#fff;border:1.5px solid #444;border-radius:8px;padding:1rem 1.2rem;width:100%;font-size:1.25rem;margin-bottom:0.7rem;" />
+            <div id="name-suggestions" style="display:none;position:absolute;left:0;right:0;top:100%;background:#232323;border:1.5px solid #444;border-top:none;border-radius:0 0 8px 8px;max-height:160px;overflow-y:auto;color:#fff;z-index:10;"></div>
+          </div>
+          <div style="display:flex;gap:1.5rem;margin-top:1.5rem;width:100%;justify-content:flex-start;">
+            <button type="submit" style="padding:1rem 2.2rem;font-size:1.25rem;border-radius:8px;border:none;background:#38bdf8;color:#18181b;font-weight:600;cursor:pointer;">Confirm</button>
+            <button type="button" id="skip-btn" style="padding:1rem 2.2rem;font-size:1.25rem;border-radius:8px;border:none;background:#444;color:#fff;font-weight:600;cursor:pointer;">Skip</button>
+            <button type="button" id="delete-btn" style="padding:1rem 2.2rem;font-size:1.25rem;border-radius:8px;border:none;background:#e11d48;color:#fff;font-weight:600;cursor:pointer;">Delete</button>
+          </div>
+        </form>
+      </div>
+    {% endif %}
+  </div>
+</div>
+<style>
+@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+.suggestion-item { padding:0.9rem 1.2rem; cursor:pointer; border-bottom:1px solid #333; background:#232323; font-size:1.15rem; }
+.suggestion-item:hover, .suggestion-item.selected { background:#444; }
+</style>
+{% if image %}
+<script>
+let allPeople = [];
+let currentSuggestions = [];
+let selectedSuggestionIndex = -1;
+
+function loadAllPeople() {
+  fetch('/api/people')
+    .then(response => response.json())
+    .then(data => { allPeople = data; })
+    .catch(error => { console.error('Error loading people:', error); });
+}
+function filterPeople(input) {
+  if (!input.trim()) return [];
+  const lowerInput = input.toLowerCase();
+  const matches = allPeople.filter(person => person.name.toLowerCase().includes(lowerInput));
+  matches.sort((a, b) => b.image_count - a.image_count || a.name.localeCompare(b.name));
+  return matches.slice(0, 8);
+}
+function showTopSuggestions() {
+  const top = [...allPeople].sort((a, b) => b.image_count - a.image_count || a.name.localeCompare(b.name)).slice(0, 8);
+  showSuggestions(top);
+}
+function showSuggestions(suggestions) {
+  const suggestionsDiv = document.getElementById('name-suggestions');
+  if (!suggestionsDiv) return;
+  if (suggestions.length === 0) { suggestionsDiv.style.display = 'none'; return; }
+  suggestionsDiv.innerHTML = '';
+  suggestions.forEach((person, index) => {
+    const item = document.createElement('div');
+    item.className = 'suggestion-item';
+    item.innerHTML = `<span>${person.name}</span> <span style='color:#7dd3fc;font-size:1.05rem;'>${person.image_count} images</span>`;
+    item.addEventListener('click', () => selectSuggestion(person.name));
+    item.addEventListener('mouseenter', () => { selectedSuggestionIndex = index; updateSelectedSuggestion(); });
+    suggestionsDiv.appendChild(item);
+  });
+  suggestionsDiv.style.display = 'block';
+  selectedSuggestionIndex = -1;
+}
+function updateSelectedSuggestion() {
+  const items = document.querySelectorAll('.suggestion-item');
+  items.forEach((item, index) => {
+    if (index === selectedSuggestionIndex) item.classList.add('selected');
+    else item.classList.remove('selected');
+  });
+}
+function selectSuggestion(name) {
+  document.getElementById('name-input').value = name;
+  document.getElementById('name-suggestions').style.display = 'none';
+  selectedSuggestionIndex = -1;
+}
+function handleKeydown(event) {
+  const suggestionsDiv = document.getElementById('name-suggestions');
+  const items = suggestionsDiv.querySelectorAll('.suggestion-item');
+  if (event.key === 'ArrowDown') {
+    event.preventDefault();
+    selectedSuggestionIndex = Math.min(selectedSuggestionIndex + 1, items.length - 1);
+    updateSelectedSuggestion();
+  } else if (event.key === 'ArrowUp') {
+    event.preventDefault();
+    selectedSuggestionIndex = Math.max(selectedSuggestionIndex - 1, -1);
+    updateSelectedSuggestion();
+  } else if (event.key === 'Enter' && selectedSuggestionIndex >= 0) {
+    event.preventDefault();
+    const selectedItem = items[selectedSuggestionIndex];
+    const name = selectedItem.querySelector('span').textContent;
+    selectSuggestion(name);
+  } else if (event.key === 'Escape') {
+    suggestionsDiv.style.display = 'none';
+    selectedSuggestionIndex = -1;
+  }
+}
+document.addEventListener('DOMContentLoaded', function() {
+  loadAllPeople();
+  const nameInput = document.getElementById('name-input');
+  const suggestionsDiv = document.getElementById('name-suggestions');
+  nameInput.addEventListener('input', function() {
+    const suggestions = filterPeople(this.value);
+    currentSuggestions = suggestions;
+    showSuggestions(suggestions);
+  });
+  nameInput.addEventListener('focus', function() {
+    this.value = '';
+    if (!this.value.trim()) showTopSuggestions();
+  });
+  // Clicking the AI guess replaces the input value
+  const predictedNameDiv = document.getElementById('predicted-name');
+  if (predictedNameDiv) {
+    predictedNameDiv.style.cursor = 'pointer';
+    predictedNameDiv.title = 'Click to use this name';
+    predictedNameDiv.addEventListener('click', function() {
+      if (predictedNameDiv.textContent && predictedNameDiv.textContent !== 'No face detected' && predictedNameDiv.textContent !== 'No match found') {
+        nameInput.value = predictedNameDiv.textContent;
+      }
+    });
+  }
+  nameInput.addEventListener('keydown', handleKeydown);
+  document.addEventListener('click', function(event) {
+    if (!nameInput.contains(event.target) && !suggestionsDiv.contains(event.target)) {
+      suggestionsDiv.style.display = 'none';
+      selectedSuggestionIndex = -1;
+    }
+  });
+  // No JS form handler for #name-form: allow normal submit
+  const skipBtn = document.getElementById('skip-btn');
+  if (skipBtn) {
+    skipBtn.addEventListener('click', function() {
+      // Default skip action (optional: implement skip as a POST or redirect)
+    });
+  }
+  // Delete button handler
+  const deleteBtn = document.getElementById('delete-btn');
+  if (deleteBtn) {
+    deleteBtn.addEventListener('click', function() {
+      document.getElementById('delete-input').value = '1';
+      document.getElementById('name-form').submit();
+    });
+  }
+  // Auto-rotate toggle handler
+  const autoRotateBtn = document.getElementById('auto-rotate-btn');
+  let autoRotateEnabled = false;
+  if (autoRotateBtn) {
+    autoRotateBtn.addEventListener('click', function(e) {
+      e.preventDefault();
+      autoRotateEnabled = !autoRotateEnabled;
+      // Update button appearance
+      if (autoRotateEnabled) {
+        autoRotateBtn.style.background = '#38bdf8';
+        autoRotateBtn.querySelector('svg').style.stroke = '#18181b';
+      } else {
+        autoRotateBtn.style.background = '#232336';
+        autoRotateBtn.querySelector('svg').style.stroke = '#38bdf8';
+      }
+      // Reload face recognition with new auto-rotate setting
+      loadFaceRecognition();
+    });
+  }
+  // Rotate button handlers (AJAX)
+  const rotateCwBtn = document.getElementById('rotate-cw-btn');
+  const rotateCcwBtn = document.getElementById('rotate-ccw-btn');
+  const faceImg = document.getElementById('face-image');
+  function rotateImage(direction) {
+    // Show loading state on the button
+    const btn = direction === 'cw' ? rotateCwBtn : rotateCcwBtn;
+    const originalContent = btn.innerHTML;
+    btn.innerHTML = '<div style="border:2px solid #38bdf8;border-top:2px solid transparent;border-radius:50%;width:16px;height:16px;animation:spin 1s linear infinite;"></div>';
+    btn.disabled = true;
+    
+    // Clean image path by removing query parameters
+    let imagePath = faceImg.getAttribute('src');
+    if (imagePath.startsWith('http')) {
+      imagePath = imagePath.replace(/^https?:\/\/[^/]+/, '');
+    }
+    imagePath = imagePath.split('?')[0];
+    
+    fetch('/api/rotate_image', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ image_path: imagePath, direction })
+    })
+    .then(res => res.json())
+    .then(data => {
+      if (data.success && data.image_url) {
+        // Add cache buster to force image reload
+        faceImg.src = data.image_url + '?t=' + Date.now();
+        console.log(`Image rotated ${direction === 'cw' ? 'clockwise' : 'counter-clockwise'}`);
+        // Reload face recognition after rotation
+        setTimeout(() => loadFaceRecognition(), 500);
+      } else {
+        console.error('Rotation failed:', data.error);
+        alert('Failed to rotate image: ' + (data.error || 'Unknown error'));
+      }
+    })
+    .catch(error => {
+      console.error('Error rotating image:', error);
+      alert('Error rotating image: ' + error.message);
+    })
+    .finally(() => {
+      // Restore button state
+      btn.innerHTML = originalContent;
+      btn.disabled = false;
+    });
+  }
+  if (rotateCwBtn) {
+    rotateCwBtn.addEventListener('click', function(e) {
+      e.preventDefault();
+      rotateImage('cw');
+    });
+  }
+  if (rotateCcwBtn) {
+    rotateCcwBtn.addEventListener('click', function(e) {
+      e.preventDefault();
+      rotateImage('ccw');
+    });
+  }
+  loadFaceRecognition();
+});
+function loadFaceRecognition() {
+  const faceLoading = document.getElementById('face-loading');
+  const predictedInfo = document.getElementById('predicted-info');
+  const predictedName = document.getElementById('predicted-name');
+  const nameInput = document.getElementById('name-input');
+  if (faceLoading) faceLoading.style.display = 'block';
+  if (predictedInfo) predictedInfo.style.display = 'block';
+  if (predictedName) predictedName.textContent = '';
+  if (nameInput) nameInput.value = '';
+  // Use relative path for API call
+  const img = document.getElementById('face-image');
+  let imagePath = img.getAttribute('src');
+  if (imagePath.startsWith('http')) {
+    imagePath = imagePath.replace(/^https?:\/\/[^/]+/, '');
+  }
+  // Remove query parameters and cache busters
+  imagePath = imagePath.split('?')[0];
+  
+  // Get auto-rotate state - check if button has the active background color
+  const autoRotateBtn = document.getElementById('auto-rotate-btn');
+  const autoRotateEnabled = autoRotateBtn && autoRotateBtn.style.background === 'rgb(56, 189, 248)';
+  
+  fetch(`/api/face_recognition?image_path=${encodeURIComponent(imagePath)}&auto_rotate=${autoRotateEnabled}`)
+    .then(response => response.json())
+    .then(data => {
+      if (faceLoading) faceLoading.style.display = 'none';
+      if (data.error) { 
+        console.error('Face recognition error:', data.error); 
+        if (predictedInfo && predictedName) {
+          predictedInfo.style.display = 'block';
+          predictedName.textContent = 'No face detected';
+        }
+        return; 
+      }
+      if (predictedInfo && predictedName) {
+        predictedInfo.style.display = 'block';
+        predictedName.textContent = data.predicted_name || 'No match found';
+      }
+      if (nameInput && data.predicted_name) {
+        nameInput.value = data.predicted_name;
+      }
+      // If auto-rotation was applied, reload the image
+      if (data.auto_rotated) {
+        img.src = imagePath + '?t=' + Date.now();
+      }
+    })
+    .catch(error => {
+      console.error('Error loading face recognition:', error);
+      if (faceLoading) faceLoading.style.display = 'none';
+      if (predictedInfo && predictedName) {
+        predictedInfo.style.display = 'block';
+        predictedName.textContent = 'No face detected';
+      }
+    });
+}
+</script>
+{% endif %}
+<div style="margin-top:2.5rem;width:100%;">
+  <div style="display:flex;gap:1.5rem;align-items:center;font-size:1.08rem;color:#7dd3fc;">
+    <span><kbd style='background:#232336;color:#38bdf8;padding:0.3em 0.7em;border-radius:6px;border:1.5px solid #444;'>Enter</kbd> Confirm</span>
+    <span><kbd style='background:#232336;color:#38bdf8;padding:0.3em 0.7em;border-radius:6px;border:1.5px solid #444;'>S</kbd> Skip</span>
+    <span><kbd style='background:#232336;color:#38bdf8;padding:0.3em 0.7em;border-radius:6px;border:1.5px solid #444;'>D</kbd> Delete</span>
+    <span><kbd style='background:#232336;color:#38bdf8;padding:0.3em 0.7em;border-radius:6px;border:1.5px solid #444;'>R</kbd> Rotate ↻</span>
+    <span><kbd style='background:#232336;color:#38bdf8;padding:0.3em 0.7em;border-radius:6px;border:1.5px solid #444;'>L</kbd> Rotate ↺</span>
+    <span><kbd style='background:#232336;color:#38bdf8;padding:0.3em 0.7em;border-radius:6px;border:1.5px solid #444;'>A</kbd> Auto-rotate</span>
+  </div>
+</div>
+
+<script>
+document.addEventListener('keydown', function(e) {
+  // Ignore if typing in an input or textarea
+  const active = document.activeElement;
+  if (active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA')) return;
+  // Keybinds
+  if (e.key === 'Enter') {
+    const form = document.getElementById('name-form');
+    if (form) form.requestSubmit();
+  } else if (e.key.toLowerCase() === 's') {
+    const skipBtn = document.getElementById('skip-btn');
+    if (skipBtn) skipBtn.click();
+  } else if (e.key.toLowerCase() === 'd') {
+    const deleteBtn = document.getElementById('delete-btn');
+    if (deleteBtn) deleteBtn.click();
+  } else if (e.key.toLowerCase() === 'r') {
+    const rotateCwBtn = document.getElementById('rotate-cw-btn');
+    if (rotateCwBtn) rotateCwBtn.click();
+  } else if (e.key.toLowerCase() === 'l') {
+    const rotateCcwBtn = document.getElementById('rotate-ccw-btn');
+    if (rotateCcwBtn) rotateCcwBtn.click();
+  } else if (e.key.toLowerCase() === 'a') {
+    const autoRotateBtn = document.getElementById('auto-rotate-btn');
+    if (autoRotateBtn) autoRotateBtn.click();
+  }
+});
+</script>
+{% endblock %} 

@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+
+{% block title %}Clothing Tagger{% endblock %}
+
+{% block content %}
+<div class="min-h-screen bg-gray-900 text-white p-8 flex flex-col items-center justify-center">
+    <div class="max-w-xl w-full bg-gray-800 rounded-lg shadow-lg p-8 flex flex-col items-center">
+        <h1 class="text-3xl font-bold mb-6">Clothing Tagger - Batch Progress</h1>
+        <div class="w-full mb-6">
+            <div class="flex items-center justify-between mb-2">
+                <span id="progress-label" class="text-gray-300 text-sm">Initializing...</span>
+            </div>
+            <div class="w-full bg-gray-700 rounded h-4 overflow-hidden">
+                <div id="progress-bar" class="bg-primary h-4 rounded transition-all duration-300" style="width:0%"></div>
+            </div>
+        </div>
+        <button id="start-batch-btn" class="px-6 py-2 rounded bg-blue-600 text-white font-semibold mb-2">Start Batch Clothing Detection</button>
+        <div id="status-message" class="text-gray-400 mt-4"></div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let polling = false;
+let pollInterval = null;
+
+function updateProgressBar(processed, total) {
+    const percent = total === 0 ? 100 : Math.round((processed / total) * 100);
+    document.getElementById('progress-bar').style.width = percent + '%';
+    document.getElementById('progress-label').textContent = `Processed ${processed} of ${total} images (${percent}%)`;
+}
+
+function setStatus(msg) {
+    document.getElementById('status-message').textContent = msg;
+}
+
+function pollProgress() {
+    fetch('/api/detect_clothing/batch_progress')
+        .then(r => r.json())
+        .then(data => {
+            if (data.success) {
+                updateProgressBar(data.processed, data.total);
+                if (data.processed >= data.total) {
+                    setStatus('Batch processing complete!');
+                    clearInterval(pollInterval);
+                    polling = false;
+                    document.getElementById('start-batch-btn').disabled = false;
+                    document.getElementById('start-batch-btn').textContent = 'Restart Batch';
+                } else {
+                    setStatus('Processing images...');
+                }
+            } else {
+                setStatus('Error fetching progress.');
+            }
+        })
+        .catch(() => setStatus('Error fetching progress.'));
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    document.getElementById('start-batch-btn').onclick = function() {
+        this.disabled = true;
+        this.textContent = 'Processing...';
+        setStatus('Starting batch clothing detection...');
+        fetch('/api/detect_clothing/batch_fast', {method: 'POST'})
+            .then(r => r.json())
+            .then(data => {
+                setStatus('Batch started. Processing images...');
+                polling = true;
+                pollProgress();
+                pollInterval = setInterval(pollProgress, 2000);
+            })
+            .catch(() => setStatus('Error starting batch.'));
+    };
+    // Optionally, auto-poll if batch is already running
+    pollProgress();
+    pollInterval = setInterval(pollProgress, 2000);
+});
+</script>
+{% endblock %} 

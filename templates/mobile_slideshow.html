@@ -1,0 +1,1357 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, maximum-scale=1.0, viewport-fit=cover">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <title>Visage Slideshow</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+            -webkit-touch-callout: none;
+            user-select: none;
+        }
+        
+        html, body {
+            width: 100vw;
+            height: 100vh;
+            height: 100dvh;
+            overflow: hidden;
+            position: fixed;
+            top: 0;
+            left: 0;
+            background: #000;
+            touch-action: none;
+        }
+        
+        #slideshow-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            height: 100dvh;
+            background: #000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+        }
+        
+        .slide {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: calc(100vh - 100px);
+            height: calc(100dvh - 100px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            pointer-events: none;
+        }
+        
+        /* In fullscreen, slides always take full viewport height (controls overlay on top) */
+        body.fullscreen-mode .slide {
+            height: 100vh;
+            height: 100dvh;
+        }
+        
+        body.fullscreen-mode #slideshow-container.grid-mode {
+            height: 100vh;
+            height: 100dvh;
+        }
+        
+        .slide.active {
+            opacity: 1;
+            pointer-events: auto;
+        }
+        
+        .slide img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            display: block;
+            opacity: 0;
+            transition: opacity 0.2s;
+        }
+        
+        .slide img.loaded {
+            opacity: 1;
+        }
+        
+        .slide .loading-indicator {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 50px;
+            height: 50px;
+            border: 4px solid rgba(255, 255, 255, 0.2);
+            border-top-color: rgba(255, 255, 255, 0.8);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            z-index: 10;
+        }
+        
+        .slide img.loaded ~ .loading-indicator {
+            display: none;
+        }
+        
+        @keyframes spin {
+            to { transform: translate(-50%, -50%) rotate(360deg); }
+        }
+        
+        #controls {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 12px;
+            background: rgba(0, 0, 0, 0.8);
+            padding: 12px 20px;
+            border-radius: 50px;
+            z-index: 1000;
+            transition: transform 0.3s ease, opacity 0.3s ease;
+            pointer-events: auto;
+            opacity: 1;
+            /* Ensure controls are visible by default */
+        }
+        
+        #controls.hidden {
+            transform: translateX(-50%) translateY(calc(100% + 20px));
+            opacity: 0;
+            pointer-events: none;
+        }
+        
+        .controls-trigger {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 100px;
+            z-index: 999;
+            pointer-events: auto;
+        }
+        
+        .control-btn {
+            width: 56px;
+            height: 56px;
+            border-radius: 50%;
+            border: none;
+            background: rgba(255, 255, 255, 0.2);
+            color: #fff;
+            font-size: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            touch-action: manipulation;
+            transition: all 0.2s;
+            pointer-events: auto;
+            z-index: 1001;
+        }
+        
+        .control-btn:active {
+            transform: scale(0.9);
+            background: rgba(255, 255, 255, 0.4);
+        }
+        
+        .control-btn.active {
+            background: rgba(255, 255, 255, 0.4);
+        }
+        
+        #progress-bar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            height: 3px;
+            background: rgba(255, 255, 255, 0.3);
+            width: 0%;
+            transition: width 0.1s linear;
+            z-index: 1001;
+        }
+        
+        .loading {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: rgba(255, 255, 255, 0.5);
+            font-size: 14px;
+        }
+        
+        #sort-menu {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0, 0, 0, 0.95);
+            border-radius: 20px;
+            padding: 20px;
+            z-index: 2000;
+            min-width: 250px;
+            max-width: 90vw;
+            max-height: 80vh;
+            overflow-y: auto;
+            display: none;
+        }
+        
+        #sort-menu.show {
+            display: block;
+        }
+        
+        #sort-menu h3 {
+            color: #fff;
+            margin-bottom: 15px;
+            font-size: 18px;
+            text-align: center;
+        }
+        
+        .sort-option {
+            display: block;
+            width: 100%;
+            padding: 12px 16px;
+            margin: 8px 0;
+            background: rgba(255, 255, 255, 0.1);
+            color: #fff;
+            border: none;
+            border-radius: 12px;
+            font-size: 16px;
+            text-align: left;
+            cursor: pointer;
+            touch-action: manipulation;
+        }
+        
+        .sort-option:active {
+            transform: scale(0.98);
+            background: rgba(255, 255, 255, 0.2);
+        }
+        
+        .sort-option.active {
+            background: rgba(59, 130, 246, 0.5);
+            border: 2px solid rgba(59, 130, 246, 0.8);
+        }
+        
+        .sort-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 1999;
+            display: none;
+        }
+        
+        .sort-overlay.show {
+            display: block;
+        }
+        
+        /* Grid mode styles */
+        #slideshow-container.grid-mode {
+            display: grid;
+            gap: 8px;
+            padding: 8px;
+            grid-template-columns: repeat(var(--grid-cols), 1fr);
+            grid-template-rows: repeat(var(--grid-rows), 1fr);
+            height: calc(100vh - 100px);
+            height: calc(100dvh - 100px);
+            overflow: hidden;
+            align-items: stretch;
+            justify-items: stretch;
+        }
+        
+        .grid-mode .slide {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            opacity: 1;
+            pointer-events: auto;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 8px;
+            min-height: 0;
+        }
+        
+        .grid-mode .slide img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+        }
+        
+        /* Dropdown styling for better visibility */
+        #grid-columns-select,
+        #grid-rows-select {
+            -webkit-appearance: none;
+            -moz-appearance: none;
+            appearance: none;
+        }
+        
+        #grid-columns-select option,
+        #grid-rows-select option {
+            background: rgba(0, 0, 0, 0.95) !important;
+            color: #fff !important;
+        }
+        
+        /* Ensure dropdowns don't close menu when clicked */
+        #grid-columns-select:focus,
+        #grid-rows-select:focus {
+            outline: 2px solid rgba(59, 130, 246, 0.5);
+            outline-offset: 2px;
+        }
+    </style>
+</head>
+<body>
+    <div id="progress-bar"></div>
+    <div id="slideshow-container"></div>
+    <div class="controls-trigger" id="controls-trigger"></div>
+    
+    <div id="controls">
+        <button class="control-btn" id="home-btn" title="Back to People">⌂</button>
+        <button class="control-btn" id="prev-btn" title="Previous">‹</button>
+        <button class="control-btn" id="play-pause-btn" title="Play/Pause">▶</button>
+        <button class="control-btn" id="next-btn" title="Next">›</button>
+        <button class="control-btn" id="sort-btn" title="Sort Options">☰</button>
+        <button class="control-btn" id="fullscreen-btn" title="Fullscreen">⛶</button>
+    </div>
+    
+    <div class="sort-overlay" id="sort-overlay"></div>
+    <div id="sort-menu">
+        <h3>Options</h3>
+        <div style="margin-bottom: 15px; padding-bottom: 15px; border-bottom: 1px solid rgba(255,255,255,0.1);">
+            <h4 style="color: rgba(255,255,255,0.8); font-size: 14px; margin-bottom: 10px;">Sort Images</h4>
+            <button class="sort-option" data-sort="id-desc">Newest First (ID)</button>
+            <button class="sort-option" data-sort="id-asc">Oldest First (ID)</button>
+            <button class="sort-option" data-sort="date-newest">Newest (Date)</button>
+            <button class="sort-option" data-sort="date-oldest">Oldest (Date)</button>
+            <button class="sort-option" data-sort="size-large">Largest First</button>
+            <button class="sort-option" data-sort="size-small">Smallest First</button>
+            <button class="sort-option" data-sort="favorites">Favorites First</button>
+            <button class="sort-option" data-sort="name-asc">Name (A-Z)</button>
+            <button class="sort-option" data-sort="name-desc">Name (Z-A)</button>
+            <button class="sort-option" data-sort="random">Random</button>
+        </div>
+        <div>
+            <h4 style="color: rgba(255,255,255,0.8); font-size: 14px; margin-bottom: 10px;">Grid Layout</h4>
+            <div style="display: flex; gap: 8px; margin-bottom: 10px;">
+                <label style="color: rgba(255,255,255,0.7); font-size: 14px; align-self: center; min-width: 50px;">Columns:</label>
+                <select id="grid-columns-select" style="flex: 1; padding: 10px; background: rgba(0,0,0,0.8); color: #fff; border: 1px solid rgba(255,255,255,0.3); border-radius: 8px; font-size: 16px; cursor: pointer;">
+                    <option value="1" style="background: rgba(0,0,0,0.9); color: #fff;">1</option>
+                    <option value="2" style="background: rgba(0,0,0,0.9); color: #fff;">2</option>
+                    <option value="3" style="background: rgba(0,0,0,0.9); color: #fff;">3</option>
+                    <option value="4" style="background: rgba(0,0,0,0.9); color: #fff;">4</option>
+                    <option value="5" style="background: rgba(0,0,0,0.9); color: #fff;">5</option>
+                    <option value="6" style="background: rgba(0,0,0,0.9); color: #fff;">6</option>
+                </select>
+            </div>
+            <div style="display: flex; gap: 8px;">
+                <label style="color: rgba(255,255,255,0.7); font-size: 14px; align-self: center; min-width: 50px;">Rows:</label>
+                <select id="grid-rows-select" style="flex: 1; padding: 10px; background: rgba(0,0,0,0.8); color: #fff; border: 1px solid rgba(255,255,255,0.3); border-radius: 8px; font-size: 16px; cursor: pointer;">
+                    <option value="1" style="background: rgba(0,0,0,0.9); color: #fff;">1</option>
+                    <option value="2" style="background: rgba(0,0,0,0.9); color: #fff;">2</option>
+                    <option value="3" style="background: rgba(0,0,0,0.9); color: #fff;">3</option>
+                    <option value="4" style="background: rgba(0,0,0,0.9); color: #fff;">4</option>
+                    <option value="5" style="background: rgba(0,0,0,0.9); color: #fff;">5</option>
+                    <option value="6" style="background: rgba(0,0,0,0.9); color: #fff;">6</option>
+                </select>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        // Configuration
+        const CONFIG = {
+            AUTO_INTERVAL: 2000,
+            PRELOAD_COUNT: 3,
+        };
+        
+        // Slideshow Application Class
+        class SlideshowApp {
+            constructor() {
+                this.images = {{ images|tojson }};
+                this.currentSort = '{{ sort_by|default("id-desc") }}';
+                this.currentIndex = 0;
+                this.autoPlay = false;
+                this.autoTimer = null;
+                this.slides = [];
+                this.imageCache = new Map();
+                
+                // Grid mode state
+                this.gridColumns = parseInt(localStorage.getItem('mobile_slideshow_grid_columns') || '1');
+                this.gridRows = parseInt(localStorage.getItem('mobile_slideshow_grid_rows') || '1');
+                this.isGridMode = this.gridColumns > 1 || this.gridRows > 1;
+                
+                // DOM Elements
+                this.container = document.getElementById('slideshow-container');
+                this.progressBar = document.getElementById('progress-bar');
+                this.controls = {
+                    home: document.getElementById('home-btn'),
+                    prev: document.getElementById('prev-btn'),
+                    next: document.getElementById('next-btn'),
+                    playPause: document.getElementById('play-pause-btn'),
+                    sort: document.getElementById('sort-btn'),
+                    fullscreen: document.getElementById('fullscreen-btn'),
+                };
+                this.sortMenu = document.getElementById('sort-menu');
+                this.sortOverlay = document.getElementById('sort-overlay');
+                this.gridColumnsSelect = document.getElementById('grid-columns-select');
+                this.gridRowsSelect = document.getElementById('grid-rows-select');
+                this.controlsElement = document.getElementById('controls');
+                this.controlsTrigger = document.getElementById('controls-trigger');
+                
+                // Controls auto-hide state
+                this.controlsHideTimer = null;
+                this.controlsVisible = true;
+                
+                // Touch state
+                this.touchStartX = 0;
+                this.touchStartY = 0;
+                this.minSwipeDistance = 50;
+        
+        // Initialize
+                this.init();
+            }
+            
+            init() {
+                if (!this.container) {
+                    console.error('Container not found');
+                return;
+            }
+            
+                if (this.images.length === 0) {
+                    this.container.innerHTML = '<div class="loading">No images available</div>';
+                    return;
+                }
+                
+                console.log(`Initializing slideshow with ${this.images.length} images`);
+                
+                // Ensure controls are visible initially
+                this.showControls();
+                
+                // Lock page dimensions
+                this.lockPageDimensions();
+                
+                // Create slides
+                this.createSlides();
+                
+                // Show first slide
+                this.showSlide(0);
+                
+                // Setup event listeners
+                this.setupEventListeners();
+                
+                // Setup scroll prevention
+                this.setupScrollPrevention();
+                
+                // Mark active sort
+                this.markActiveSort();
+            
+            // Load grid settings
+                this.loadGridSettings();
+            
+            // Apply grid mode if needed
+                if (this.isGridMode) {
+                    this.applyGridMode();
+                }
+                
+                // Check initial fullscreen state
+                this.updateFullscreenClass();
+                
+                // Try fullscreen (but don't hide controls immediately)
+                this.enterFullscreen();
+                
+                // Ensure controls are visible after a short delay (in case fullscreen happened)
+                setTimeout(() => {
+                    this.showControls();
+                    // Only auto-hide after user has had time to see controls
+                    if (document.fullscreenElement || document.webkitFullscreenElement) {
+                        setTimeout(() => this.hideControls(), 5000);
+                    }
+                }, 500);
+            }
+            
+            lockPageDimensions() {
+                const lock = () => {
+                    const vh = window.innerHeight;
+                    const vw = window.innerWidth;
+                    
+                    document.documentElement.style.height = `${vh}px`;
+                    document.documentElement.style.width = `${vw}px`;
+                    document.documentElement.style.maxHeight = `${vh}px`;
+                    document.documentElement.style.maxWidth = `${vw}px`;
+                    document.documentElement.style.overflow = 'hidden';
+                    
+                    document.body.style.height = `${vh}px`;
+                    document.body.style.width = `${vw}px`;
+                    document.body.style.maxHeight = `${vh}px`;
+                    document.body.style.maxWidth = `${vw}px`;
+                    document.body.style.overflow = 'hidden';
+                    document.body.style.position = 'fixed';
+                    document.body.style.top = '0';
+                    document.body.style.left = '0';
+                    
+                    window.scrollTo(0, 0);
+                };
+                
+                lock();
+                window.addEventListener('resize', lock);
+                window.addEventListener('orientationchange', () => setTimeout(lock, 100));
+            }
+            
+            setupScrollPrevention() {
+                // Prevent wheel scrolling
+                document.addEventListener('wheel', (e) => {
+                    e.preventDefault();
+                }, { passive: false });
+                
+                // Prevent scroll events
+                const preventScroll = () => {
+                    window.scrollTo(0, 0);
+                    document.documentElement.scrollTop = 0;
+                    document.body.scrollTop = 0;
+                };
+                
+                window.addEventListener('scroll', preventScroll, { passive: false });
+                document.addEventListener('scroll', preventScroll, { passive: false });
+                
+                // Prevent touch scrolling except on buttons
+                document.addEventListener('touchmove', (e) => {
+                    const target = e.target;
+                    if (target.closest('button') || target.closest('#controls') || target.closest('#sort-menu')) {
+                        return;
+                    }
+                    if (target.closest('#slideshow-container')) {
+                return;
+            }
+                    e.preventDefault();
+                }, { passive: false });
+                
+                // Lock scroll periodically
+                setInterval(preventScroll, 100);
+            }
+            
+            createSlides() {
+                if (this.isGridMode) {
+                    this.createGridSlides();
+                return;
+            }
+            
+                this.container.innerHTML = '';
+                this.slides = [];
+            
+            // Create slide for current and adjacent images
+            const indices = new Set();
+                for (let i = -CONFIG.PRELOAD_COUNT; i <= CONFIG.PRELOAD_COUNT; i++) {
+                    const idx = (this.currentIndex + i + this.images.length) % this.images.length;
+                indices.add(idx);
+            }
+            
+            indices.forEach(idx => {
+                const slide = document.createElement('div');
+                slide.className = 'slide';
+                slide.dataset.index = idx;
+                
+                const img = document.createElement('img');
+                img.loading = 'lazy';
+                img.alt = `Image ${idx + 1}`;
+                    
+                    // Add loading indicator
+                    const loadingIndicator = document.createElement('div');
+                    loadingIndicator.className = 'loading-indicator';
+                    
+                slide.appendChild(img);
+                    slide.appendChild(loadingIndicator);
+                    this.container.appendChild(slide);
+                    
+                    this.slides.push({
+                        element: slide,
+                        img: img,
+                        index: idx
+                    });
+                });
+                
+                // Preload images
+                this.preloadImages();
+            }
+            
+            preloadImages() {
+                this.slides.forEach(slide => {
+                    // Load image and set src immediately so browser can start loading
+                    this.loadImage(slide.index).then(url => {
+                        if (url && slide.img && !slide.img.src) {
+                            slide.img.src = url;
+                            // Mark as loaded when image loads
+                            slide.img.onload = () => {
+                                slide.img.classList.add('loaded');
+                            };
+                            // Also check if already loaded
+                            if (slide.img.complete && slide.img.naturalWidth > 0) {
+                                slide.img.classList.add('loaded');
+                            }
+                        }
+                    });
+                });
+            }
+            
+            loadImage(index) {
+                if (this.imageCache.has(index)) {
+                    return Promise.resolve(this.imageCache.get(index));
+                }
+                
+                return new Promise((resolve) => {
+                    const imageData = this.images[index];
+                    if (!imageData) {
+                        console.warn(`[Image Load] No image data for index ${index}`);
+                        resolve(null);
+                        return;
+                    }
+                    
+                    const img = new Image();
+                    const viewportWidth = window.innerWidth;
+                    const viewportHeight = window.innerHeight - 100; // Account for controls
+                    // Request higher resolution for better quality when upscaling
+                    // Use 2x for retina displays and to handle upscaling
+                    const maxWidth = Math.ceil(viewportWidth * 2);
+                    const maxHeight = Math.ceil(viewportHeight * 2);
+                    const optimizedUrl = `/api/image/${imageData.id}/optimized?max_width=${maxWidth}&max_height=${maxHeight}&quality=90`;
+                    
+                    let errorCount = 0;
+                    
+                    img.onload = () => {
+                        this.imageCache.set(index, optimizedUrl);
+                        resolve(optimizedUrl);
+                    };
+                    
+                    img.onerror = () => {
+                        errorCount++;
+                        console.warn(`[Image Load] Failed to load optimized image ${imageData.id} (attempt ${errorCount})`);
+                        
+                        // Try fallback URL
+                        const fallbackUrl = imageData.image_url || imageData.cropped_path || imageData.original_path;
+                        if (fallbackUrl && fallbackUrl !== optimizedUrl) {
+                            console.log(`[Image Load] Trying fallback URL for image ${imageData.id}: ${fallbackUrl}`);
+                            const fallbackImg = new Image();
+                            fallbackImg.onload = () => {
+                                this.imageCache.set(index, fallbackUrl);
+                                resolve(fallbackUrl);
+                            };
+                            fallbackImg.onerror = () => {
+                                console.error(`[Image Load] Both optimized and fallback URLs failed for image ${imageData.id}`);
+                                // Fetch diagnostic info
+                                fetch(`/api/image/${imageData.id}/diagnostic`)
+                                    .then(r => r.json())
+                                    .then(diag => {
+                                        console.error(`[Image Load] Diagnostic info for image ${imageData.id}:`, diag);
+                                    })
+                                    .catch(e => console.error(`[Image Load] Failed to fetch diagnostic:`, e));
+                                // Still resolve with fallback so slide shows something
+                                this.imageCache.set(index, fallbackUrl);
+                                resolve(fallbackUrl);
+                            };
+                            fallbackImg.src = fallbackUrl;
+                        } else {
+                            // No fallback, try diagnostic
+                            console.error(`[Image Load] No fallback URL available for image ${imageData.id}`);
+                            fetch(`/api/image/${imageData.id}/diagnostic`)
+                                .then(r => r.json())
+                                .then(diag => {
+                                    console.error(`[Image Load] Diagnostic info for image ${imageData.id}:`, diag);
+                                })
+                                .catch(e => console.error(`[Image Load] Failed to fetch diagnostic:`, e));
+                            this.imageCache.set(index, optimizedUrl);
+                            resolve(optimizedUrl); // Still resolve so slide can show error
+                        }
+                    };
+                    
+                    img.src = optimizedUrl;
+                });
+            }
+            
+            loadGridSettings() {
+                const savedCols = localStorage.getItem('mobile_slideshow_grid_columns');
+                const savedRows = localStorage.getItem('mobile_slideshow_grid_rows');
+                if (savedCols) this.gridColumns = parseInt(savedCols) || 1;
+                if (savedRows) this.gridRows = parseInt(savedRows) || 1;
+                
+                if (this.gridColumnsSelect) this.gridColumnsSelect.value = String(this.gridColumns);
+                if (this.gridRowsSelect) this.gridRowsSelect.value = String(this.gridRows);
+                
+                this.isGridMode = this.gridColumns > 1 || this.gridRows > 1;
+            }
+            
+            saveGridSettings() {
+                localStorage.setItem('mobile_slideshow_grid_columns', String(this.gridColumns));
+                localStorage.setItem('mobile_slideshow_grid_rows', String(this.gridRows));
+            }
+            
+            applyGridMode() {
+                this.container.classList.add('grid-mode');
+                this.container.style.setProperty('--grid-cols', this.gridColumns);
+                this.container.style.setProperty('--grid-rows', this.gridRows);
+                this.createGridSlides();
+            }
+            
+            removeGridMode() {
+                this.container.classList.remove('grid-mode');
+                this.isGridMode = false;
+                this.gridColumns = 1;
+                this.gridRows = 1;
+                this.saveGridSettings();
+                if (this.gridColumnsSelect) this.gridColumnsSelect.value = '1';
+                if (this.gridRowsSelect) this.gridRowsSelect.value = '1';
+                this.createSlides();
+                this.showSlide(this.currentIndex);
+            }
+            
+            createGridSlides() {
+                this.container.innerHTML = '';
+                this.slides = [];
+                
+                const totalSlots = this.gridColumns * this.gridRows;
+                const pageStart = Math.floor(this.currentIndex / totalSlots) * totalSlots;
+                this.currentIndex = Math.max(0, Math.min(pageStart, this.images.length - 1));
+                
+                // Calculate available space per cell (ensuring everything fits in viewport)
+                const vh = window.innerHeight - 100; // Account for controls
+                const vw = window.innerWidth;
+                const gap = 8;
+                const padding = 16; // 8px padding on each side
+                const availableWidth = vw - padding;
+                const availableHeight = vh - padding;
+                const cellWidth = Math.floor((availableWidth - (gap * (this.gridColumns - 1))) / this.gridColumns);
+                const cellHeight = Math.floor((availableHeight - (gap * (this.gridRows - 1))) / this.gridRows);
+                
+                // Load images for current page
+                for (let i = 0; i < totalSlots && (this.currentIndex + i) < this.images.length; i++) {
+                    const idx = (this.currentIndex + i) % this.images.length;
+                const slide = document.createElement('div');
+                    slide.className = 'slide';
+                slide.dataset.index = idx;
+                
+                const img = document.createElement('img');
+                img.loading = 'lazy';
+                img.alt = `Image ${idx + 1}`;
+                
+                    // Add loading indicator
+                    const loadingIndicator = document.createElement('div');
+                    loadingIndicator.className = 'loading-indicator';
+                
+                    // Load optimized image for grid (smaller size)
+                    const maxGridSize = Math.max(cellWidth, cellHeight) * 1.5;
+                    this.loadImageForGrid(idx, maxGridSize).then(url => {
+                        if (url && img) {
+                        img.src = url;
+                            img.onload = () => {
+                                img.classList.add('loaded');
+                            };
+                    }
+                });
+                
+                slide.appendChild(img);
+                slide.appendChild(loadingIndicator);
+                    this.container.appendChild(slide);
+                
+                    // Click handler - switch to single image mode
+                slide.addEventListener('click', () => {
+                        this.currentIndex = idx;
+                        this.removeGridMode();
+                    });
+                    
+                    this.slides.push({
+                        element: slide,
+                        img: img,
+                        index: idx
+                    });
+                }
+                
+                this.updateProgress();
+            }
+            
+            loadImageForGrid(index, maxSize) {
+                const cacheKey = `grid_${index}_${maxSize}`;
+                if (this.imageCache.has(cacheKey)) {
+                    return Promise.resolve(this.imageCache.get(cacheKey));
+                }
+                
+                return new Promise((resolve) => {
+                    const imageData = this.images[index];
+                    if (!imageData) {
+                        resolve(null);
+                        return;
+                    }
+                    
+                const img = new Image();
+                    const cappedSize = Math.min(maxSize, 1200);
+                const optimizedUrl = `/api/image/${imageData.id}/optimized?max_width=${cappedSize}&max_height=${cappedSize}&quality=75`;
+                
+                img.onload = () => {
+                        this.imageCache.set(cacheKey, optimizedUrl);
+                    resolve(optimizedUrl);
+                };
+                
+                img.onerror = () => {
+                    const fallbackUrl = imageData.image_url || imageData.cropped_path || imageData.original_path;
+                        this.imageCache.set(cacheKey, fallbackUrl);
+                    resolve(fallbackUrl);
+                };
+                
+                img.src = optimizedUrl;
+            });
+        }
+        
+            showSlide(index) {
+                if (this.images.length === 0) return;
+                
+                if (this.isGridMode) {
+                    // Grid mode - show page starting at index
+                    const totalSlots = this.gridColumns * this.gridRows;
+                    const pageStart = Math.floor(index / totalSlots) * totalSlots;
+                    this.currentIndex = Math.max(0, Math.min(pageStart, this.images.length - 1));
+                    this.createGridSlides();
+                    return;
+                }
+                
+                this.currentIndex = (index + this.images.length) % this.images.length;
+                
+                // Update slide elements if needed
+                const currentSlide = this.slides.find(s => s.index === this.currentIndex);
+                if (!currentSlide) {
+                    this.createSlides();
+                    // Wait a bit for slides to be created, then show the slide
+                    setTimeout(() => this.showSlide(index), 50);
+                    return;
+                }
+                
+                // Remove active class from all slides first
+                this.slides.forEach(slide => {
+                    slide.element.classList.remove('active');
+                });
+                
+                // Find the current slide
+                const slide = this.slides.find(s => s.index === this.currentIndex);
+                if (!slide) return;
+                
+                // Update progress
+                this.updateProgress();
+                
+                // Load image and wait for it to load before showing
+                this.loadImage(this.currentIndex).then(url => {
+                    if (!url || !slide.img) return;
+                    
+                    // Set src if not already set
+                    if (!slide.img.src || slide.img.src !== url) {
+                        slide.img.src = url;
+                    }
+                    
+                    // Image is loading, wait for it to load
+                    const showWhenLoaded = () => {
+                        slide.img.classList.add('loaded');
+                        slide.element.classList.add('active');
+                    };
+                    
+                    // Check if already loaded
+                    if (slide.img.complete && slide.img.naturalWidth > 0) {
+                        showWhenLoaded();
+                        return;
+                    }
+                    
+                    // Remove any existing listeners to avoid duplicates
+                    slide.img.onload = null;
+                    slide.img.onerror = null;
+                    
+                    // Set up load handlers
+                    slide.img.onload = showWhenLoaded;
+                    slide.img.onerror = () => {
+                        // Still show slide even if image fails to load
+                        showWhenLoaded();
+                    };
+                    
+                    // If image is already cached or loading, check periodically
+                    const checkInterval = setInterval(() => {
+                        if (slide.img.complete && slide.img.naturalWidth > 0) {
+                            clearInterval(checkInterval);
+                            showWhenLoaded();
+                        }
+                    }, 50);
+                    
+                    // Clear interval after reasonable timeout
+                    setTimeout(() => clearInterval(checkInterval), 5000);
+                });
+                
+                // Preload adjacent images - set src so they start loading
+                for (let i = 1; i <= CONFIG.PRELOAD_COUNT; i++) {
+                    const nextIdx = (this.currentIndex + i) % this.images.length;
+                    const prevIdx = (this.currentIndex - i + this.images.length) % this.images.length;
+                    
+                    // Preload next image
+                    this.loadImage(nextIdx).then(url => {
+                        const nextSlide = this.slides.find(s => s.index === nextIdx);
+                        if (nextSlide && nextSlide.img && url && !nextSlide.img.src) {
+                            nextSlide.img.src = url;
+                        }
+                    });
+                    
+                    // Preload previous image
+                    this.loadImage(prevIdx).then(url => {
+                        const prevSlide = this.slides.find(s => s.index === prevIdx);
+                        if (prevSlide && prevSlide.img && url && !prevSlide.img.src) {
+                            prevSlide.img.src = url;
+                        }
+                    });
+                }
+            }
+            
+            updateProgress() {
+                if (!this.progressBar) return;
+                const progress = ((this.currentIndex + 1) / this.images.length) * 100;
+                this.progressBar.style.width = `${progress}%`;
+            }
+            
+            next() {
+                if (this.isGridMode) {
+                    const totalSlots = this.gridColumns * this.gridRows;
+                    const currentPageStart = Math.floor(this.currentIndex / totalSlots) * totalSlots;
+                    const nextPageStart = currentPageStart + totalSlots;
+                    
+                    if (nextPageStart >= this.images.length) {
+                        this.showSlide(0);
+                    } else {
+                        this.showSlide(nextPageStart);
+                    }
+                } else {
+                    this.showSlide(this.currentIndex + 1);
+                }
+            }
+            
+            prev() {
+                if (this.isGridMode) {
+                    const totalSlots = this.gridColumns * this.gridRows;
+                    const currentPageStart = Math.floor(this.currentIndex / totalSlots) * totalSlots;
+                    const prevPageStart = currentPageStart - totalSlots;
+                    
+                    if (prevPageStart < 0) {
+                        const lastPageStart = Math.max(0, Math.floor((this.images.length - 1) / totalSlots) * totalSlots);
+                        this.showSlide(lastPageStart);
+                    } else {
+                        this.showSlide(prevPageStart);
+                    }
+                } else {
+                    this.showSlide(this.currentIndex - 1);
+                }
+            }
+            
+            toggleAutoPlay() {
+                this.autoPlay = !this.autoPlay;
+                if (this.autoPlay) {
+                    this.startAutoPlay();
+                } else {
+                    this.stopAutoPlay();
+                }
+            }
+            
+            startAutoPlay() {
+                this.stopAutoPlay();
+                if (this.autoPlay && this.images.length > 0) {
+                    this.autoTimer = setInterval(() => {
+                        this.next();
+                    }, CONFIG.AUTO_INTERVAL);
+                    if (this.controls.playPause) {
+                        this.controls.playPause.textContent = '⏸';
+                        this.controls.playPause.classList.add('active');
+                    }
+                }
+            }
+            
+            stopAutoPlay() {
+                if (this.autoTimer) {
+                    clearInterval(this.autoTimer);
+                    this.autoTimer = null;
+                }
+                if (this.controls.playPause) {
+                    this.controls.playPause.textContent = '▶';
+                    this.controls.playPause.classList.remove('active');
+                }
+            }
+            
+            openSortMenu() {
+                if (this.sortMenu && this.sortOverlay) {
+                    this.sortMenu.classList.add('show');
+                    this.sortOverlay.classList.add('show');
+                    this.stopAutoPlay();
+                }
+            }
+            
+            closeSortMenu() {
+                if (this.sortMenu && this.sortOverlay) {
+                    this.sortMenu.classList.remove('show');
+                    this.sortOverlay.classList.remove('show');
+                    if (this.autoPlay) {
+                        this.startAutoPlay();
+                    }
+                }
+            }
+            
+            changeSort(sortBy) {
+                if (sortBy === this.currentSort) {
+                    this.closeSortMenu();
+                    return;
+                }
+                
+                const url = new URL(window.location.href);
+                url.searchParams.set('sort_by', sortBy);
+                window.location.href = url.toString();
+            }
+            
+            markActiveSort() {
+                document.querySelectorAll('.sort-option').forEach(btn => {
+                    if (btn.dataset.sort === this.currentSort) {
+                        btn.classList.add('active');
+                } else {
+                        btn.classList.remove('active');
+                    }
+                });
+            }
+            
+            toggleFullscreen() {
+                if (!document.fullscreenElement && !document.webkitFullscreenElement) {
+                    const element = document.documentElement;
+                    if (element.requestFullscreen) {
+                        element.requestFullscreen();
+                    } else if (element.webkitRequestFullscreen) {
+                        element.webkitRequestFullscreen();
+                }
+            } else {
+                    if (document.exitFullscreen) {
+                        document.exitFullscreen();
+                    } else if (document.webkitExitFullscreen) {
+                        document.webkitExitFullscreen();
+                    }
+                }
+            }
+            
+            enterFullscreen() {
+                if (document.fullscreenEnabled || document.webkitFullscreenEnabled) {
+                    setTimeout(() => {
+                        const element = document.documentElement;
+                        if (element.requestFullscreen) {
+                            element.requestFullscreen().catch(() => {}).then(() => {
+                                this.updateFullscreenClass();
+                            });
+                        } else if (element.webkitRequestFullscreen) {
+                            element.webkitRequestFullscreen();
+                            setTimeout(() => this.updateFullscreenClass(), 100);
+                        }
+                    }, 300);
+                }
+            }
+            
+            showControls() {
+                if (!this.controlsElement) return;
+                
+                this.controlsVisible = true;
+                this.controlsElement.classList.remove('hidden');
+                
+                // Clear hide timer
+                if (this.controlsHideTimer) {
+                    clearTimeout(this.controlsHideTimer);
+                    this.controlsHideTimer = null;
+                }
+                
+                // Auto-hide after 3 seconds if in fullscreen
+                if (document.fullscreenElement || document.webkitFullscreenElement) {
+                    this.controlsHideTimer = setTimeout(() => {
+                        this.hideControls();
+                    }, 3000);
+                }
+            }
+            
+            hideControls() {
+                if (!this.controlsElement) return;
+                
+                // Don't hide if sort menu is open
+                if (this.sortMenu && this.sortMenu.classList.contains('show')) {
+                    return;
+                }
+                
+                this.controlsVisible = false;
+                this.controlsElement.classList.add('hidden');
+            }
+            
+            updateFullscreenClass() {
+                const isFullscreen = !!(document.fullscreenElement || document.webkitFullscreenElement);
+                if (isFullscreen) {
+                    document.body.classList.add('fullscreen-mode');
+                } else {
+                    document.body.classList.remove('fullscreen-mode');
+                }
+            }
+            
+            setupEventListeners() {
+                // Navigation buttons
+                if (this.controls.prev) {
+                    this.controls.prev.addEventListener('click', (e) => {
+                        e.preventDefault();
+                e.stopPropagation();
+                        this.prev();
+                        this.stopAutoPlay();
+                    });
+                }
+                
+                if (this.controls.next) {
+                    this.controls.next.addEventListener('click', (e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        this.next();
+                        this.stopAutoPlay();
+                    });
+                }
+                
+                if (this.controls.playPause) {
+                    this.controls.playPause.addEventListener('click', (e) => {
+                        e.preventDefault();
+                e.stopPropagation();
+                        this.toggleAutoPlay();
+                    });
+                }
+                
+                if (this.controls.home) {
+                    this.controls.home.addEventListener('click', (e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        window.location.href = '/';
+                    });
+                }
+                
+                if (this.controls.sort) {
+                    this.controls.sort.addEventListener('click', (e) => {
+                        e.preventDefault();
+                e.stopPropagation();
+                        this.openSortMenu();
+            });
+                }
+            
+                if (this.controls.fullscreen) {
+                    this.controls.fullscreen.addEventListener('click', (e) => {
+                        e.preventDefault();
+                e.stopPropagation();
+                        this.toggleFullscreen();
+            });
+                }
+            
+                // Sort menu
+                if (this.sortOverlay) {
+                    this.sortOverlay.addEventListener('click', (e) => {
+                        e.preventDefault();
+                e.stopPropagation();
+                        this.closeSortMenu();
+            });
+                }
+            
+            document.querySelectorAll('.sort-option').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                        e.preventDefault();
+                    e.stopPropagation();
+                    const sortBy = btn.dataset.sort;
+                        if (sortBy) {
+                            this.changeSort(sortBy);
+                        }
+                });
+            });
+            
+            // Grid controls
+                if (this.gridColumnsSelect) {
+                    this.gridColumnsSelect.addEventListener('change', (e) => {
+                        e.stopPropagation();
+                        this.gridColumns = parseInt(e.target.value) || 1;
+                        this.saveGridSettings();
+                        this.isGridMode = this.gridColumns > 1 || this.gridRows > 1;
+                        
+                        if (this.isGridMode) {
+                            this.applyGridMode();
+                        } else {
+                            this.removeGridMode();
+                        }
+                        
+                        // Don't close menu immediately - let user see the change
+                        // Menu will close when clicking outside or on sort option
+                    });
+                }
+            
+                if (this.gridRowsSelect) {
+                    this.gridRowsSelect.addEventListener('change', (e) => {
+                        e.stopPropagation();
+                        this.gridRows = parseInt(e.target.value) || 1;
+                        this.saveGridSettings();
+                        this.isGridMode = this.gridColumns > 1 || this.gridRows > 1;
+                        
+                        if (this.isGridMode) {
+                            this.applyGridMode();
+                        } else {
+                            this.removeGridMode();
+                        }
+                        
+                        // Don't close menu immediately - let user see the change
+                        // Menu will close when clicking outside or on sort option
+                    });
+                }
+            
+                // Keyboard controls
+            document.addEventListener('keydown', (e) => {
+                    if (e.key === 'ArrowLeft' || e.key === 'a' || e.key === 'A') {
+                        this.prev();
+                    } else if (e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D') {
+                        this.next();
+                    } else if (e.key === ' ' || e.key === 'p' || e.key === 'P') {
+                        e.preventDefault();
+                        this.toggleAutoPlay();
+                    } else if (e.key === 'Escape') {
+                        if (this.sortMenu && this.sortMenu.classList.contains('show')) {
+                            this.closeSortMenu();
+                        }
+                }
+            });
+            
+            // Touch/swipe controls
+                if (this.container) {
+                    this.container.addEventListener('touchstart', (e) => {
+                        this.touchStartX = e.touches[0].clientX;
+                        this.touchStartY = e.touches[0].clientY;
+                        this.stopAutoPlay();
+            }, { passive: true });
+            
+                    this.container.addEventListener('touchend', (e) => {
+                        if (!this.touchStartX || !this.touchStartY) return;
+                
+                const touchEndX = e.changedTouches[0].clientX;
+                const touchEndY = e.changedTouches[0].clientY;
+                
+                        const deltaX = touchEndX - this.touchStartX;
+                        const deltaY = touchEndY - this.touchStartY;
+                
+                        if (Math.abs(deltaX) > Math.abs(deltaY) && Math.abs(deltaX) > this.minSwipeDistance) {
+                    if (deltaX > 0) {
+                                this.prev();
+                    } else {
+                                this.next();
+                            }
+                        }
+                        
+                        this.touchStartX = 0;
+                        this.touchStartY = 0;
+            }, { passive: true });
+                }
+                
+                // Controls auto-hide - touch/click anywhere on slideshow to show
+                if (this.container) {
+                    this.container.addEventListener('touchstart', (e) => {
+                        // Don't show if clicking on controls or menu
+                        if (!e.target.closest('#controls') && !e.target.closest('#sort-menu')) {
+                            this.showControls();
+                        }
+                    }, { passive: true });
+                    
+                    this.container.addEventListener('click', (e) => {
+                        // Don't show if clicking on controls or menu
+                        if (!e.target.closest('#controls') && !e.target.closest('#sort-menu')) {
+                            this.showControls();
+                        }
+                    });
+                }
+                
+                // Controls auto-hide - mouse hover near bottom
+                if (this.controlsTrigger) {
+                    this.controlsTrigger.addEventListener('mouseenter', () => {
+                        this.showControls();
+                    });
+                    
+                    this.controlsTrigger.addEventListener('mouseleave', () => {
+                        // Only hide if in fullscreen
+                        if (document.fullscreenElement || document.webkitFullscreenElement) {
+                            setTimeout(() => {
+                                if (!this.controlsElement.matches(':hover') && 
+                                    !this.controlsTrigger.matches(':hover')) {
+                                    this.hideControls();
+                                }
+                            }, 500);
+                        }
+                    });
+                }
+                
+                // Keep controls visible when hovering over controls
+                if (this.controlsElement) {
+                    this.controlsElement.addEventListener('mouseenter', () => {
+                        this.showControls();
+                    });
+                    
+                    this.controlsElement.addEventListener('mouseleave', () => {
+                        // Only hide if in fullscreen
+                        if (document.fullscreenElement || document.webkitFullscreenElement) {
+                            setTimeout(() => {
+                                if (!this.controlsElement.matches(':hover') && 
+                                    !this.controlsTrigger.matches(':hover')) {
+                                    this.hideControls();
+                                }
+                            }, 500);
+                        }
+                    });
+                }
+                
+                // Show controls when clicking anywhere (for touch)
+                document.addEventListener('click', (e) => {
+                    // Don't show if clicking on controls or menu
+                    if (!e.target.closest('#controls') && !e.target.closest('#sort-menu')) {
+                        this.showControls();
+                    }
+                });
+                
+                // Don't hide controls immediately on init - let init() handle it
+                // This prevents race conditions where fullscreen is detected before controls are ready
+                
+                // Listen for fullscreen changes
+                document.addEventListener('fullscreenchange', () => {
+                    this.updateFullscreenClass();
+                    if (document.fullscreenElement || document.webkitFullscreenElement) {
+                        // Show controls first, then auto-hide after delay
+                        this.showControls();
+                        setTimeout(() => this.hideControls(), 3000);
+                    } else {
+                        this.showControls();
+                    }
+                });
+                
+                document.addEventListener('webkitfullscreenchange', () => {
+                    this.updateFullscreenClass();
+                    if (document.fullscreenElement || document.webkitFullscreenElement) {
+                        // Show controls first, then auto-hide after delay
+                        this.showControls();
+                        setTimeout(() => this.hideControls(), 3000);
+                    } else {
+                        this.showControls();
+                    }
+                });
+                
+                // Visibility change
+            document.addEventListener('visibilitychange', () => {
+                if (document.hidden) {
+                        this.stopAutoPlay();
+                    } else if (this.autoPlay) {
+                        this.startAutoPlay();
+                }
+            });
+        }
+        }
+        
+        // Initialize when DOM is ready
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', () => {
+                new SlideshowApp();
+            });
+        } else {
+            new SlideshowApp();
+        }
+    </script>
+</body>
+</html>

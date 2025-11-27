@@ -1,0 +1,688 @@
+{% extends "base.html" %}
+{% block title %}People Management{% endblock %}
+{% block content %}
+<div class="fade-in">
+    <div class="mb-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+            <h1 class="text-3xl font-bold text-gray-100 mb-2">People Management</h1>
+            <p class="text-gray-400">View and redefine profile pictures for each person.</p>
+        </div>
+        <div class="flex items-center gap-3">
+            <button id="cleanup-empty-btn" class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg text-sm font-medium shadow transition flex items-center gap-2" title="Remove people with no images or videos">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                </svg>
+                Cleanup Empty People
+            </button>
+        <button id="auto-update-btn" class="bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-lg font-semibold shadow transition flex items-center gap-2">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582M20 20v-5h-.581M5 9A7 7 0 0 1 17 17M19 15A7 7 0 0 1 7 7"/></svg>
+            Auto-update All Profile Pictures
+        </button>
+    </div>
+    </div>
+    <div id="cleanup-progress" class="mb-6 text-gray-300 hidden"></div>
+    <div id="auto-update-progress" class="mb-6 text-gray-300 hidden"></div>
+    <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+        {% for person in people %}
+        <div class="bg-[#23263a] rounded-lg shadow-md p-6 flex flex-col items-center card-hover" data-person-id="{{ person.id }}">
+            <img id="profile-img-{{ person.id }}" src="{{ person.thumbnail_path or ('https://via.placeholder.com/150x200/6B7280/FFFFFF?text=' ~ person.name[:5]) }}" alt="{{ person.name }} profile" class="w-28 h-28 rounded-full object-cover mb-4 border-4 border-gray-800 shadow">
+            <div class="text-lg font-semibold text-gray-100 mb-2 text-center">{{ person.name }}</div>
+            <button class="change-profile-btn bg-primary text-white px-4 py-2 rounded shadow hover:bg-indigo-700 transition" data-person-id="{{ person.id }}" data-person-name="{{ person.name }}">Change Profile Picture</button>
+            <div class="auto-update-status mt-2 text-xs text-gray-400"></div>
+        </div>
+        {% endfor %}
+    </div>
+
+    <!-- Modal for selecting profile picture -->
+    <div id="profile-pic-modal" class="fixed inset-0 bg-black bg-opacity-70 z-50 hidden items-center justify-center">
+        <div class="bg-[#181a20] rounded-lg shadow-lg p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto flex flex-col">
+            <div class="flex justify-between items-center mb-4">
+                <h2 id="modal-person-name" class="text-xl font-bold text-gray-100">Select Profile Picture</h2>
+                <button id="close-modal-btn" class="text-gray-400 hover:text-primary focus:outline-none">
+                    <svg class="w-7 h-7" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+                </button>
+            </div>
+            <div id="modal-images" class="grid grid-cols-2 sm:grid-cols-3 gap-4"></div>
+            <div id="modal-loading" class="text-gray-300 text-center py-6 hidden">Loading images...</div>
+            <div id="modal-error" class="text-red-400 text-center py-6 hidden"></div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const modal = document.getElementById('profile-pic-modal');
+    const modalImages = document.getElementById('modal-images');
+    const modalLoading = document.getElementById('modal-loading');
+    const modalError = document.getElementById('modal-error');
+    const modalPersonName = document.getElementById('modal-person-name');
+    let currentPersonId = null;
+    let currentProfileImg = null;
+
+    function openModal(personId, personName, profileImgElem) {
+        currentPersonId = personId;
+        currentProfileImg = profileImgElem;
+        modalPersonName.textContent = `Select Profile Picture for ${personName}`;
+        modal.classList.remove('hidden');
+        modalImages.innerHTML = '';
+        modalLoading.classList.remove('hidden');
+        modalError.classList.add('hidden');
+        fetch(`/api/person_images/${personId}`)
+            .then(res => res.json())
+            .then(data => {
+                modalLoading.classList.add('hidden');
+                if (data.success && data.images.length > 0) {
+                    data.images.forEach(img => {
+                        const imgElem = document.createElement('img');
+                        imgElem.src = img.image_url;
+                        imgElem.alt = img.filename || 'Frame';
+                        imgElem.className = 'w-full h-40 object-contain rounded-lg border-4 border-gray-800 shadow cursor-pointer hover:border-primary transition';
+                        imgElem.title = img.type === 'video_frame' ? 'Set video frame as profile picture' : 'Set as profile picture';
+                        imgElem.style.background = '#181a20';
+                        // Store type info on element
+                        imgElem.dataset.type = img.type || 'image';
+                        imgElem.dataset.imageId = img.id;
+                        imgElem.onclick = function() {
+                            // Check if this is a video frame
+                            if (img.type === 'video_frame' || img.id.toString().startsWith('video_')) {
+                                // For video frames, we can't use face detection endpoint
+                                // Just use the frame directly as profile picture
+                                setVideoFrameAsProfile(personId, img.image_url);
+                            } else {
+                            cropAndUploadFace(personId, img.id, img.image_url);
+                            }
+                        };
+                        modalImages.appendChild(imgElem);
+                    });
+                } else {
+                    modalError.textContent = 'No images or video frames found for this person.';
+                    modalError.classList.remove('hidden');
+                }
+            })
+            .catch(() => {
+                modalLoading.classList.add('hidden');
+                modalError.textContent = 'Failed to load images.';
+                modalError.classList.remove('hidden');
+            });
+    }
+
+    function closeModal() {
+        modal.classList.add('hidden');
+        modalImages.innerHTML = '';
+        modalLoading.classList.add('hidden');
+        modalError.classList.add('hidden');
+        currentPersonId = null;
+        currentProfileImg = null;
+    }
+
+    function setVideoFrameAsProfile(personId, imageUrl) {
+        modalLoading.textContent = 'Detecting faces in video frame...';
+        modalLoading.classList.remove('hidden');
+        modalError.classList.add('hidden');
+        
+        // Load the video frame image
+        const img = new window.Image();
+        img.crossOrigin = 'anonymous';
+        img.onload = function() {
+            // First, detect faces in the video frame
+            const canvas = document.createElement('canvas');
+            canvas.width = img.width;
+            canvas.height = img.height;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(img, 0, 0);
+            
+            // Convert to blob and send for face detection
+            canvas.toBlob(function(blob) {
+                if (!blob) {
+                    modalLoading.classList.add('hidden');
+                    modalError.textContent = 'Failed to process video frame.';
+                    modalError.classList.remove('hidden');
+                    return;
+                }
+                
+                // Send frame for face detection using detect_faces_from_image endpoint
+                const formData = new FormData();
+                formData.append('image', blob, 'video_frame.jpg');
+                formData.append('video_id', '0'); // Dummy video_id for video frames
+                
+                fetch('/detect_faces_from_image', {
+                    method: 'POST',
+                    body: formData
+                })
+                .then(res => res.json())
+                .then(faceData => {
+                    if (!faceData.success || !faceData.faces || faceData.faces.length === 0) {
+                        // No face detected, use frame as-is
+                        modalLoading.textContent = 'No face detected, using full frame...';
+                        uploadVideoFrameProfile(personId, blob);
+                        return;
+                    }
+                    
+                    // Use the largest face
+                    const face = faceData.faces.reduce((a, b) => {
+                        const aArea = a.width * a.height;
+                        const bArea = b.width * b.height;
+                        return (aArea > bArea) ? a : b;
+                    });
+                    
+                    // Crop and center face (same logic as cropAndUploadFace)
+                    modalLoading.textContent = 'Centering face...';
+                    
+                    const padding = 0.4; // 40% padding
+                    const faceCenterX = face.x + face.width / 2;
+                    const faceCenterY = face.y + face.height / 2;
+                    const faceSize = Math.max(face.width, face.height);
+                    const cropSize = Math.round(faceSize * (1 + padding));
+                    let cropX = Math.round(faceCenterX - cropSize / 2);
+                    let cropY = Math.round(faceCenterY - cropSize / 2);
+                    
+                    // Clamp crop box to image bounds
+                    cropX = Math.max(0, Math.min(cropX, img.width - cropSize));
+                    cropY = Math.max(0, Math.min(cropY, img.height - cropSize));
+                    
+                    // Draw to canvas with face centered
+                    const cropCanvas = document.createElement('canvas');
+                    cropCanvas.width = 224;
+                    cropCanvas.height = 224;
+                    const cropCtx = cropCanvas.getContext('2d');
+                    cropCtx.fillStyle = '#23263a';
+                    cropCtx.fillRect(0, 0, 224, 224);
+                    cropCtx.drawImage(img, cropX, cropY, cropSize, cropSize, 0, 0, 224, 224);
+                    
+                    // Convert to blob and upload
+                    cropCanvas.toBlob(function(croppedBlob) {
+                        if (!croppedBlob) {
+                            modalLoading.classList.add('hidden');
+                            modalError.textContent = 'Failed to crop video frame.';
+                            modalError.classList.remove('hidden');
+                            return;
+                        }
+                        uploadVideoFrameProfile(personId, croppedBlob);
+                    }, 'image/jpeg', 0.95);
+                })
+                .catch(() => {
+                    modalLoading.classList.add('hidden');
+                    modalError.textContent = 'Failed to detect faces in video frame.';
+                    modalError.classList.remove('hidden');
+                });
+            }, 'image/jpeg', 0.95);
+        };
+        img.onerror = function() {
+            modalLoading.classList.add('hidden');
+            modalError.textContent = 'Failed to load video frame.';
+            modalError.classList.remove('hidden');
+        };
+        img.src = imageUrl;
+    }
+    
+    function uploadVideoFrameProfile(personId, blob) {
+        // Upload to backend
+        const formData = new FormData();
+        formData.append('person_id', personId);
+        formData.append('file', blob, 'profile.jpg');
+        fetch('/api/upload_profile_thumbnail', {
+            method: 'POST',
+            body: formData
+        })
+        .then(res => res.json())
+        .then(data => {
+            modalLoading.classList.add('hidden');
+            if (data.success) {
+                if (currentProfileImg) {
+                    currentProfileImg.src = data.thumbnail_path + '?t=' + Date.now();
+                }
+                closeModal();
+            } else {
+                modalError.textContent = data.error || 'Failed to set profile picture.';
+                modalError.classList.remove('hidden');
+            }
+        })
+        .catch(() => {
+            modalLoading.classList.add('hidden');
+            modalError.textContent = 'Failed to upload video frame.';
+            modalError.classList.remove('hidden');
+        });
+    }
+
+    function cropAndUploadFace(personId, imageId, imageUrl) {
+        modalLoading.textContent = 'Centering face...';
+        modalLoading.classList.remove('hidden');
+        modalError.classList.add('hidden');
+        // Fetch face bounding box
+        fetch(`/api/detect_faces/${imageId}`)
+            .then(res => res.json())
+            .then(data => {
+                if (!data.success || !data.faces || data.faces.length === 0) {
+                    throw new Error('No face detected');
+                }
+                // Use the largest face
+                const face = data.faces.reduce((a, b) => (a.width * a.height > b.width * b.height ? a : b));
+                // Load image
+                const img = new window.Image();
+                img.crossOrigin = 'anonymous';
+                img.onload = function() {
+                    // Calculate crop box (centered on face, square, with padding)
+                    const padding = 0.4; // 40% padding
+                    const faceCenterX = face.x + face.width / 2;
+                    const faceCenterY = face.y + face.height / 2;
+                    const faceSize = Math.max(face.width, face.height);
+                    const cropSize = Math.round(faceSize * (1 + padding));
+                    let cropX = Math.round(faceCenterX - cropSize / 2);
+                    let cropY = Math.round(faceCenterY - cropSize / 2);
+                    // Clamp crop box to image bounds
+                    cropX = Math.max(0, Math.min(cropX, img.width - cropSize));
+                    cropY = Math.max(0, Math.min(cropY, img.height - cropSize));
+                    // Draw to canvas
+                    const canvas = document.createElement('canvas');
+                    canvas.width = 224;
+                    canvas.height = 224;
+                    const ctx = canvas.getContext('2d');
+                    ctx.fillStyle = '#23263a';
+                    ctx.fillRect(0, 0, 224, 224);
+                    ctx.drawImage(img, cropX, cropY, cropSize, cropSize, 0, 0, 224, 224);
+                    // Convert to blob
+                    canvas.toBlob(function(blob) {
+                        if (!blob) {
+                            modalLoading.classList.add('hidden');
+                            modalError.textContent = 'Failed to crop image.';
+                            modalError.classList.remove('hidden');
+                            return;
+                        }
+                        // Upload to backend
+                        const formData = new FormData();
+                        formData.append('person_id', personId);
+                        formData.append('file', blob, 'profile.jpg');
+                        fetch('/api/upload_profile_thumbnail', {
+                            method: 'POST',
+                            body: formData
+                        })
+                        .then(res => res.json())
+                        .then(data => {
+                            modalLoading.classList.add('hidden');
+                            if (data.success) {
+                                if (currentProfileImg) {
+                                    currentProfileImg.src = data.thumbnail_path + '?t=' + Date.now();
+                                }
+                                closeModal();
+                            } else {
+                                modalError.textContent = data.error || 'Failed to set profile picture.';
+                                modalError.classList.remove('hidden');
+                            }
+                        })
+                        .catch(() => {
+                            modalLoading.classList.add('hidden');
+                            modalError.textContent = 'Failed to upload cropped image.';
+                            modalError.classList.remove('hidden');
+                        });
+                    }, 'image/jpeg', 0.95);
+                };
+                img.onerror = function() {
+                    modalLoading.classList.add('hidden');
+                    modalError.textContent = 'Failed to load image for cropping.';
+                    modalError.classList.remove('hidden');
+                };
+                img.src = imageUrl;
+            })
+            .catch(() => {
+                modalLoading.classList.add('hidden');
+                modalError.textContent = 'No face detected or error centering face.';
+                modalError.classList.remove('hidden');
+            });
+    }
+
+    document.querySelectorAll('.change-profile-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const personId = this.getAttribute('data-person-id');
+            const personName = this.getAttribute('data-person-name');
+            const profileImgElem = document.getElementById(`profile-img-${personId}`);
+            openModal(personId, personName, profileImgElem);
+        });
+    });
+    document.getElementById('close-modal-btn').addEventListener('click', closeModal);
+    modal.addEventListener('click', function(e) {
+        if (e.target === modal) closeModal();
+    });
+
+    // --- Auto-update All Profile Pictures ---
+    const autoUpdateBtn = document.getElementById('auto-update-btn');
+    const autoUpdateProgress = document.getElementById('auto-update-progress');
+    autoUpdateBtn.addEventListener('click', async function() {
+        try {
+            console.log('[AutoUpdate] Starting batch profile picture update...');
+            autoUpdateBtn.disabled = true;
+            autoUpdateBtn.classList.add('opacity-60', 'cursor-not-allowed');
+            autoUpdateProgress.classList.remove('hidden');
+            autoUpdateProgress.textContent = 'Starting batch profile picture update...';
+            const personCards = Array.from(document.querySelectorAll('[data-person-id]'));
+            let completed = 0;
+            for (const card of personCards) {
+                const personId = card.getAttribute('data-person-id');
+                const statusDiv = card.querySelector('.auto-update-status');
+                if (statusDiv) {
+                    statusDiv.textContent = 'Processing...';
+                } else {
+                    console.warn(`[AutoUpdate] No statusDiv found for person ${personId}`);
+                }
+                try {
+                    console.log(`[AutoUpdate] Processing person ${personId}`);
+                    // Fetch images for this person
+                    console.log(`[AutoUpdate] Fetching images for person ${personId}`);
+                    const res = await fetch(`/api/person_images/${personId}`);
+                    const data = await res.json();
+                    if (!data.success || !data.images.length) {
+                        if (statusDiv) {
+                            statusDiv.textContent = 'No images or videos.';
+                        }
+                        console.log(`[AutoUpdate] Person ${personId}: No images or videos.`);
+                        completed++;
+                        autoUpdateProgress.textContent = `Processed ${completed} of ${personCards.length} people...`;
+                        continue;
+                    }
+                    
+                    // Check if we have any video frames (when no regular images)
+                    const videoFrames = data.images.filter(img => img.type === 'video_frame' || img.id.toString().startsWith('video_'));
+                    const regularImages = data.images.filter(img => !img.type || img.type === 'image');
+                    
+                    // If we only have video frames, process them with face detection
+                    if (videoFrames.length > 0 && regularImages.length === 0) {
+                        const videoFrame = videoFrames[0];
+                        try {
+                            // Load video frame and detect faces
+                            const imageObj = new window.Image();
+                            imageObj.crossOrigin = 'anonymous';
+                            await new Promise((resolve, reject) => {
+                                imageObj.onload = function() {
+                                    try {
+                                        const canvas = document.createElement('canvas');
+                                        canvas.width = imageObj.width;
+                                        canvas.height = imageObj.height;
+                                        const ctx = canvas.getContext('2d');
+                                        ctx.drawImage(imageObj, 0, 0);
+                                        
+                                        // Detect faces in the video frame
+                                        canvas.toBlob(async function(blob) {
+                                            if (!blob) {
+                                                reject();
+                                                return;
+                                            }
+                                            
+                                            try {
+                                                // Send for face detection
+                                                const faceFormData = new FormData();
+                                                faceFormData.append('image', blob, 'video_frame.jpg');
+                                                faceFormData.append('video_id', '0');
+                                                
+                                                const faceRes = await fetch('/detect_faces_from_image', {
+                                                    method: 'POST',
+                                                    body: faceFormData
+                                                });
+                                                const faceData = await faceRes.json();
+                                                
+                                                if (!faceData.success || !faceData.faces || faceData.faces.length === 0) {
+                                                    // No face detected, use frame as-is
+                                                    const uploadFormData = new FormData();
+                                                    uploadFormData.append('person_id', personId);
+                                                    uploadFormData.append('file', blob, 'profile.jpg');
+                                                    const uploadRes = await fetch('/api/upload_profile_thumbnail', {
+                                                        method: 'POST',
+                                                        body: uploadFormData
+                                                    });
+                                                    const uploadData = await uploadRes.json();
+                                                    if (uploadData.success) {
+                                                        const profileImgElem = document.getElementById(`profile-img-${personId}`);
+                                                        if (profileImgElem) {
+                                                            profileImgElem.src = uploadData.thumbnail_path + '?t=' + Date.now();
+                                                        }
+                                                        if (statusDiv) {
+                                                            statusDiv.textContent = 'Updated from video (no face).';
+                                                        }
+                                                    }
+                                                    resolve();
+                                                    return;
+                                                }
+                                                
+                                                // Use largest face
+                                                const face = faceData.faces.reduce((a, b) => {
+                                                    const aArea = a.width * a.height;
+                                                    const bArea = b.width * b.height;
+                                                    return (aArea > bArea) ? a : b;
+                                                });
+                                                
+                                                // Crop and center face
+                                                const padding = 0.4;
+                                                const faceCenterX = face.x + face.width / 2;
+                                                const faceCenterY = face.y + face.height / 2;
+                                                const faceSize = Math.max(face.width, face.height);
+                                                const cropSize = Math.round(faceSize * (1 + padding));
+                                                let cropX = Math.max(0, Math.min(Math.round(faceCenterX - cropSize / 2), imageObj.width - cropSize));
+                                                let cropY = Math.max(0, Math.min(Math.round(faceCenterY - cropSize / 2), imageObj.height - cropSize));
+                                                
+                                                const cropCanvas = document.createElement('canvas');
+                                                cropCanvas.width = 224;
+                                                cropCanvas.height = 224;
+                                                const cropCtx = cropCanvas.getContext('2d');
+                                                cropCtx.fillStyle = '#23263a';
+                                                cropCtx.fillRect(0, 0, 224, 224);
+                                                cropCtx.drawImage(imageObj, cropX, cropY, cropSize, cropSize, 0, 0, 224, 224);
+                                                
+                                                cropCanvas.toBlob(async function(croppedBlob) {
+                                                    if (!croppedBlob) {
+                                                        reject();
+                                                        return;
+                                                    }
+                                                    const uploadFormData = new FormData();
+                                                    uploadFormData.append('person_id', personId);
+                                                    uploadFormData.append('file', croppedBlob, 'profile.jpg');
+                                                    const uploadRes = await fetch('/api/upload_profile_thumbnail', {
+                                                        method: 'POST',
+                                                        body: uploadFormData
+                                                    });
+                                                    const uploadData = await uploadRes.json();
+                                                    if (uploadData.success) {
+                                                        const profileImgElem = document.getElementById(`profile-img-${personId}`);
+                                                        if (profileImgElem) {
+                                                            profileImgElem.src = uploadData.thumbnail_path + '?t=' + Date.now();
+                                                        }
+                                                        if (statusDiv) {
+                                                            statusDiv.textContent = 'Updated from video!';
+                                                        }
+                                                        resolve();
+                                                    } else {
+                                                        reject();
+                                                    }
+                                                }, 'image/jpeg', 0.95);
+                                            } catch (faceErr) {
+                                                console.log(`[AutoUpdate] Error processing faces in video frame for person ${personId}:`, faceErr);
+                                                reject();
+                                            }
+                                        }, 'image/jpeg', 0.95);
+                                    } catch (canvasErr) {
+                                        reject();
+                                    }
+                                };
+                                imageObj.onerror = reject;
+                                imageObj.src = videoFrame.image_url;
+                            });
+                        } catch (videoErr) {
+                            console.log(`[AutoUpdate] Error processing video frame for person ${personId}:`, videoErr);
+                            if (statusDiv) {
+                                statusDiv.textContent = 'Error with video frame.';
+                            }
+                        }
+                        completed++;
+                        autoUpdateProgress.textContent = `Processed ${completed} of ${personCards.length} people...`;
+                        continue;
+                    }
+                    
+                    // Sort images by size (largest first) - only regular images
+                    const sortedImages = regularImages.slice().sort((a, b) => {
+                        const areaA = (a.width || 0) * (a.height || 0);
+                        const areaB = (b.width || 0) * (b.height || 0);
+                        return areaB - areaA;
+                    });
+                    // Only consider the top 5 largest images
+                    const topImages = sortedImages.slice(0, 5);
+                    let bestFace = null;
+                    let bestImg = null;
+                    let bestRatio = 0;
+                    for (const img of topImages) {
+                        try {
+                            // Fetch all faces in this image
+                            const faceRes = await fetch(`/api/detect_faces/${img.id}`);
+                            const faceData = await faceRes.json();
+                            if (!faceData.success || !faceData.faces || !faceData.faces.length) {
+                                continue; // No faces in this image
+                            }
+                            // Find the face with the largest area-to-image-area ratio
+                            for (const face of faceData.faces) {
+                                const faceArea = face.width * face.height;
+                                const imgArea = (img.width || 1) * (img.height || 1);
+                                const ratio = faceArea / imgArea;
+                                if (ratio > bestRatio) {
+                                    bestRatio = ratio;
+                                    bestFace = { ...face };
+                                    bestImg = img;
+                                }
+                            }
+                        } catch (err) {
+                            console.log(`[AutoUpdate] Error processing faces for image ${img.id} of person ${personId}:`, err);
+                        }
+                    }
+                    let updated = false;
+                    if (bestFace && bestImg) {
+                        // Load image and crop using bestFace and bestImg
+                        await new Promise((resolve, reject) => {
+                            const imageObj = new window.Image();
+                            imageObj.crossOrigin = 'anonymous';
+                            imageObj.onload = function() {
+                                try {
+                                    const padding = 0.4;
+                                    const faceCenterX = bestFace.x + bestFace.width / 2;
+                                    const faceCenterY = bestFace.y + bestFace.height / 2;
+                                    const faceSize = Math.max(bestFace.width, bestFace.height);
+                                    const cropSize = Math.round(faceSize * (1 + padding));
+                                    let cropX = Math.max(0, Math.min(Math.round(faceCenterX - cropSize / 2), imageObj.width - cropSize));
+                                    let cropY = Math.max(0, Math.min(Math.round(faceCenterY - cropSize / 2), imageObj.height - cropSize));
+                                    const canvas = document.createElement('canvas');
+                                    canvas.width = 224;
+                                    canvas.height = 224;
+                                    const ctx = canvas.getContext('2d');
+                                    ctx.fillStyle = '#23263a';
+                                    ctx.fillRect(0, 0, 224, 224);
+                                    ctx.drawImage(imageObj, cropX, cropY, cropSize, cropSize, 0, 0, 224, 224);
+                                    canvas.toBlob(async function(blob) {
+                                        if (!blob) {
+                                            console.log(`[AutoUpdate] Crop error for image ${bestImg.id} of person ${personId}`);
+                                            reject();
+                                            return;
+                                        }
+                                        // Upload
+                                        try {
+                                            const formData = new FormData();
+                                            formData.append('person_id', personId);
+                                            formData.append('file', blob, 'profile.jpg');
+                                            const uploadRes = await fetch('/api/upload_profile_thumbnail', {
+                                                method: 'POST',
+                                                body: formData
+                                            });
+                                            const uploadData = await uploadRes.json();
+                                            if (uploadData.success) {
+                                                const profileImgElem = document.getElementById(`profile-img-${personId}`);
+                                                if (profileImgElem) {
+                                                    profileImgElem.src = uploadData.thumbnail_path + '?t=' + Date.now();
+                                                } else {
+                                                    console.warn(`[AutoUpdate] No profile image element found for person ${personId}`);
+                                                }
+                                                if (statusDiv) {
+                                                    statusDiv.textContent = 'Updated!';
+                                                }
+                                                updated = true;
+                                                console.log(`[AutoUpdate] Updated profile for person ${personId} with image ${bestImg.id}`);
+                                                resolve();
+                                            } else {
+                                                console.log(`[AutoUpdate] Upload error for person ${personId} with image ${bestImg.id}`);
+                                                reject();
+                                            }
+                                        } catch (uploadErr) {
+                                            console.log(`[AutoUpdate] Upload exception for person ${personId} with image ${bestImg.id}:`, uploadErr);
+                                            reject();
+                                        }
+                                    }, 'image/jpeg', 0.95);
+                                } catch (canvasErr) {
+                                    console.log(`[AutoUpdate] Canvas/cropping error for image ${bestImg.id} of person ${personId}:`, canvasErr);
+                                    reject();
+                                }
+                            };
+                            imageObj.onerror = function(e) {
+                                console.log(`[AutoUpdate] Image load error for image ${bestImg.id} of person ${personId}:`, e);
+                                reject();
+                            };
+                            imageObj.src = bestImg.image_url;
+                        });
+                    } else {
+                        if (statusDiv) {
+                            statusDiv.textContent = 'No face found in any of the top 5 images.';
+                        }
+                        console.log(`[AutoUpdate] No face found in any of the top 5 images for person ${personId}`);
+                    }
+                } catch (personErr) {
+                    if (statusDiv) {
+                        statusDiv.textContent = 'Error.';
+                    }
+                    console.log(`[AutoUpdate] Error for person ${personId}:`, personErr);
+                }
+                completed++;
+                autoUpdateProgress.textContent = `Processed ${completed} of ${personCards.length} people...`;
+                console.log(`[AutoUpdate] Completed ${completed} of ${personCards.length}`);
+            }
+            autoUpdateProgress.textContent = `Done! Processed ${completed} of ${personCards.length} people.`;
+            autoUpdateBtn.disabled = false;
+            autoUpdateBtn.classList.remove('opacity-60', 'cursor-not-allowed');
+            console.log('[AutoUpdate] Batch update complete.');
+        } catch (outerErr) {
+            console.log('[AutoUpdate] Fatal error in batch update:', outerErr);
+            autoUpdateBtn.disabled = false;
+            autoUpdateBtn.classList.remove('opacity-60', 'cursor-not-allowed');
+        }
+    });
+
+    // --- Cleanup Empty People ---
+    const cleanupBtn = document.getElementById('cleanup-empty-btn');
+    const cleanupProgress = document.getElementById('cleanup-progress');
+    cleanupBtn.addEventListener('click', async function() {
+        if (!confirm('This will permanently delete all people who have no images or videos attached. This action cannot be undone. Continue?')) {
+            return;
+        }
+        
+        try {
+            cleanupBtn.disabled = true;
+            cleanupBtn.classList.add('opacity-60', 'cursor-not-allowed');
+            cleanupProgress.classList.remove('hidden');
+            cleanupProgress.textContent = 'Removing empty people...';
+            
+            const response = await fetch('/api/cleanup_empty_people', {
+                method: 'POST'
+            });
+            const data = await response.json();
+            
+            if (data.success) {
+                cleanupProgress.textContent = `Successfully removed ${data.deleted_count} people with no images or videos. Refreshing page...`;
+                setTimeout(() => {
+                    window.location.reload();
+                }, 2000);
+            } else {
+                cleanupProgress.textContent = `Error: ${data.error || 'Failed to cleanup empty people'}`;
+                cleanupProgress.classList.add('text-red-400');
+                cleanupBtn.disabled = false;
+                cleanupBtn.classList.remove('opacity-60', 'cursor-not-allowed');
+            }
+        } catch (error) {
+            cleanupProgress.textContent = `Error: ${error.message}`;
+            cleanupProgress.classList.add('text-red-400');
+            cleanupBtn.disabled = false;
+            cleanupBtn.classList.remove('opacity-60', 'cursor-not-allowed');
+        }
+    });
+});
+</script>
+{% endblock %} 

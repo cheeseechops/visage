@@ -1,0 +1,179 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 py-10">
+  <div class="container mx-auto max-w-4xl">
+    <div class="flex flex-col items-center mb-8">
+      <h2 class="text-4xl font-extrabold mb-2 text-white drop-shadow-lg tracking-tight">Missing Google Photos</h2>
+      <p class="text-gray-300 text-lg mb-4 text-center max-w-2xl">Find and compare Google Photos images that are missing from your Visage collection. Use the tools below to analyze, match, and review your photo library.</p>
+    </div>
+    <div class="mb-6 flex flex-wrap gap-2 justify-center">
+      <button id="build-embedding-btn" class="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded shadow transition-all">Build Face Embedding Store</button>
+      <button id="show-face-matches-btn" class="bg-pink-700 hover:bg-pink-800 text-white px-4 py-2 rounded shadow transition-all">Show Face Embedding Matches</button>
+    </div>
+    <div id="progress" class="text-white mb-4"></div>
+    <div id="results" class="bg-gray-800/80 p-4 rounded-lg text-white shadow mb-6 min-h-[48px]"></div>
+    <div id="match-viewer" class="mt-8"></div>
+  </div>
+</div>
+<script>
+// Fallback image for broken links
+const FALLBACK_IMG = '/static/img/missing.png';
+
+function createImageWithHandlers(src, alt, className, path) {
+  const img = document.createElement('img');
+  img.src = src;
+  img.alt = alt;
+  img.className = className;
+  img.loading = 'lazy';
+  img.style.cursor = 'zoom-in';
+  img.onerror = function() {
+    this.onerror = null;
+    this.src = FALLBACK_IMG;
+    this.classList.add('opacity-50');
+    const errorMsg = document.createElement('div');
+    errorMsg.textContent = 'Image not found';
+    errorMsg.className = 'text-red-400 text-xs mt-2';
+    this.parentNode.appendChild(errorMsg);
+  };
+  img.onclick = function() {
+    showFullscreenImage(src, alt, path);
+  };
+  return img;
+}
+
+function showFullscreenImage(src, alt, path) {
+  let overlay = document.getElementById('fullscreen-overlay-missing');
+  if (!overlay) {
+    overlay = document.createElement('div');
+    overlay.id = 'fullscreen-overlay-missing';
+    overlay.className = 'fixed inset-0 bg-black bg-opacity-95 z-50 flex items-center justify-center';
+    overlay.innerHTML = `
+      <div class='relative w-full h-full flex items-center justify-center'>
+        <img id='fullscreen-img-missing' src='' alt='' class='max-h-[90vh] max-w-[95vw] object-contain rounded shadow-lg'/>
+        <div id='fullscreen-path-missing' class='absolute bottom-4 left-1/2 transform -translate-x-1/2 bg-black bg-opacity-75 text-white px-3 py-1 rounded text-xs'></div>
+        <button id='close-fullscreen-missing' class='absolute top-4 right-4 bg-black bg-opacity-75 text-white px-3 py-2 rounded text-sm hover:bg-opacity-90 transition-opacity'>Close</button>
+      </div>
+    `;
+    document.body.appendChild(overlay);
+    document.getElementById('close-fullscreen-missing').onclick = function() {
+      overlay.style.display = 'none';
+    };
+    overlay.onclick = function(e) {
+      if (e.target === overlay) overlay.style.display = 'none';
+    };
+  }
+  document.getElementById('fullscreen-img-missing').src = src;
+  document.getElementById('fullscreen-img-missing').alt = alt;
+  document.getElementById('fullscreen-path-missing').textContent = path || '';
+  overlay.style.display = 'flex';
+}
+
+// Loading spinner HTML
+const SPINNER_HTML = `<div class='flex items-center justify-center h-64'><svg class='animate-spin h-10 w-10 text-gray-400' xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24'><circle class='opacity-25' cx='12' cy='12' r='10' stroke='currentColor' stroke-width='4'></circle><path class='opacity-75' fill='currentColor' d='M4 12a8 8 0 018-8v8z'></path></svg></div>`;
+
+// Progress bar HTML
+function setProgressBar(percent) {
+  let bar = document.getElementById('match-progress-bar');
+  if (!bar) {
+    const progressDiv = document.createElement('div');
+    progressDiv.className = 'w-full bg-gray-700 rounded-full h-3 mb-4';
+    progressDiv.innerHTML = `<div id='match-progress-bar' class='bg-blue-500 h-3 rounded-full transition-all' style='width: 0%'></div>`;
+    document.getElementById('progress').appendChild(progressDiv);
+    bar = document.getElementById('match-progress-bar');
+  }
+  bar.style.width = percent + '%';
+  if (percent >= 100) {
+    setTimeout(() => {
+      if (bar && bar.parentNode) bar.parentNode.remove();
+    }, 1000);
+  }
+}
+
+document.getElementById('build-embedding-btn').onclick = function() {
+  document.getElementById('progress').innerText = 'Building face embedding store...';
+  fetch('/api/build_face_embedding_store', {method: 'POST'})
+    .then(r => r.json())
+    .then(data => {
+      document.getElementById('progress').innerText = data.success ? 'Face embedding store built!' : 'Error building face embedding store.';
+    });
+};
+document.getElementById('show-face-matches-btn').onclick = function() {
+  document.getElementById('progress').innerHTML = '';
+  document.getElementById('match-viewer').innerHTML = '';
+  let progressBar = document.createElement('div');
+  progressBar.className = 'w-full bg-gray-700 rounded-full h-3 mb-4';
+  progressBar.innerHTML = `<div id='match-progress-bar' class='bg-blue-500 h-3 rounded-full transition-all' style='width: 0%'></div>`;
+  document.getElementById('progress').appendChild(progressBar);
+  let bar = document.getElementById('match-progress-bar');
+
+  fetch('/api/face_embedding_matches')
+    .then(response => {
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+      let matches = [];
+      let currentGoogleIndex = 0;
+      let currentGoogleTotal = 1;
+      let currentTotal = 1;
+
+      function processLine(line) {
+        if (!line.trim()) return;
+        let data;
+        try {
+          data = JSON.parse(line);
+        } catch (e) {
+          return;
+        }
+        if (data.type === 'progress') {
+          // Update progress bar for current image
+          currentGoogleIndex = data.google_index;
+          currentGoogleTotal = data.google_total;
+          currentTotal = data.total;
+          let percent = Math.round((data.current / data.total) * 100);
+          bar.style.width = percent + '%';
+          bar.textContent = `Comparing: ${data.current} / ${data.total}`;
+        } else if (data.type === 'result') {
+          // Reset progress bar for next image
+          bar.style.width = '0%';
+          bar.textContent = '';
+          matches.push(data);
+          // Optionally, render the match immediately
+          renderMatch(data, matches.length, data.total);
+        }
+      }
+
+      function renderMatch(match, idx, total) {
+        // You can customize this to show the match in your UI
+        const container = document.getElementById('match-viewer');
+        const div = document.createElement('div');
+        div.className = 'mb-4 p-4 bg-gray-800 rounded shadow text-white';
+        div.innerHTML = `
+          <div class="font-bold mb-2">Google Photo #${idx} / ${total}</div>
+          <img src="${match.google_url}" class="max-w-xs max-h-48 border-2 border-blue-400 rounded shadow mb-2"/>
+          <div class="text-xs text-gray-400 mb-2">${match.google_path}</div>
+          <div class="font-bold mb-2">Best Visage Match (distance: ${match.best_dist})</div>
+          ${match.best_visage_url ? `<img src="${match.best_visage_url}" class="max-w-xs max-h-48 border-2 border-green-400 rounded shadow mb-2"/>` : '<div class="text-red-400">No match</div>'}
+          <div class="text-xs text-gray-400">${match.best_visage_path ?? ''}</div>
+        `;
+        container.appendChild(div);
+      }
+
+      function read() {
+        reader.read().then(({ done, value }) => {
+          if (done) {
+            bar.style.width = '100%';
+            bar.textContent = 'Done!';
+            return;
+          }
+          buffer += decoder.decode(value, { stream: true });
+          let lines = buffer.split('\n');
+          buffer = lines.pop(); // last line may be incomplete
+          for (let line of lines) processLine(line);
+          read();
+        });
+      }
+      read();
+    });
+};
+</script>
+{% endblock %} 

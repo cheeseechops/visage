@@ -1,0 +1,943 @@
+{% extends "base.html" %}
+{% block title %}Experimental Grid{% endblock %}
+{% block content %}
+<style>
+  :root {
+    --row-height: 260px;
+    --gap: 1px;
+    --bg-dark: #111827;
+    --bg-darker: #0f172a;
+    --border-color: #374151;
+  }
+  
+  body { 
+    overflow-x: hidden;
+    background: var(--bg-darker);
+  }
+  
+  /* Optimized container */
+  .exp-container {
+    min-height: 100vh;
+    background: var(--bg-darker);
+  }
+  
+  /* Controls bar */
+  .exp-controls {
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    background: var(--bg-dark);
+    border-bottom: 1px solid var(--border-color);
+    padding: 1rem;
+    backdrop-filter: blur(10px);
+    background: rgba(31, 41, 55, 0.95);
+  }
+  
+  /* Grid container - optimized for GPU */
+  .exp-grid {
+    width: 100%;
+    will-change: contents;
+    contain: layout style paint;
+  }
+  
+  /* Row styling - GPU optimized */
+  .exp-row {
+    display: flex;
+    width: 100%;
+    contain: layout style paint;
+    content-visibility: auto;
+    contain-intrinsic-size: auto 260px;
+  }
+  
+  /* Image tile - optimized rendering */
+  .exp-tile {
+    position: relative;
+    overflow: hidden;
+    background: #000;
+    cursor: pointer;
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
+    will-change: transform;
+    transform: translateZ(0);
+    backface-visibility: hidden;
+  }
+  
+  .exp-tile:hover {
+    z-index: 10;
+  }
+  
+  .exp-tile img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    display: block;
+    image-rendering: auto;
+    -webkit-font-smoothing: antialiased;
+    will-change: transform;
+    transform: translateZ(0);
+    backface-visibility: hidden;
+  }
+  
+  /* Loading state */
+  .exp-loading {
+    text-align: center;
+    padding: 2rem;
+    color: #9ca3af;
+    font-size: 0.875rem;
+  }
+  
+  /* People overlay */
+  .exp-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.75);
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    backdrop-filter: blur(4px);
+  }
+  
+  .exp-overlay.hidden {
+    display: none;
+  }
+  
+  .exp-modal {
+    background: var(--bg-dark);
+    border-radius: 0.75rem;
+    max-width: 80rem;
+    width: calc(100% - 2rem);
+    max-height: 90vh;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.3);
+  }
+  
+  /* Person card */
+  .person-card {
+    position: relative;
+    background: #374151;
+    border-radius: 0.75rem;
+    padding: 1rem;
+    cursor: pointer;
+    transition: all 0.2s;
+    border: 2px solid transparent;
+  }
+  
+  .person-card:hover {
+    background: #4b5563;
+    border-color: #3b82f6;
+  }
+  
+  .person-card.selected {
+    background: #065f46;
+    border-color: #10b981;
+  }
+  
+  .person-card.selected .person-check {
+    opacity: 1;
+  }
+  
+  .person-check {
+    position: absolute;
+    top: -0.25rem;
+    right: -0.25rem;
+    width: 1.5rem;
+    height: 1.5rem;
+    background: #10b981;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    transition: opacity 0.2s;
+  }
+  
+  /* Utilities */
+  .btn {
+    padding: 0.5rem 1rem;
+    border-radius: 0.5rem;
+    font-size: 0.875rem;
+    font-weight: 500;
+    transition: all 0.2s;
+    border: none;
+    cursor: pointer;
+  }
+  
+  .btn-primary {
+    background: #2563eb;
+    color: white;
+  }
+  
+  .btn-primary:hover {
+    background: #1d4ed8;
+  }
+  
+  .btn-secondary {
+    background: #4b5563;
+    color: white;
+  }
+  
+  .btn-secondary:hover {
+    background: #6b7280;
+  }
+  
+  .input {
+    padding: 0.5rem 0.75rem;
+    border: 1px solid var(--border-color);
+    border-radius: 0.5rem;
+    background: #374151;
+    color: #e5e7eb;
+    font-size: 0.875rem;
+  }
+  
+  .input:focus {
+    outline: none;
+    ring: 2px;
+    ring-color: #3b82f6;
+  }
+  
+  .badge {
+    display: inline-block;
+    padding: 0.25rem 0.5rem;
+    background: #2563eb;
+    color: white;
+    border-radius: 9999px;
+    font-size: 0.75rem;
+    font-weight: 500;
+  }
+</style>
+
+<div class="exp-container">
+  <!-- Controls -->
+  <div class="exp-controls">
+    <div style="display: flex; align-items: center; gap: 1.5rem; flex-wrap: wrap;">
+      <!-- Sort -->
+      <div style="display: flex; align-items: center; gap: 0.75rem;">
+        <label style="color: #d1d5db; font-size: 0.875rem; font-weight: 500;">Sort:</label>
+        <select id="sort-select" class="input">
+          <option value="id-desc">ID (High→Low)</option>
+          <option value="id-asc">ID (Low→High)</option>
+          <option value="size-large">Size (Largest)</option>
+          <option value="size-small">Size (Smallest)</option>
+          <option value="random">Random</option>
+        </select>
+      </div>
+      
+      <!-- Favorites -->
+      <div style="display: flex; align-items: center; gap: 0.5rem;">
+        <label style="color: #d1d5db; font-size: 0.875rem; font-weight: 500;">
+          <input type="checkbox" id="favorites-only" style="margin-right: 0.5rem;"> Favorites
+        </label>
+      </div>
+      
+      <!-- People Filter -->
+      <div style="display: flex; align-items: center; gap: 0.75rem;">
+        <label style="color: #d1d5db; font-size: 0.875rem; font-weight: 500;">People:</label>
+        <button id="people-btn" class="btn btn-secondary" style="display: flex; align-items: center; gap: 0.5rem;">
+          <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z"/>
+          </svg>
+          Select
+        </button>
+        <span id="selected-count" class="badge">0</span>
+      </div>
+    </div>
+  </div>
+  
+  <!-- Grid -->
+  <div id="grid" class="exp-grid"></div>
+  <div id="loading" class="exp-loading hidden">Loading...</div>
+  <div id="sentinel" style="height: 1px; width: 100%;"></div>
+</div>
+
+<!-- People Selection Modal -->
+<div id="people-modal" class="exp-overlay hidden">
+  <div class="exp-modal">
+    <div style="padding: 1.5rem; border-bottom: 1px solid var(--border-color); display: flex; align-items: center; justify-content: space-between;">
+      <div style="display: flex; align-items: center; gap: 0.75rem;">
+        <h3 style="color: #e5e7eb; font-size: 1.25rem; font-weight: 600;">Select People</h3>
+        <span id="modal-count" class="badge">0</span>
+      </div>
+      <div style="display: flex; gap: 0.75rem;">
+        <button id="select-all" class="btn btn-primary">Select All</button>
+        <button id="clear-all" class="btn btn-secondary">Clear</button>
+        <button id="close-modal" class="btn btn-secondary">✕</button>
+      </div>
+    </div>
+    <div style="padding: 1rem; border-bottom: 1px solid var(--border-color);">
+      <input type="text" id="people-search" class="input" placeholder="Search people..." style="width: 100%;">
+    </div>
+    <div style="padding: 1.5rem; overflow-y: auto; flex: 1;">
+      <div id="people-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 1rem;"></div>
+    </div>
+    <div style="padding: 1.5rem; border-top: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center;">
+      <div style="color: #9ca3af; font-size: 0.875rem;">Click to select/deselect</div>
+      <div style="display: flex; gap: 0.75rem;">
+        <button id="cancel" class="btn btn-secondary">Cancel</button>
+        <button id="apply" class="btn btn-primary">Apply</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+'use strict';
+
+// ============================================================================
+// Configuration & Constants
+// ============================================================================
+const CONFIG = {
+  ROW_HEIGHT: 260,
+  MIN_ROW_ITEMS: 3,
+  MAX_ROW_HEIGHT: 500,
+  PAGE_SIZE: 200,
+  PREFETCH_AHEAD: 2,
+  SCROLL_THRESHOLD: 5000,
+  INTERSECTION_ROOT_MARGIN: '3000px'
+};
+
+// ============================================================================
+// State Management
+// ============================================================================
+class State {
+  constructor() {
+    this.images = [];
+    this.people = [];
+    this.selectedPeople = new Set();
+    this.favoritesOnly = false;
+    this.sort = 'id-desc';
+    this.isLoading = false;
+    this.hasMore = true;
+    this.cursor = { id: null, name: null, date: null, size: null, fav: null };
+    this.total = 0;
+    this.pendingImages = [];
+    this.prefetchQueue = [];
+  }
+  
+  reset() {
+    this.images = [];
+    this.isLoading = false;
+    this.hasMore = true;
+    this.cursor = { id: null, name: null, date: null, size: null, fav: null };
+    this.pendingImages = [];
+    this.prefetchQueue = [];
+  }
+}
+
+const state = new State();
+
+// ============================================================================
+// API Layer
+// ============================================================================
+class API {
+  static async fetchPeople() {
+    const res = await fetch('/api/people');
+    if (!res.ok) throw new Error('Failed to fetch people');
+    const data = await res.json();
+    return (data.people || data || []).map(p => ({
+      id: p.id || p[0],
+      name: p.name || p[1],
+      thumbnail: p.thumbnail_path || null
+    }));
+  }
+  
+  static async fetchImages(params) {
+    const query = new URLSearchParams({
+      page_size: params.pageSize || CONFIG.PAGE_SIZE,
+      favorites_only: params.favoritesOnly ? 'true' : 'false',
+      person_filter: params.personFilter || '',
+      sort_by: params.sort || 'id-desc',
+      ...(params.lastId && { last_id: params.lastId }),
+      ...(params.lastName && { last_name: params.lastName }),
+      ...(params.lastDate && { last_created_at: params.lastDate }),
+      ...(params.lastSize !== null && params.lastSize !== undefined && { last_size: params.lastSize }),
+      ...(params.lastFav !== null && params.lastFav !== undefined && { last_fav: params.lastFav })
+    });
+    
+    const res = await fetch(`/api/images_paginated?${query}`, {
+      priority: params.priority || 'high',
+      cache: 'no-cache'
+    });
+    
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return res.json();
+  }
+}
+
+// ============================================================================
+// Grid Layout Engine
+// ============================================================================
+class GridLayout {
+  constructor(containerWidth, targetHeight = CONFIG.ROW_HEIGHT) {
+    this.containerWidth = containerWidth;
+    this.targetHeight = targetHeight;
+  }
+  
+  calculateRows(images) {
+    const rows = [];
+    let currentRow = [];
+    let currentArSum = 0;
+    
+    for (const img of images) {
+      const ar = this.getAspectRatio(img);
+      currentRow.push({ ...img, ar });
+      currentArSum += ar;
+      
+      const rowWidth = currentArSum * this.targetHeight;
+      
+      if (rowWidth >= this.containerWidth * 0.95) {
+        const rowHeight = Math.round(this.containerWidth / currentArSum);
+        rows.push({ items: currentRow, height: rowHeight });
+        currentRow = [];
+        currentArSum = 0;
+      }
+    }
+    
+    // Handle remaining items
+    if (currentRow.length > 0) {
+      const rowHeight = Math.round(this.containerWidth / currentArSum);
+      const wouldBeTooTall = rowHeight > CONFIG.MAX_ROW_HEIGHT;
+      const hasTooFewItems = currentRow.length < CONFIG.MIN_ROW_ITEMS;
+      
+      if (rows.length > 0 && (wouldBeTooTall || hasTooFewItems)) {
+        // Try to merge with last row
+        const lastRow = rows[rows.length - 1];
+        const mergedArSum = lastRow.items.reduce((sum, item) => sum + item.ar, 0) + currentArSum;
+        const mergedHeight = this.containerWidth / mergedArSum;
+        
+        if (mergedHeight <= CONFIG.MAX_ROW_HEIGHT && lastRow.items.length + currentRow.length <= 15) {
+          lastRow.items = lastRow.items.concat(currentRow);
+          lastRow.height = Math.round(mergedHeight);
+        } else {
+          rows.push({ items: currentRow, height: Math.min(rowHeight, CONFIG.MAX_ROW_HEIGHT) });
+        }
+      } else {
+        rows.push({ items: currentRow, height: Math.min(rowHeight, CONFIG.MAX_ROW_HEIGHT) });
+      }
+    }
+    
+    return rows;
+  }
+  
+  getAspectRatio(img) {
+    if (img.width && img.height && img.height !== 0) {
+      return img.width / img.height;
+    }
+    return 1.5; // Default aspect ratio
+  }
+  
+  calculateCompleteRows(images, maxRows = Infinity) {
+    const allRows = this.calculateRows(images);
+    const usedRows = allRows.slice(0, maxRows);
+    const usedCount = usedRows.reduce((sum, row) => sum + row.items.length, 0);
+    const remaining = images.slice(usedCount);
+    
+    return { rows: usedRows, remaining, usedCount };
+  }
+}
+
+// ============================================================================
+// Renderer
+// ============================================================================
+class Renderer {
+  constructor(container) {
+    this.container = container;
+    this.sentinel = document.getElementById('sentinel');
+  }
+  
+  createRow(rowData, containerWidth) {
+    const row = document.createElement('div');
+    row.className = 'exp-row';
+    row.style.height = `${rowData.height}px`;
+    
+    let accumulatedWidth = 0;
+    
+    rowData.items.forEach((item, idx) => {
+      const width = Math.round(rowData.height * item.ar);
+      accumulatedWidth += width;
+      
+      const tile = this.createTile(item, width, rowData.height, idx < rowData.items.length - 1);
+      row.appendChild(tile);
+    });
+    
+    // Adjust last tile to fill remaining space
+    const diff = containerWidth - accumulatedWidth;
+    if (diff !== 0 && row.lastChild) {
+      const lastTile = row.lastChild;
+      const currentWidth = parseInt(lastTile.style.width, 10) || 0;
+      lastTile.style.width = `${currentWidth + diff}px`;
+    }
+    
+    return row;
+  }
+  
+  createTile(item, width, height, hasBorder) {
+    const tile = document.createElement('div');
+    tile.className = 'exp-tile';
+    tile.style.width = `${width}px`;
+    tile.style.height = `${height}px`;
+    if (hasBorder) {
+      tile.style.borderRight = `1px solid var(--border-color)`;
+    }
+    
+    const img = document.createElement('img');
+    img.loading = 'lazy';
+    img.decoding = 'async';
+    img.fetchPriority = 'low';
+    img.width = Math.round(width * 1.5);
+    img.height = Math.round(height * 1.5);
+    img.alt = `Image ${item.id}`;
+    img.style.imageRendering = 'auto';
+    
+    // Set image source with fallback
+    const url = item.image_url || item.original_path || '';
+    if (url) {
+      img.src = url;
+      img.onerror = () => {
+        const encoded = encodeURI(url);
+        if (encoded !== url) img.src = encoded;
+      };
+    }
+    
+    tile.appendChild(img);
+    tile.addEventListener('click', () => {
+      window.location.href = `/image/${item.id}`;
+    });
+    
+    return tile;
+  }
+  
+  renderRows(rows, containerWidth, prepend = false) {
+    const fragment = document.createDocumentFragment();
+    
+    rows.forEach(rowData => {
+      const rowElement = this.createRow(rowData, containerWidth);
+      fragment.appendChild(rowElement);
+    });
+    
+    if (prepend && this.container.firstChild) {
+      this.container.insertBefore(fragment, this.container.firstChild);
+    } else {
+      this.container.appendChild(fragment);
+    }
+    
+    this.updateSentinel();
+  }
+  
+  clear() {
+    this.container.innerHTML = '';
+  }
+  
+  updateSentinel() {
+    if (this.sentinel.parentNode !== document.body) {
+      document.body.appendChild(this.sentinel);
+    }
+  }
+  
+  showLoading() {
+    document.getElementById('loading').classList.remove('hidden');
+  }
+  
+  hideLoading() {
+    document.getElementById('loading').classList.add('hidden');
+  }
+}
+
+// ============================================================================
+// Data Manager
+// ============================================================================
+class DataManager {
+  constructor(renderer) {
+    this.renderer = renderer;
+    this.layout = new GridLayout(window.innerWidth);
+    this.observer = null;
+    this.prefetchTimeout = null;
+  }
+  
+  async loadInitial() {
+    state.reset();
+    this.renderer.clear();
+    this.layout = new GridLayout(window.innerWidth);
+    
+    try {
+      this.renderer.showLoading();
+      const data = await API.fetchImages({
+        pageSize: CONFIG.PAGE_SIZE * 2,
+        favoritesOnly: state.favoritesOnly,
+        personFilter: Array.from(state.selectedPeople).join(','),
+        sort: state.sort
+      });
+      
+      if (data.images && data.images.length > 0) {
+        state.total = data.total || data.images.length;
+        const result = this.layout.calculateCompleteRows(data.images, 4);
+        state.images = result.rows.reduce((acc, row) => acc.concat(row.items), []);
+        state.pendingImages = result.remaining;
+        
+        this.updateCursor(data.images[result.rows.reduce((sum, r) => sum + r.items.length, 0) - 1], data);
+        
+        // Render first 4 rows immediately
+        this.renderer.renderRows(result.rows.slice(0, 4), window.innerWidth);
+        
+        // Continue loading in background
+        if (result.remaining.length > 0 || state.images.length < state.total) {
+          this.loadMore(true);
+        }
+      }
+    } catch (error) {
+      console.error('Failed to load images:', error);
+    } finally {
+      this.renderer.hideLoading();
+    }
+  }
+  
+  async loadMore(isBackground = false) {
+    if (state.isLoading || !state.hasMore) return;
+    
+    state.isLoading = true;
+    
+    try {
+      // Check pending images first
+      if (state.pendingImages.length > 0) {
+        this.layout = new GridLayout(window.innerWidth);
+        const result = this.layout.calculateCompleteRows(state.pendingImages, CONFIG.PAGE_SIZE);
+        const used = result.rows.reduce((acc, row) => acc.concat(row.items), []);
+        
+        state.images = state.images.concat(used);
+        state.pendingImages = result.remaining;
+        
+        this.renderer.renderRows(result.rows, window.innerWidth);
+        this.updateCursor(used[used.length - 1]);
+        
+        if (result.remaining.length === 0 && state.images.length < state.total) {
+          await this.fetchNextBatch();
+        }
+      } else {
+        await this.fetchNextBatch();
+      }
+      
+      state.hasMore = state.images.length < state.total && state.cursor.id !== null;
+    } catch (error) {
+      console.error('Failed to load more:', error);
+    } finally {
+      state.isLoading = false;
+      this.schedulePrefetch();
+    }
+  }
+  
+  async fetchNextBatch() {
+    const params = {
+      pageSize: CONFIG.PAGE_SIZE * 2,
+      favoritesOnly: state.favoritesOnly,
+      personFilter: Array.from(state.selectedPeople).join(','),
+      sort: state.sort,
+      priority: 'low',
+      lastId: state.cursor.id
+    };
+    
+    if (state.sort.startsWith('name') && state.cursor.name) {
+      params.lastName = state.cursor.name;
+    }
+    if (state.sort.startsWith('date') && state.cursor.date) {
+      params.lastDate = state.cursor.date;
+    }
+    if (state.sort.startsWith('size') && state.cursor.size !== null) {
+      params.lastSize = state.cursor.size;
+    }
+    if (state.sort === 'favorites' && state.cursor.fav !== null) {
+      params.lastFav = state.cursor.fav;
+    }
+    
+    const data = await API.fetchImages(params);
+    
+    if (data.images && data.images.length > 0) {
+      this.layout = new GridLayout(window.innerWidth);
+      const result = this.layout.calculateCompleteRows(data.images);
+      
+      state.images = state.images.concat(result.rows.reduce((acc, row) => acc.concat(row.items), []));
+      state.pendingImages = result.remaining;
+      
+      this.renderer.renderRows(result.rows, window.innerWidth);
+      this.updateCursor(result.rows[result.rows.length - 1]?.items[result.rows[result.rows.length - 1]?.items.length - 1], data);
+    } else {
+      state.hasMore = false;
+    }
+  }
+  
+  updateCursor(lastImage, apiData = {}) {
+    if (lastImage) {
+      state.cursor.id = lastImage.id;
+      if (state.sort.startsWith('name')) {
+        state.cursor.name = lastImage.people?.[0]?.name || apiData.last_name || '';
+      } else {
+        state.cursor.name = apiData.last_name || '';
+      }
+      if (state.sort.startsWith('date')) {
+        state.cursor.date = lastImage.created_at || apiData.last_created_at || '';
+      } else {
+        state.cursor.date = apiData.last_created_at || '';
+      }
+      if (state.sort.startsWith('size')) {
+        state.cursor.size = (lastImage.width || 0) * (lastImage.height || 0);
+      } else {
+        state.cursor.size = apiData.last_size !== undefined ? apiData.last_size : null;
+      }
+      if (state.sort === 'favorites') {
+        state.cursor.fav = lastImage.is_favorite ? 1 : 0;
+      } else {
+        state.cursor.fav = apiData.last_fav !== undefined ? apiData.last_fav : null;
+      }
+    } else {
+      state.cursor.id = apiData.last_id || null;
+      state.cursor.name = apiData.last_name || '';
+      state.cursor.date = apiData.last_created_at || '';
+      state.cursor.size = apiData.last_size !== undefined ? apiData.last_size : null;
+      state.cursor.fav = apiData.last_fav !== undefined ? apiData.last_fav : null;
+    }
+  }
+  
+  setupIntersectionObserver() {
+    if (this.observer) {
+      this.observer.disconnect();
+    }
+    
+    this.observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach(entry => {
+          if (entry.isIntersecting && !state.isLoading && state.hasMore) {
+            this.loadMore();
+          }
+        });
+      },
+      {
+        rootMargin: CONFIG.INTERSECTION_ROOT_MARGIN,
+        threshold: 0
+      }
+    );
+    
+    this.observer.observe(this.renderer.sentinel);
+  }
+  
+  schedulePrefetch() {
+    if (this.prefetchTimeout) {
+      clearTimeout(this.prefetchTimeout);
+    }
+    
+    this.prefetchTimeout = setTimeout(() => {
+      if (state.hasMore && !state.isLoading) {
+        this.loadMore(true);
+      }
+    }, 100);
+  }
+  
+  handleResize() {
+    this.layout = new GridLayout(window.innerWidth);
+    this.renderer.clear();
+    
+    const allImages = state.images;
+    if (allImages.length > 0) {
+      const rows = this.layout.calculateRows(allImages);
+      this.renderer.renderRows(rows, window.innerWidth);
+    }
+  }
+}
+
+// ============================================================================
+// People Manager
+// ============================================================================
+class PeopleManager {
+  constructor() {
+    this.container = document.getElementById('people-grid');
+    this.modal = document.getElementById('people-modal');
+    this.searchInput = document.getElementById('people-search');
+  }
+  
+  async load() {
+    try {
+      state.people = await API.fetchPeople();
+      this.render();
+    } catch (error) {
+      console.error('Failed to load people:', error);
+    }
+  }
+  
+  render() {
+    this.container.innerHTML = '';
+    const searchTerm = (this.searchInput.value || '').toLowerCase();
+    
+    state.people
+      .filter(p => p.name.toLowerCase().includes(searchTerm))
+      .forEach(person => {
+        const card = document.createElement('div');
+        card.className = `person-card ${state.selectedPeople.has(String(person.id)) ? 'selected' : ''}`;
+        
+        card.innerHTML = `
+          <div style="display: flex; flex-direction: column; align-items: center; gap: 0.75rem;">
+            <div style="position: relative;">
+              <div style="width: 4rem; height: 4rem; border-radius: 50%; overflow: hidden; background: #4b5563; display: flex; align-items: center; justify-content: center;">
+                <img src="${person.thumbnail || ''}" alt="${person.name}" style="width: 100%; height: 100%; object-fit: cover;">
+              </div>
+              <div class="person-check">
+                <svg width="16" height="16" fill="currentColor" viewBox="0 0 20 20">
+                  <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/>
+                </svg>
+              </div>
+            </div>
+            <div style="text-align: center;">
+              <p style="font-size: 0.875rem; font-weight: 500; color: #e5e7eb; margin: 0; text-overflow: ellipsis; overflow: hidden; white-space: nowrap; max-width: 100px;">${person.name}</p>
+            </div>
+          </div>
+        `;
+        
+        card.addEventListener('click', () => {
+          const id = String(person.id);
+          if (state.selectedPeople.has(id)) {
+            state.selectedPeople.delete(id);
+          } else {
+            state.selectedPeople.add(id);
+          }
+          this.render();
+          this.updateCounts();
+        });
+        
+        this.container.appendChild(card);
+      });
+    
+    this.updateCounts();
+  }
+  
+  updateCounts() {
+    const count = state.selectedPeople.size;
+    document.getElementById('selected-count').textContent = count;
+    document.getElementById('modal-count').textContent = count;
+  }
+  
+  show() {
+    this.modal.classList.remove('hidden');
+    this.render();
+  }
+  
+  hide() {
+    this.modal.classList.add('hidden');
+  }
+  
+  selectAll() {
+    state.people.forEach(p => state.selectedPeople.add(String(p.id)));
+    this.render();
+  }
+  
+  clear() {
+    state.selectedPeople.clear();
+    this.render();
+  }
+}
+
+// ============================================================================
+// Application
+// ============================================================================
+class App {
+  constructor() {
+    this.renderer = new Renderer(document.getElementById('grid'));
+    this.dataManager = new DataManager(this.renderer);
+    this.peopleManager = new PeopleManager();
+    
+    this.setupEventListeners();
+    this.init();
+  }
+  
+  setupEventListeners() {
+    // Sort
+    document.getElementById('sort-select').addEventListener('change', (e) => {
+      state.sort = e.target.value;
+      if (state.sort === 'random') {
+        this.shuffleImages();
+      } else {
+        this.dataManager.loadInitial();
+      }
+    });
+    
+    // Favorites
+    document.getElementById('favorites-only').addEventListener('change', (e) => {
+      state.favoritesOnly = e.target.checked;
+      this.dataManager.loadInitial();
+    });
+    
+    // People
+    document.getElementById('people-btn').addEventListener('click', () => {
+      this.peopleManager.show();
+    });
+    
+    document.getElementById('close-modal').addEventListener('click', () => {
+      this.peopleManager.hide();
+    });
+    
+    document.getElementById('cancel').addEventListener('click', () => {
+      this.peopleManager.hide();
+    });
+    
+    document.getElementById('apply').addEventListener('click', () => {
+      this.peopleManager.hide();
+      this.dataManager.loadInitial();
+    });
+    
+    document.getElementById('select-all').addEventListener('click', () => {
+      this.peopleManager.selectAll();
+    });
+    
+    document.getElementById('clear-all').addEventListener('click', () => {
+      this.peopleManager.clear();
+    });
+    
+    document.getElementById('people-search').addEventListener('input', () => {
+      this.peopleManager.render();
+    });
+    
+    // Modal backdrop
+    document.getElementById('people-modal').addEventListener('click', (e) => {
+      if (e.target === e.currentTarget) {
+        this.peopleManager.hide();
+      }
+    });
+    
+    // Resize
+    let resizeTimeout;
+    window.addEventListener('resize', () => {
+      clearTimeout(resizeTimeout);
+      resizeTimeout = setTimeout(() => {
+        this.dataManager.handleResize();
+      }, 250);
+    });
+  }
+  
+  async init() {
+    await Promise.all([
+      this.peopleManager.load(),
+      this.dataManager.loadInitial()
+    ]);
+    
+    this.dataManager.setupIntersectionObserver();
+  }
+  
+  shuffleImages() {
+    const array = [...state.images];
+    for (let i = array.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [array[i], array[j]] = [array[j], array[i]];
+    }
+    state.images = array;
+    
+    this.renderer.clear();
+    const rows = this.dataManager.layout.calculateRows(state.images);
+    this.renderer.renderRows(rows, window.innerWidth);
+  }
+}
+
+// Initialize app when DOM is ready
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', () => new App());
+} else {
+  new App();
+}
+</script>
+{% endblock %}

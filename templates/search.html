@@ -1,0 +1,241 @@
+{% extends "base.html" %}
+{% block title %}Search - People & Images{% endblock %}
+{% block content %}
+<style>
+  .search-dark-bg { background: #181a20; color: #e5e7eb; }
+  .search-bar {
+    background: #23263a;
+    color: #e5e7eb;
+    border: 1px solid #353a50;
+    border-radius: 0.75rem;
+    padding: 1.25rem 1.5rem;
+    font-size: 1.25rem;
+    width: 100%;
+    outline: none;
+    margin-bottom: 2.5rem;
+    transition: border 0.2s;
+  }
+  .search-bar:focus { border-color: #6366f1; }
+  .search-section-title {
+    color: #a5b4fc;
+    font-size: 1.125rem;
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+    margin-top: 2rem;
+  }
+  .search-row {
+    display: flex;
+    overflow-x: auto;
+    gap: 1.5rem;
+    padding-bottom: 0.5rem;
+    margin-bottom: 2.5rem;
+    scrollbar-color: #6366f1 #23263a;
+    scrollbar-width: thin;
+  }
+  .search-row::-webkit-scrollbar {
+    height: 8px;
+    background: #23263a;
+  }
+  .search-row::-webkit-scrollbar-thumb {
+    background: #6366f1;
+    border-radius: 4px;
+  }
+  .search-person-card {
+    background: #23263a;
+    border: 1px solid #353a50;
+    border-radius: 0.75rem;
+    padding: 1.25rem 0.75rem 0.75rem 0.75rem;
+    min-width: 120px;
+    max-width: 120px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    transition: box-shadow 0.2s, border 0.2s;
+    cursor: pointer;
+    text-align: center;
+  }
+  .search-person-card:hover {
+    box-shadow: 0 2px 12px 0 rgba(99,102,241,0.15);
+    border-color: #6366f1;
+  }
+  .search-person-thumb {
+    width: 96px;
+    height: 96px;
+    border-radius: 9999px;
+    object-fit: cover;
+    margin-bottom: 0.5rem;
+    border: 3px solid #6366f1;
+    background: #23263a;
+    box-shadow: 0 2px 8px 0 rgba(99,102,241,0.10);
+  }
+  .search-person-name {
+    font-size: 0.98rem;
+    color: #e5e7eb;
+    font-weight: 500;
+    margin-top: 0.25rem;
+    margin-bottom: 0.1rem;
+    word-break: break-word;
+    line-height: 1.2;
+  }
+  .search-image-card {
+    background: #23263a;
+    border: 1px solid #353a50;
+    border-radius: 0.75rem;
+    padding: 1rem;
+    min-width: 180px;
+    max-width: 220px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    transition: box-shadow 0.2s;
+    cursor: pointer;
+    text-align: center;
+  }
+  .search-image-card:hover {
+    box-shadow: 0 2px 12px 0 rgba(99,102,241,0.15);
+    border-color: #6366f1;
+  }
+  .search-image-thumb {
+    width: 100px;
+    height: 100px;
+    border-radius: 0.5rem;
+    object-fit: cover;
+    margin-bottom: 0.75rem;
+    background: #23263a;
+    border: 1px solid #353a50;
+  }
+  .search-highlight {
+    background: #6366f1;
+    color: #fff;
+    border-radius: 0.375rem;
+    display: inline;
+    padding: 0;
+    margin: 0;
+  }
+  .search-label {
+    font-size: 0.95rem;
+    color: #a5b4fc;
+    margin-bottom: 0.5rem;
+    font-weight: 500;
+  }
+  .search-empty {
+    color: #6b7280;
+    font-size: 1rem;
+    padding: 1.5rem 0;
+  }
+</style>
+<div class="fade-in max-w-full mx-auto search-dark-bg p-8 rounded-xl shadow-lg" style="max-width:1800px;">
+  <h1 class="text-3xl font-bold text-gray-100 mb-8">Search</h1>
+  <form id="search-form" autocomplete="off" onsubmit="return false;">
+    <input type="text" id="search-input" class="search-bar" placeholder="Search people or items in images..." autofocus />
+  </form>
+  <div>
+    <div class="search-label">People</div>
+    <div id="search-people-row" class="search-row">
+      <div class="search-empty">Type to search for people...</div>
+    </div>
+    <div class="search-label">Images & Items</div>
+    <div id="search-images-row" class="search-row">
+      <div class="search-empty">Type to search for items or tags in images...</div>
+    </div>
+  </div>
+</div>
+<script>
+const searchInput = document.getElementById('search-input');
+const peopleRow = document.getElementById('search-people-row');
+const imagesRow = document.getElementById('search-images-row');
+
+function highlight(text, query) {
+  if (!query) return text;
+  const regex = new RegExp(`(${query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'ig');
+  return text.replace(regex, '<span class="search-highlight">$1</span>');
+}
+
+async function doSearch(query) {
+  if (!query.trim()) {
+    peopleRow.innerHTML = '<div class="search-empty">Type to search for people...</div>';
+    imagesRow.innerHTML = '<div class="search-empty">Type to search for items or tags in images...</div>';
+    return;
+  }
+  peopleRow.innerHTML = '<div class="search-empty">Searching...</div>';
+  imagesRow.innerHTML = '<div class="search-empty">Searching...</div>';
+  try {
+    const resp = await fetch(`/api/search?q=${encodeURIComponent(query)}`);
+    const data = await resp.json();
+    // People
+    if (data.people && data.people.length > 0) {
+      peopleRow.innerHTML = '';
+      data.people.forEach(person => {
+        const card = document.createElement('a');
+        card.className = 'search-person-card';
+        card.href = `/person/${person.id}`;
+        card.innerHTML = `
+          <img src="${person.thumbnail}" class="search-person-thumb" alt="${person.name}">
+          <div class="search-person-name">${highlight(person.name, query)}</div>
+        `;
+        peopleRow.appendChild(card);
+      });
+    } else {
+      peopleRow.innerHTML = '<div class="search-empty">No people found.</div>';
+    }
+    // Images
+    if (data.images && data.images.length > 0) {
+      imagesRow.innerHTML = '';
+      imagesRow.classList.remove('search-row');
+      // Clothing grid only for images with clothing tags
+      const clothingImages = data.images.filter(img => (img.tags || []).some(tag => tag && !tag.startsWith('__no_clothing_detected__')));
+      if (clothingImages.length > 0) {
+        const grid = document.createElement('div');
+        grid.className = 'grid gap-8 mt-8';
+        grid.style.display = 'grid';
+        grid.style.gridTemplateColumns = 'repeat(auto-fit, minmax(320px, 1fr))';
+        grid.style.overflowX = 'unset';
+        clothingImages.forEach(image => {
+          const div = document.createElement('div');
+          div.className = 'bg-gray-800 rounded-lg shadow aspect-square relative overflow-hidden flex items-center justify-center';
+          div.style.width = '100%';
+          div.style.height = '320px';
+          div.innerHTML = `
+            <a href="${image.image_url}" target="_blank" class="absolute inset-0 flex items-center justify-center">
+              <img src="${image.image_url}" alt="Clothing image" class="object-contain w-full h-full bg-gray-900 border border-gray-700" style="display:block;">
+            </a>
+            <div class="absolute bottom-0 left-0 w-full px-2 pb-2 pt-1 bg-gradient-to-t from-gray-900/90 to-transparent flex flex-col items-center">
+              <div class="flex flex-wrap justify-center w-full mb-1">
+                ${(image.tags || []).filter(tag => tag && !tag.startsWith('__no_clothing_detected__')).map(tag => `<span class='inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800 mr-2 mb-1'>${tag.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}</span>`).join('')}
+              </div>
+              <div class="flex flex-wrap justify-center w-full">
+                ${(image.people || []).map(person => `<span class='inline-block bg-gray-700 text-gray-200 px-2 py-1 rounded mr-2 mb-1'>${person.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}</span>`).join('')}
+              </div>
+            </div>
+          `;
+          grid.appendChild(div);
+        });
+        imagesRow.appendChild(grid);
+      } else {
+        imagesRow.innerHTML = '<div class="search-empty">No clothing results found.</div>';
+      }
+    } else {
+      imagesRow.innerHTML = '<div class="search-empty">No images found.</div>';
+    }
+  } catch (error) {
+    console.error("Error fetching search results:", error);
+    imagesRow.innerHTML = '<div class="search-empty">Failed to fetch search results.</div>';
+  }
+}
+
+searchInput.addEventListener('input', (event) => {
+  const query = event.target.value;
+  doSearch(query);
+});
+
+searchInput.addEventListener('keypress', (event) => {
+  if (event.key === 'Enter') {
+    const query = searchInput.value;
+    doSearch(query);
+  }
+});
+
+// Initial search on page load
+doSearch('');
+</script>
+{% endblock %} 

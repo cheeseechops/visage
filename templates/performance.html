@@ -1,0 +1,153 @@
+{% extends "base.html" %}
+{% block title %}Performance Monitor{% endblock %}
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <h1 class="text-3xl font-bold mb-8">Namer Performance Monitor</h1>
+    
+    <!-- Real-time Performance Summary -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        <div class="bg-blue-100 p-6 rounded-lg">
+            <h3 class="text-lg font-semibold text-blue-800">Session Info</h3>
+            <p class="text-2xl font-bold text-blue-600">{{ summary.session_id }}</p>
+            <p class="text-sm text-blue-700">Duration: {{ "%.1f"|format(summary.session_duration_ms) }}ms</p>
+        </div>
+        
+        <div class="bg-green-100 p-6 rounded-lg">
+            <h3 class="text-lg font-semibold text-green-800">Operations</h3>
+            <p class="text-2xl font-bold text-green-600">{{ summary.total_operations }}</p>
+            <p class="text-sm text-green-700">{{ "%.2f"|format(summary.operations_per_second) }} ops/sec</p>
+        </div>
+        
+        <div class="bg-yellow-100 p-6 rounded-lg">
+            <h3 class="text-lg font-semibold text-yellow-800">Total Time</h3>
+            <p class="text-2xl font-bold text-yellow-600">{{ "%.1f"|format(summary.total_time_ms) }}ms</p>
+            <p class="text-sm text-yellow-700">Avg: {{ "%.1f"|format(summary.avg_operation_time_ms) }}ms</p>
+        </div>
+        
+        <div class="bg-red-100 p-6 rounded-lg">
+            <h3 class="text-lg font-semibold text-red-800">Slow Operations</h3>
+            <p class="text-2xl font-bold text-red-600">{{ summary.slow_operations|length }}</p>
+            <p class="text-sm text-red-700">{{ summary.very_slow_operations|length }} very slow</p>
+        </div>
+    </div>
+    
+    <!-- Operation Breakdown -->
+    <div class="bg-white shadow-lg rounded-lg p-6 mb-8">
+        <h2 class="text-2xl font-bold mb-4">Operation Breakdown</h2>
+        <div class="overflow-x-auto">
+            <table class="min-w-full table-auto">
+                <thead>
+                    <tr class="bg-gray-100">
+                        <th class="px-4 py-2 text-left">Operation</th>
+                        <th class="px-4 py-2 text-right">Count</th>
+                        <th class="px-4 py-2 text-right">Avg Time (ms)</th>
+                        <th class="px-4 py-2 text-right">Min Time (ms)</th>
+                        <th class="px-4 py-2 text-right">Max Time (ms)</th>
+                        <th class="px-4 py-2 text-right">Total Time (ms)</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for op_name, count in summary.operation_counts.items() %}
+                    <tr class="border-b hover:bg-gray-50">
+                        <td class="px-4 py-2 font-mono text-sm">{{ op_name }}</td>
+                        <td class="px-4 py-2 text-right">{{ count }}</td>
+                        <td class="px-4 py-2 text-right">{{ "%.1f"|format(summary.operation_avg_times[op_name]) }}</td>
+                        <td class="px-4 py-2 text-right">{{ "%.1f"|format(summary.operation_min_times[op_name]) }}</td>
+                        <td class="px-4 py-2 text-right">{{ "%.1f"|format(summary.operation_max_times[op_name]) }}</td>
+                        <td class="px-4 py-2 text-right">{{ "%.1f"|format(summary.operation_avg_times[op_name] * count) }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    
+    <!-- Slow Operations -->
+    {% if summary.slow_operations %}
+    <div class="bg-white shadow-lg rounded-lg p-6 mb-8">
+        <h2 class="text-2xl font-bold mb-4">Slow Operations (>100ms)</h2>
+        <div class="space-y-2">
+            {% for op in summary.slow_operations[:10] %}
+            <div class="flex justify-between items-center p-3 bg-yellow-50 rounded border">
+                <div>
+                    <span class="font-semibold">{{ op.operation }}</span>
+                    {% if op.kwargs %}
+                    <span class="text-sm text-gray-600 ml-2">{{ op.kwargs }}</span>
+                    {% endif %}
+                </div>
+                <span class="font-mono text-lg text-yellow-700">{{ "%.1f"|format(op.duration_ms) }}ms</span>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+    
+    <!-- Very Slow Operations -->
+    {% if summary.very_slow_operations %}
+    <div class="bg-white shadow-lg rounded-lg p-6 mb-8">
+        <h2 class="text-2xl font-bold mb-4 text-red-700">Very Slow Operations (>1000ms)</h2>
+        <div class="space-y-2">
+            {% for op in summary.very_slow_operations[:5] %}
+            <div class="flex justify-between items-center p-3 bg-red-50 rounded border">
+                <div>
+                    <span class="font-semibold">{{ op.operation }}</span>
+                    {% if op.kwargs %}
+                    <span class="text-sm text-gray-600 ml-2">{{ op.kwargs }}</span>
+                    {% endif %}
+                    {% if op.error %}
+                    <div class="text-sm text-red-600 mt-1">{{ op.error }}</div>
+                    {% endif %}
+                </div>
+                <span class="font-mono text-lg text-red-700">{{ "%.1f"|format(op.duration_ms) }}ms</span>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+    
+    <!-- Controls -->
+    <div class="bg-white shadow-lg rounded-lg p-6">
+        <h2 class="text-2xl font-bold mb-4">Controls</h2>
+        <div class="flex space-x-4">
+            <button onclick="refreshData()" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
+                Refresh Data
+            </button>
+            <button onclick="saveSummary()" class="bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-4 rounded">
+                Save Summary
+            </button>
+            <button onclick="printSummary()" class="bg-purple-500 hover:bg-purple-700 text-white font-bold py-2 px-4 rounded">
+                Print Summary
+            </button>
+        </div>
+    </div>
+</div>
+
+<script>
+function refreshData() {
+    location.reload();
+}
+
+function saveSummary() {
+    fetch('/api/performance/summary')
+        .then(response => response.json())
+        .then(data => {
+            const blob = new Blob([JSON.stringify(data, null, 2)], {type: 'application/json'});
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `namer_performance_${new Date().toISOString().slice(0,19).replace(/:/g,'-')}.json`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        });
+}
+
+function printSummary() {
+    window.print();
+}
+
+// Auto-refresh every 30 seconds
+setInterval(refreshData, 30000);
+</script>
+{% endblock %} 

@@ -1,0 +1,153 @@
+{% extends "base.html" %}
+
+{% block title %}All People - People Viewer{% endblock %}
+
+{% block content %}
+<style>
+  .dark-card {
+    background: #181a20;
+    border: 1px solid #23263a;
+    color: #e5e7eb;
+  }
+  .dark-card .bg-white, .dark-card .bg-white\/80 { background: #23263a !important; }
+  .dark-card .text-gray-900, .dark-card .text-gray-700, .dark-card .text-gray-600 { color: #e5e7eb !important; }
+  .dark-card .bg-green-100 { background: #234d20 !important; color: #a7f3d0 !important; }
+  .dark-card .bg-orange-100 { background: #4b2e05 !important; color: #fdba74 !important; }
+  .dark-card .bg-blue-100 { background: #1e293b !important; color: #60a5fa !important; }
+  .dark-card .text-blue-800 { color: #60a5fa !important; }
+  .dark-card .text-green-800 { color: #6ee7b7 !important; }
+  .dark-card .text-orange-800 { color: #fdba74 !important; }
+  .dark-card .shadow-sm { box-shadow: 0 2px 8px 0 rgba(0,0,0,0.25); }
+  .dark-card .border-gray-200 { border-color: #23263a !important; }
+  .dark-card .border { border-color: #23263a !important; }
+  .dark-card .rounded { border-radius: 0.75rem; }
+  .dark-card .bg-primary { background: #6366f1 !important; }
+  .dark-card .text-primary { color: #6366f1 !important; }
+  .dark-card .text-red-500 { color: #f87171 !important; }
+  .dark-card .text-green-600 { color: #6ee7b7 !important; }
+  .dark-card .text-orange-600 { color: #fdba74 !important; }
+  .dark-card .bg-gray-100 { background: #23263a !important; }
+  .dark-card .bg-gray-50 { background: #181a20 !important; }
+  .dark-card .bg-gray-200 { background: #23263a !important; }
+  .dark-card .bg-gray-300 { background: #23263a !important; }
+  .dark-card .text-gray-400 { color: #9ca3af !important; }
+  .dark-card .text-gray-200 { color: #e5e7eb !important; }
+</style>
+<div class="fade-in">
+    <!-- Page Header -->
+    <div class="mb-8">
+        <h1 class="text-3xl font-bold text-gray-100 mb-2">All People</h1>
+        <p class="text-gray-400">Browse and manage people detected in your images</p>
+    </div>
+
+    <!-- Sort Controls -->
+    <div class="bg-gray-800 border-b border-gray-700 p-4 mb-6">
+        <div class="flex items-center space-x-3">
+            <label class="text-sm font-medium text-gray-300">Sort:</label>
+            <select id="sort-select" class="px-3 py-2 border border-gray-600 rounded-lg text-sm bg-gray-700 text-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500" onchange="window.location.href='?sort=' + this.value">
+                <option value="name" {% if current_sort == 'name' %}selected{% endif %}>Alphabetical (A→Z)</option>
+                <option value="image_count" {% if current_sort == 'image_count' %}selected{% endif %}>Most Images</option>
+                <option value="id" {% if current_sort == 'id' %}selected{% endif %}>Newest First</option>
+            </select>
+        </div>
+    </div>
+
+    <!-- People Grid -->
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+        {% for person in people %}
+        <div class="dark-card overflow-hidden card-hover">
+            <!-- Person Card -->
+            <a href="/person/{{ person.id }}" class="block">
+                <!-- Thumbnail -->
+                <div class="relative flex flex-col items-center justify-center pt-6">
+                    <div class="w-full aspect-square bg-gray-100 flex items-center justify-center overflow-hidden border-4 border-gray-800 shadow mb-4 group">
+                        <img src="{{ person.thumbnail_path or ('https://via.placeholder.com/150x200/6B7280/FFFFFF?text=' ~ person.name[:5]) }}"
+                             alt="{{ person.name }}"
+                             class="w-full h-full object-cover">
+                        <div class="absolute inset-0 bg-black bg-opacity-30 group-hover:bg-opacity-50 transition-all"></div>
+                    </div>
+                    <!-- Status Badge -->
+                    {% if not person.is_confirmed %}
+                    <div class="absolute top-2 left-2">
+                        <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-orange-100 text-orange-800">
+                            Unidentified
+                        </span>
+                    </div>
+                    {% endif %}
+                </div>
+                <!-- Person Info -->
+                <div class="p-4">
+                    <h3 class="font-semibold text-gray-100 mb-1 truncate">
+                        {% if person.name == 'Unidentified' %}
+                            Unidentified Person #{{ person.id }}
+                        {% else %}
+                            {{ person.name }}
+                        {% endif %}
+                    </h3>
+                    <div class="flex items-center justify-between text-sm text-gray-400">
+                        <span>{{ person.image_count }} images</span>
+                        <div class="flex items-center space-x-2">
+                            <a href="{{ url_for('viewer', person_id=person.id) }}" 
+                               class="inline-flex items-center px-2 py-1 border border-blue-600 rounded text-xs font-medium text-blue-200 bg-blue-900 hover:bg-blue-800 transition-colors"
+                               onclick="event.stopPropagation();">
+                                <svg class="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
+                                </svg>
+                                Viewer
+                            </a>
+                            {% if person.is_favorite %}
+                            <span class="text-red-500">★</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </a>
+        </div>
+        {% endfor %}
+    </div>
+
+    <!-- Empty State -->
+    {% if not people %}
+    <div class="text-center py-12">
+        <svg class="mx-auto h-12 w-12 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path>
+        </svg>
+        <h3 class="mt-2 text-sm font-medium text-gray-200">No people found</h3>
+        <p class="mt-1 text-sm text-gray-400">Start by uploading some images to detect people.</p>
+    </div>
+    {% endif %}
+</div>
+
+<script>
+window.addEventListener('DOMContentLoaded', function() {
+    // Add context menu to each person card
+    document.querySelectorAll('.card-hover').forEach(card => {
+        card.addEventListener('contextmenu', function(e) {
+            e.preventDefault();
+            // Try to get person id from the link href
+            const link = card.querySelector('a[href^="/person/"]');
+            let personId = null;
+            if (link) {
+                const match = link.getAttribute('href').match(/\/person\/(\d+)/);
+                if (match) personId = match[1];
+            }
+            const menuItems = [
+                { label: 'View', action: 'view' },
+                { label: 'Edit', action: 'edit' },
+                { label: 'Delete', action: 'delete' }
+            ];
+            showContextMenu(menuItems, e.clientX, e.clientY, function(action) {
+                if (action === 'view') {
+                    if (link) window.location.href = link.getAttribute('href');
+                } else if (action === 'edit') {
+                    alert('Edit person #' + personId);
+                } else if (action === 'delete') {
+                    alert('Delete person #' + personId);
+                }
+            });
+        });
+    });
+});
+</script>
+{% endblock %} 

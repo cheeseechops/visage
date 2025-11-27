@@ -1,0 +1,1114 @@
+{% extends "base.html" %}
+{% block title %}Face Namer{% endblock %}
+{% block content %}
+<div class="h-[95vh] bg-gray-900 flex">
+  <!-- Left Side - Image -->
+  <div class="flex-1 relative bg-gray-800 p-1">
+    {% if image %}
+      <div class="relative w-full">
+        <img id="face-image" src="{{ image.image_url }}" alt="Face to name"
+             class="w-full h-auto max-h-[85vh] object-contain"
+             data-original-width="{{ image.width }}" data-original-height="{{ image.height }}"
+             data-face-bbox='{{ face_bbox|tojson }}'
+             data-all-faces='{{ all_faces|tojson }}'
+             data-face-best-guesses='{{ face_best_guesses|tojson }}'
+             data-rotation="{{ saved_rotation|default(0) }}">
+        <div id="face-overlay" style="position: absolute; z-index: 1000; pointer-events: auto; top: 0; left: 0; width: 100%; height: 100%;"></div>
+        <div id="face-name-display" class="absolute bottom-4 left-0 right-0 text-center text-white font-bold text-shadow-lg bg-black bg-opacity-50 px-4 py-2 rounded" style="font-size: min(6vw, 3rem); z-index: 1001;"></div>
+        
+        <!-- Face Name Overlay -->
+        <div id="face-name-overlay" class="absolute hidden bg-gray-800 border border-gray-600 rounded-lg shadow-xl p-4 z-[9999] min-w-64 max-w-80">
+          <div class="flex justify-between items-center mb-3">
+            <h3 class="text-white font-semibold text-sm">Name Face <span id="overlay-face-number"></span></h3>
+            <button id="close-overlay" class="text-gray-400 hover:text-white">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+              </svg>
+            </button>
+          </div>
+          
+          <!-- AI Suggestions -->
+          <div id="overlay-suggestions" class="mb-3">
+            <div class="text-gray-300 text-xs mb-2">AI Suggestions</div>
+            <div id="overlay-suggestions-list" class="space-y-1">
+              <!-- Suggestions will be populated here -->
+            </div>
+          </div>
+          
+          <!-- Custom Name Input -->
+          <div class="mb-3">
+            <label for="overlay-name-input" class="block text-gray-300 text-xs mb-1">Custom Name</label>
+            <input id="overlay-name-input" type="text" 
+                   class="w-full bg-gray-700 border border-gray-600 rounded px-2 py-1 text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                   placeholder="Type custom name...">
+          </div>
+          
+          <!-- Action Buttons -->
+          <div class="flex gap-2">
+            <button id="overlay-save-btn" class="flex-1 bg-blue-600 hover:bg-blue-700 text-white text-sm py-1 px-2 rounded">
+              Save Name
+            </button>
+            <button id="overlay-cancel-btn" class="flex-1 bg-gray-600 hover:bg-gray-700 text-white text-sm py-1 px-2 rounded">
+              Cancel
+            </button>
+          </div>
+        </div>
+        
+        <!-- Image Info -->
+        <div class="absolute bottom-2 left-2 bg-gray-900/80 backdrop-blur-sm rounded-lg px-2 py-1">
+          <div class="text-white text-xs">
+            <div class="font-mono">ID: {{ image.id }}</div>
+            <div class="text-gray-300 text-xs truncate max-w-xs" title="{{ image.filename }}">
+              {{ image.filename }}
+            </div>
+          </div>
+        </div>
+        <!-- Rotate Buttons -->
+        <div class="absolute top-2 right-2 flex gap-2" style="z-index: 1002;">
+          <button id="rotate-left" class="bg-gray-800 hover:bg-gray-700 text-white rounded-lg p-2 shadow-lg transition-colors duration-200">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
+            </svg>
+          </button>
+          <button id="rotate-right" class="bg-gray-800 hover:bg-gray-700 text-white rounded-lg p-2 shadow-lg transition-colors duration-200">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"></path>
+            </svg>
+          </button>
+        </div>
+      </div>
+    {% endif %}
+  </div>
+
+  <!-- Right Side - Controls -->
+  {% if image %}
+    <div class="w-96 bg-gray-800 border-l border-gray-700 p-2 flex flex-col">
+      <!-- Unnamed count badge -->
+      <div class="mb-1">
+        <div class="bg-blue-800 text-white px-2 py-1 rounded-lg shadow text-sm font-semibold">
+          Unnamed images left: {{ unnamed_count }}
+        </div>
+      </div>
+      
+      <!-- AI Suggestions (top 5, clickable) -->
+      {% if not face_bbox %}
+      <div class="mb-1">
+        <div class="text-red-400 font-medium text-xs">No face detected in this image.</div>
+      </div>
+      {% elif suggestions and suggestions|length > 0 %}
+      <div class="mb-1">
+        <div class="text-gray-300 font-medium text-xs mb-0.5">Top AI Suggestions</div>
+        <div id="ai-suggestions-list" class="flex flex-wrap gap-1">
+          {% for s in suggestions if s.person_id %}
+            <button type="button" class="ai-suggestion-btn bg-gray-700 hover:bg-blue-700 text-white rounded px-2 py-1 text-xs font-semibold border border-gray-600 hover:border-blue-500 transition-colors duration-150" data-name="{{ s.name }}">
+              {{ s.name }} <span class="text-xs text-blue-300">({{ (s.confidence * 100) | round(1) }}%)</span>
+            </button>
+          {% endfor %}
+        </div>
+      </div>
+      {% endif %}
+      
+      <!-- Name Input -->
+      <div class="mb-1">
+        <label for="name-input" class="block text-gray-300 font-medium mb-0.5 text-xs">Enter Names (comma-separated for multiple)</label>
+        <div class="relative">
+          <input id="name-input" type="text"
+                 class="w-full bg-gray-700 border border-gray-600 rounded-lg px-2 py-1 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                 placeholder="Type names separated by commas..."
+                 autocomplete="off" spellcheck="false"
+                 value="{% if best_suggestion %}{{ best_suggestion.name }}{% endif %}">
+          <!-- Autocomplete Dropdown -->
+          <div id="autocomplete-dropdown" class="absolute z-10 w-full bg-gray-700 border border-gray-600 rounded-lg mt-1 max-h-60 overflow-y-auto hidden">
+            <!-- Autocomplete options will be populated here -->
+          </div>
+        </div>
+      </div>
+      
+      <!-- Action Buttons -->
+      <div class="space-y-1">
+        <button id="save-button"
+                onclick="console.log('Save button clicked via onclick'); saveName();"
+                class="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-1 px-2 rounded-lg transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-gray-800">
+          Save Names
+        </button>
+        <button id="skip-button"
+                onclick="console.log('Skip button clicked via onclick'); skipImage();"
+                class="w-full bg-gray-700 hover:bg-gray-600 text-gray-300 font-medium py-1 px-2 rounded-lg transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 focus:ring-offset-gray-800">
+          Skip Image
+        </button>
+        <button id="delete-button"
+                onclick="console.log('Delete button clicked via onclick'); deleteImage();"
+                class="w-full bg-red-600 hover:bg-red-700 text-white font-medium py-1 px-2 rounded-lg transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 focus:ring-offset-gray-800">
+          Delete Image
+        </button>
+      </div>
+      
+      <!-- Keyboard Shortcuts -->
+      <div class="mt-1 pt-1 border-t border-gray-700">
+        <div class="text-center">
+          <div class="text-gray-400 text-xs mb-0.5">Keyboard Shortcuts</div>
+          <div class="text-gray-300 text-xs space-y-0.5">
+            <div><kbd class="bg-gray-700 px-1 py-0.5 rounded text-xs">Enter</kbd> Save Names</div>
+            <div><kbd class="bg-gray-700 px-1 py-0.5 rounded text-xs">Space</kbd> Skip Image</div>
+            <div><kbd class="bg-gray-700 px-1 py-0.5 rounded text-xs">Delete</kbd> Delete Image</div>
+            <div><kbd class="bg-gray-700 px-1 py-0.5 rounded text-xs">1-5</kbd> Select AI Suggestion</div>
+            <div><kbd class="bg-gray-700 px-1 py-0.5 rounded text-xs">Shift+Click</kbd> Select Multiple Faces</div>
+            <div><kbd class="bg-gray-700 px-1 py-0.5 rounded text-xs">Right-Click</kbd> Change Face Name</div>
+            <div><kbd class="bg-gray-700 px-1 py-0.5 rounded text-xs">Tab</kbd> Focus Name Input</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  {% endif %}
+</div>
+
+<!-- Hidden data for JavaScript -->
+<div id="page-data" style="display: none;"
+     data-image-id="{% if image %}{{ image.id }}{% endif %}"
+     data-best-name="{% if best_suggestion %}{{ best_suggestion.name }}{% endif %}"
+     data-best-similarity="{% if best_suggestion %}{{ best_suggestion.confidence }}{% endif %}">
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+console.log('Script block loaded');
+
+const autocompleteDropdown = document.getElementById('autocomplete-dropdown');
+const nameInput = document.getElementById('name-input');
+const saveButton = document.getElementById('save-button');
+const skipButton = document.getElementById('skip-button');
+const deleteButton = document.getElementById('delete-button');
+
+// Get page data
+const pageData = document.getElementById('page-data');
+const currentImageId = pageData ? pageData.getAttribute('data-image-id') : null;
+const bestName = pageData ? pageData.getAttribute('data-best-name') : '';
+const bestSimilarity = pageData ? pageData.getAttribute('data-best-similarity') : '';
+
+// Track selected faces for multi-select
+let selectedFaces = new Set();
+let isMultiSelectMode = false;
+
+// Track face names
+let faceNames = {};
+
+// Autocomplete data
+let autocompleteData = [];
+
+// Load autocomplete data
+function loadAutocompleteData() {
+    console.log('Loading autocomplete data...');
+    fetch('/api/people')
+        .then(response => response.json())
+        .then(data => {
+            console.log('Autocomplete response:', data);
+            if (data.success && data.people) {
+                autocompleteData = data.people.sort((a, b) => (b.image_count || 0) - (a.image_count || 0));
+                console.log('Loaded', autocompleteData.length, 'people for autocomplete');
+            } else {
+                console.error('Invalid response format from /api/people');
+            }
+        })
+        .catch(error => {
+            console.error('Error loading autocomplete data:', error);
+        });
+}
+
+// Handle autocomplete
+function setupAutocomplete() {
+    if (!nameInput) return;
+
+    // Clear input on click if it has the default value
+    nameInput.addEventListener('click', function() {
+        if (this.value && this.value === bestName) {
+            this.value = '';
+            this.select();
+        }
+    });
+
+    nameInput.addEventListener('focus', function() {
+        if (this.value.length > 0) {
+            showAutocomplete(this.value);
+        }
+    });
+
+    nameInput.addEventListener('input', function() {
+        if (this.value.length > 0) {
+            showAutocomplete(this.value);
+        } else {
+            hideAutocomplete();
+        }
+    });
+
+    nameInput.addEventListener('blur', function() {
+        setTimeout(hideAutocomplete, 200);
+    });
+}
+
+let isSaving = false;
+window.saveName = function() {
+    if (isSaving) {
+        console.log('Save already in progress, ignoring duplicate.');
+        return;
+    }
+    if (!nameInput || !saveButton) {
+        alert('Name input or save button not found!');
+        return;
+    }
+    isSaving = true;
+    const names = nameInput.value.trim();
+    if (!names || !currentImageId) {
+        alert('Please enter at least one name');
+        isSaving = false;
+        return;
+    }
+    
+    saveButton.disabled = true;
+    saveButton.textContent = 'Saving...';
+    
+    // Parse comma-separated names from input
+    const nameList = names.split(',').map(name => name.trim()).filter(name => name.length > 0);
+    
+    // Get all face names from the overlay and combine with the input names
+    const allFacesData = document.getElementById('face-image').getAttribute('data-all-faces');
+    let allNames = [...nameList];
+    
+    if (allFacesData) {
+        try {
+            const allFaces = JSON.parse(allFacesData);
+            // Add any names that were set through the overlay but not in the current input
+            for (let i = 0; i < allFaces.length; i++) {
+                if (faceNames[i] && !nameList.includes(faceNames[i])) {
+                    allNames.push(faceNames[i]);
+                }
+            }
+        } catch (error) {
+            console.error('Error parsing all faces data:', error);
+        }
+    }
+    
+    // Remove duplicates while preserving order
+    const uniqueNames = [...new Set(allNames)];
+    
+    console.log('Saving names:', uniqueNames);
+    console.log('faceNames object:', faceNames);
+    
+    const requestData = {
+        image_id: parseInt(currentImageId),
+        names: uniqueNames
+    };
+    
+    fetch('/api/namer/save_multiple', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(requestData)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            if (data.redirect_to) {
+                console.log('Redirecting to:', data.redirect_to);
+                window.location.href = data.redirect_to;
+            } else {
+                window.location.href = '/namer';
+            }
+        } else {
+            alert('Error: ' + (data.error || 'Failed to save names'));
+            saveButton.disabled = false;
+            saveButton.textContent = 'Save Names';
+            isSaving = false;
+        }
+    })
+    .catch(error => {
+        alert('Error saving names. Please try again.');
+        saveButton.disabled = false;
+        saveButton.textContent = 'Save Names';
+        isSaving = false;
+    });
+};
+
+// Handle delete
+window.deleteImage = function() {
+    console.log('Delete function called');
+    if (!currentImageId) {
+        window.location.href = '/namer';
+        return;
+    }
+    
+    // Confirm deletion
+    if (!confirm('Are you sure you want to delete this image? This action cannot be undone.')) {
+        return;
+    }
+    
+    // Request image deletion from backend
+    fetch('/api/namer/delete_image', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ image_id: parseInt(currentImageId) })
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.success) {
+            console.log('Image deleted successfully');
+            // Move to next image
+            window.location.href = '/namer';
+        } else {
+            alert('Error: ' + (data.error || 'Failed to delete image'));
+        }
+    })
+    .catch(err => {
+        console.error('Error deleting image:', err);
+        alert('Error deleting image. Please try again.');
+    });
+}
+
+// Handle skip
+window.skipImage = function() {
+    console.log('Skip function called');
+    if (!currentImageId) {
+        window.location.href = '/namer';
+        return;
+    }
+    // Get skipped IDs from sessionStorage
+    let skipped = [];
+    try {
+        skipped = JSON.parse(sessionStorage.getItem('skippedImageIds') || '[]');
+    } catch (e) { skipped = []; }
+    if (!skipped.includes(currentImageId)) {
+        skipped.push(currentImageId);
+    }
+    sessionStorage.setItem('skippedImageIds', JSON.stringify(skipped));
+    // Request next image from backend
+    fetch('/api/namer/next_image', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ skipped_ids: skipped })
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.image && data.image.id) {
+            window.location.href = `/namer?image_id=${data.image.id}`;
+        } else {
+            // No more images
+            sessionStorage.removeItem('skippedImageIds');
+            window.location.href = '/namer';
+        }
+    })
+    .catch(err => {
+        console.error('Error fetching next image:', err);
+        window.location.href = '/namer';
+    });
+}
+
+function showAutocomplete(query) {
+    if (!autocompleteDropdown) {
+        console.error('autocompleteDropdown not found!');
+        return;
+    }
+    autocompleteDropdown.style.display = 'block';
+    autocompleteDropdown.classList.remove('hidden');
+    const filtered = autocompleteData.filter(person =>
+        person.name.toLowerCase().startsWith(query.toLowerCase())
+    ).slice(0, 10);
+    autocompleteDropdown.innerHTML = '';
+    filtered.forEach(person => {
+        const item = document.createElement('div');
+        item.className = 'px-4 py-2 hover:bg-gray-600 cursor-pointer text-white';
+        item.textContent = `${person.name} (${person.image_count || 0} images)`;
+        item.addEventListener('click', function() {
+            if (!nameInput) return;
+            nameInput.value = person.name;
+            hideAutocomplete();
+            nameInput.focus();
+            window.saveName();
+        });
+        autocompleteDropdown.appendChild(item);
+    });
+    if (filtered.length === 0) {
+        hideAutocomplete();
+    }
+}
+
+function hideAutocomplete() {
+    if (autocompleteDropdown) {
+        autocompleteDropdown.style.display = 'none';
+        autocompleteDropdown.classList.add('hidden');
+    }
+}
+
+window.showAutocomplete = showAutocomplete;
+window.hideAutocomplete = hideAutocomplete;
+
+// Setup event listeners
+if (saveButton) {
+    console.log('Setting up save button listener');
+    saveButton.addEventListener('click', function(e) {
+        console.log('Save button clicked (event listener)');
+        e.preventDefault();
+        saveName();
+    });
+} else {
+    console.error('Save button not found!');
+}
+
+if (skipButton) {
+    console.log('Setting up skip button listener');
+    skipButton.addEventListener('click', function(e) {
+        console.log('Skip button clicked (event listener)');
+        e.preventDefault();
+        skipImage();
+    });
+} else {
+    console.error('Skip button not found!');
+}
+
+if (deleteButton) {
+    console.log('Setting up delete button listener');
+    deleteButton.addEventListener('click', function(e) {
+        console.log('Delete button clicked (event listener)');
+        e.preventDefault();
+        deleteImage();
+    });
+} else {
+    console.error('Delete button not found!');
+}
+
+// Setup AI suggestion buttons
+function setupAISuggestions() {
+    const aiSuggestionButtons = document.querySelectorAll('.ai-suggestion-btn');
+    aiSuggestionButtons.forEach(button => {
+        button.addEventListener('click', function() {
+            const name = this.getAttribute('data-name');
+            if (name && nameInput) {
+                nameInput.value = name;
+                console.log('AI suggestion clicked:', name);
+                // Auto-save and move to next
+                window.saveName();
+            }
+        });
+    });
+    console.log('Setup', aiSuggestionButtons.length, 'AI suggestion buttons');
+}
+
+// Setup keyboard shortcuts
+function setupKeyboardShortcuts() {
+    document.addEventListener('keydown', function(e) {
+        // Don't trigger shortcuts when typing in input fields
+        if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') {
+            return;
+        }
+
+        switch(e.key) {
+            case 'Enter':
+                e.preventDefault();
+                console.log('Enter key pressed - saving names');
+                window.saveName();
+                break;
+
+            case ' ':
+                e.preventDefault();
+                console.log('Space key pressed - skipping image');
+                window.skipImage();
+                break;
+
+            case 'Delete':
+            case 'Backspace':
+                e.preventDefault();
+                console.log('Delete/Backspace key pressed - deleting image');
+                window.deleteImage();
+                break;
+
+            case 'Tab':
+                e.preventDefault();
+                if (nameInput) {
+                    nameInput.focus();
+                    nameInput.select();
+                }
+                break;
+
+            case '1':
+            case '2':
+            case '3':
+            case '4':
+            case '5':
+                e.preventDefault();
+                const suggestionIndex = parseInt(e.key) - 1;
+                const aiSuggestionButtons = document.querySelectorAll('.ai-suggestion-btn');
+                if (aiSuggestionButtons[suggestionIndex]) {
+                    console.log(`Number key ${e.key} pressed - selecting AI suggestion ${suggestionIndex + 1}`);
+                    aiSuggestionButtons[suggestionIndex].click();
+                }
+                break;
+        }
+    });
+
+    console.log('Keyboard shortcuts setup complete');
+}
+
+// Initialize autocomplete
+loadAutocompleteData();
+setupAutocomplete();
+setupAISuggestions();
+setupKeyboardShortcuts();
+
+// OPTIMIZATION: Add global key listener for immediate typing without clicking
+document.addEventListener('keydown', function(e) {
+    // If user starts typing and input is not focused, focus it and clear default value
+    if (e.target.tagName !== 'INPUT' && e.target.tagName !== 'TEXTAREA' && 
+        nameInput && !nameInput.matches(':focus') && 
+        e.key.length === 1 && !e.ctrlKey && !e.altKey && !e.metaKey) {
+        
+        nameInput.focus();
+        // Clear the current value when user starts typing
+        nameInput.value = '';
+        // Set the typed character
+        nameInput.value = e.key;
+        // Move cursor to end
+        nameInput.setSelectionRange(1, 1);
+        e.preventDefault();
+    }
+});
+
+// Draw all face bounding boxes
+function drawAllFaceBoxes() {
+    const faceImage = document.getElementById('face-image');
+    const overlay = document.getElementById('face-overlay');
+    
+    if (!faceImage || !overlay) return;
+    
+    // Wait for image to load
+    if (faceImage.naturalWidth === 0) {
+        setTimeout(drawAllFaceBoxes, 100);
+        return;
+    }
+    
+    const allFacesData = faceImage.getAttribute('data-all-faces');
+    if (!allFacesData) return;
+    
+    try {
+        const allFaces = JSON.parse(allFacesData);
+        if (!Array.isArray(allFaces) || allFaces.length === 0) return;
+        
+        // Calculate scale and offset due to object-contain
+        const scale = Math.min(
+            faceImage.clientWidth / faceImage.naturalWidth,
+            faceImage.clientHeight / faceImage.naturalHeight
+        );
+        const displayWidth = faceImage.naturalWidth * scale;
+        const displayHeight = faceImage.naturalHeight * scale;
+        const offsetX = (faceImage.clientWidth - displayWidth) / 2;
+        const offsetY = (faceImage.clientHeight - displayHeight) / 2;
+        
+        // Clear overlay
+        overlay.innerHTML = '';
+        
+        // Draw each face box
+        allFaces.forEach((face, index) => {
+            if (!face || !face.x || !face.y || !face.width || !face.height) return;
+            
+            // Scale face coordinates
+            const x = face.x * scale + offsetX;
+            const y = face.y * scale + offsetY;
+            const width = face.width * scale;
+            const height = face.height * scale;
+            
+            // Create bounding box element
+            const box = document.createElement('div');
+            box.className = 'absolute border-2 border-blue-400 bg-blue-400 bg-opacity-10 cursor-pointer hover:bg-opacity-20 transition-all duration-200';
+            box.style.left = x + 'px';
+            box.style.top = y + 'px';
+            box.style.width = width + 'px';
+            box.style.height = height + 'px';
+            box.setAttribute('data-face-index', index);
+            
+            // Add face number label
+            const label = document.createElement('div');
+            label.className = 'absolute -top-6 left-0 bg-blue-400 text-white text-xs px-2 py-1 rounded font-bold';
+            const bestGuessesData = faceImage.getAttribute('data-face-best-guesses');
+            const bestGuesses = bestGuessesData ? JSON.parse(bestGuessesData) : [];
+            const faceName = faceNames[index] || bestGuesses[index] || `Face ${index + 1}`;
+            label.textContent = faceName;
+            box.appendChild(label);
+            
+            // Add click handlers
+            box.addEventListener('click', (e) => handleFaceClick(e, index));
+            box.addEventListener('contextmenu', (e) => handleFaceRightClick(e, index));
+            
+            overlay.appendChild(box);
+        });
+        
+        console.log(`Drew ${allFaces.length} face bounding boxes`);
+    } catch (error) {
+        console.error('Error parsing all faces data:', error);
+    }
+}
+
+// Handle face click (with shift for multi-select)
+function handleFaceClick(e, faceIndex) {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    if (e.shiftKey) {
+        // Multi-select mode
+        isMultiSelectMode = true;
+        if (selectedFaces.has(faceIndex)) {
+            selectedFaces.delete(faceIndex);
+        } else {
+            selectedFaces.add(faceIndex);
+        }
+        updateFaceSelection();
+        updateNameInputFromSelection();
+    } else {
+        // Single select mode
+        isMultiSelectMode = false;
+        selectedFaces.clear();
+        selectedFaces.add(faceIndex);
+        updateFaceSelection();
+        updateNameInputFromSelection();
+    }
+}
+
+// Update face selection visual
+function updateFaceSelection() {
+    const overlay = document.getElementById('face-overlay');
+    const boxes = overlay.querySelectorAll('[data-face-index]');
+    
+    boxes.forEach((box, index) => {
+        const faceIndex = parseInt(box.getAttribute('data-face-index'));
+        if (selectedFaces.has(faceIndex)) {
+            box.className = 'absolute border-2 border-green-400 bg-green-400 bg-opacity-20 cursor-pointer hover:bg-opacity-30 transition-all duration-200';
+            box.querySelector('div').className = 'absolute -top-6 left-0 bg-green-400 text-white text-xs px-2 py-1 rounded font-bold';
+        } else {
+            box.className = 'absolute border-2 border-blue-400 bg-blue-400 bg-opacity-10 cursor-pointer hover:bg-opacity-20 transition-all duration-200';
+            box.querySelector('div').className = 'absolute -top-6 left-0 bg-blue-400 text-white text-xs px-2 py-1 rounded font-bold';
+        }
+    });
+}
+
+// Update name input based on selected faces
+function updateNameInputFromSelection() {
+    const nameInput = document.getElementById('name-input');
+    if (!nameInput) return;
+    
+    const allFacesData = document.getElementById('face-image').getAttribute('data-all-faces');
+    if (!allFacesData) return;
+    
+    try {
+        const allFaces = JSON.parse(allFacesData);
+        const selectedNames = [];
+        
+        // Get face best guesses data
+        const bestGuessesData = document.getElementById('face-image').getAttribute('data-face-best-guesses');
+        const bestGuesses = bestGuessesData ? JSON.parse(bestGuessesData) : [];
+        
+        selectedFaces.forEach(faceIndex => {
+            if (faceIndex < allFaces.length) {
+                // Use the name from faceNames (set via overlay) if available, otherwise use AI suggestions, then default
+                const name = faceNames[faceIndex] || bestGuesses[faceIndex] || `Face ${faceIndex + 1}`;
+                selectedNames.push(name);
+            }
+        });
+        
+        if (selectedNames.length > 0) {
+            nameInput.value = selectedNames.join(', ');
+        }
+    } catch (error) {
+        console.error('Error updating name input from selection:', error);
+    }
+}
+
+// Handle face right-click - show overlay
+function handleFaceRightClick(e, faceIndex) {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    showFaceNameOverlay(e, faceIndex);
+}
+
+// Show face name overlay
+function showFaceNameOverlay(e, faceIndex) {
+    const overlay = document.getElementById('face-name-overlay');
+    const faceNumberSpan = document.getElementById('overlay-face-number');
+    const suggestionsList = document.getElementById('overlay-suggestions-list');
+    const nameInput = document.getElementById('overlay-name-input');
+    const saveBtn = document.getElementById('overlay-save-btn');
+    const cancelBtn = document.getElementById('overlay-cancel-btn');
+    const closeBtn = document.getElementById('close-overlay');
+    
+    if (!overlay) return;
+    
+    // Set face number
+    if (faceNumberSpan) {
+        faceNumberSpan.textContent = faceIndex + 1;
+    }
+    
+    // Clear previous suggestions
+    if (suggestionsList) {
+        suggestionsList.innerHTML = '<div class="text-gray-400 text-xs">Loading suggestions...</div>';
+    }
+    
+    // Load AI suggestions for this face
+    loadFaceSuggestions(faceIndex, suggestionsList);
+    
+    // Set current name if exists
+    if (nameInput) {
+        nameInput.value = faceNames[faceIndex] || '';
+        nameInput.focus();
+    }
+    
+    // Position overlay near the click
+    const rect = e.target.getBoundingClientRect();
+    const imageContainer = document.getElementById('face-image').parentElement;
+    const imageRect = imageContainer.getBoundingClientRect();
+    
+    // Calculate position relative to the image container
+    let left = rect.left - imageRect.left + rect.width;
+    let top = rect.top - imageRect.top;
+    
+    // Adjust if overlay would go outside container bounds
+    const overlayWidth = 256; // min-w-64 = 16rem = 256px
+    const overlayHeight = 200; // Approximate height
+    
+    if (left + overlayWidth > imageRect.width) {
+        left = Math.max(0, imageRect.width - overlayWidth);
+    }
+    if (top + overlayHeight > imageRect.height) {
+        top = Math.max(0, imageRect.height - overlayHeight);
+    }
+    
+    overlay.style.left = left + 'px';
+    overlay.style.top = top + 'px';
+    
+    // Show overlay
+    overlay.classList.remove('hidden');
+    overlay.style.display = 'block';
+    
+    // Setup event listeners
+    const saveName = () => {
+        const name = nameInput ? nameInput.value.trim() : '';
+        if (name) {
+            faceNames[faceIndex] = name;
+            updateFaceNames();
+            updateNameInputFromSelection();
+            hideFaceNameOverlay();
+        }
+    };
+    
+    const hideOverlay = () => {
+        hideFaceNameOverlay();
+    };
+    
+    // Remove previous listeners
+    saveBtn.replaceWith(saveBtn.cloneNode(true));
+    cancelBtn.replaceWith(cancelBtn.cloneNode(true));
+    closeBtn.replaceWith(closeBtn.cloneNode(true));
+    
+    // Get new references
+    const newSaveBtn = document.getElementById('overlay-save-btn');
+    const newCancelBtn = document.getElementById('overlay-cancel-btn');
+    const newCloseBtn = document.getElementById('close-overlay');
+    
+    // Add new listeners
+    newSaveBtn.addEventListener('click', saveName);
+    newCancelBtn.addEventListener('click', hideOverlay);
+    newCloseBtn.addEventListener('click', hideOverlay);
+    
+    // Handle Enter key in input
+    const handleEnter = (e) => {
+        if (e.key === 'Enter') {
+            saveName();
+        }
+    };
+    
+    if (nameInput) {
+        nameInput.addEventListener('keydown', handleEnter);
+    }
+    
+    // Add click outside to close
+    const handleClickOutside = (e) => {
+        if (!overlay.contains(e.target) && !e.target.closest('[data-face-index]')) {
+            hideOverlay();
+            document.removeEventListener('click', handleClickOutside);
+        }
+    };
+    
+    // Delay adding the click outside listener to avoid immediate closure
+    setTimeout(() => {
+        document.addEventListener('click', handleClickOutside);
+    }, 100);
+    
+    // Store cleanup function
+    overlay._cleanup = () => {
+        if (nameInput) {
+            nameInput.removeEventListener('keydown', handleEnter);
+        }
+        document.removeEventListener('click', handleClickOutside);
+    };
+}
+
+// Hide face name overlay
+function hideFaceNameOverlay() {
+    const overlay = document.getElementById('face-name-overlay');
+    if (overlay) {
+        overlay.classList.add('hidden');
+        overlay.style.display = 'none';
+        
+        // Clean up event listeners
+        if (overlay._cleanup) {
+            overlay._cleanup();
+            delete overlay._cleanup;
+        }
+    }
+}
+
+// Load face suggestions
+function loadFaceSuggestions(faceIndex, suggestionsList) {
+    if (!currentImageId || !suggestionsList) return;
+    
+    fetch('/api/namer/face_suggestions', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            image_id: parseInt(currentImageId),
+            face_index: faceIndex
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success && data.suggestions) {
+            suggestionsList.innerHTML = '';
+            
+            data.suggestions.slice(0, 5).forEach(suggestion => {
+                if (suggestion.person_id) {
+                    const button = document.createElement('button');
+                    button.className = 'w-full text-left bg-gray-700 hover:bg-blue-700 text-white text-xs px-2 py-1 rounded transition-colors duration-150';
+                    button.textContent = `${suggestion.name} (${(suggestion.confidence * 100).toFixed(1)}%)`;
+                    
+                    button.addEventListener('click', () => {
+                        const nameInput = document.getElementById('overlay-name-input');
+                        if (nameInput) {
+                            nameInput.value = suggestion.name;
+                            nameInput.focus();
+                        }
+                    });
+                    
+                    suggestionsList.appendChild(button);
+                }
+            });
+            
+            // If no suggestions, show a message
+            if (suggestionsList.children.length === 0) {
+                suggestionsList.innerHTML = '<div class="text-gray-400 text-xs">No AI suggestions available</div>';
+            }
+        } else {
+            suggestionsList.innerHTML = '<div class="text-gray-400 text-xs">No AI suggestions available</div>';
+        }
+    })
+    .catch(error => {
+        console.error('Error loading face suggestions:', error);
+        suggestionsList.innerHTML = '<div class="text-gray-400 text-xs">Error loading suggestions</div>';
+    });
+}
+
+// Update face names in the overlay and main input
+function updateFaceNames() {
+    // Update face boxes
+    const overlay = document.getElementById('face-overlay');
+    const boxes = overlay.querySelectorAll('[data-face-index]');
+    
+    boxes.forEach((box) => {
+        const faceIndex = parseInt(box.getAttribute('data-face-index'));
+        const label = box.querySelector('div');
+        if (label) {
+            const bestGuessesData = document.getElementById('face-image').getAttribute('data-face-best-guesses');
+            const bestGuesses = bestGuessesData ? JSON.parse(bestGuessesData) : [];
+            const faceName = faceNames[faceIndex] || bestGuesses[faceIndex] || `Face ${faceIndex + 1}`;
+            label.textContent = faceName;
+        }
+    });
+    
+    // Update main input if faces are selected
+    updateNameInputFromSelection();
+}
+
+// Draw all face boxes when page loads and auto-select largest face
+drawAllFaceBoxes();
+
+// Auto-select the largest face when page loads
+function autoSelectLargestFace() {
+    const allFacesData = document.getElementById('face-image').getAttribute('data-all-faces');
+    if (!allFacesData) return;
+    
+    try {
+        const allFaces = JSON.parse(allFacesData);
+        if (!Array.isArray(allFaces) || allFaces.length === 0) return;
+        
+        // Get face best guesses data
+        const bestGuessesData = document.getElementById('face-image').getAttribute('data-face-best-guesses');
+        const bestGuesses = bestGuessesData ? JSON.parse(bestGuessesData) : [];
+        
+        // Find the largest face by area (width * height) that is NOT unknown
+        let largestFaceIndex = -1;
+        let largestArea = 0;
+        
+        allFaces.forEach((face, index) => {
+            if (face && face.width && face.height) {
+                const area = face.width * face.height;
+                // Only consider faces that are not "Unknown"
+                const faceName = bestGuesses[index] || `Face ${index + 1}`;
+                if (faceName !== 'Unknown' && area > largestArea) {
+                    largestArea = area;
+                    largestFaceIndex = index;
+                }
+            }
+        });
+        
+        // If no non-unknown faces found, don't auto-select anything
+        if (largestFaceIndex === -1) {
+            console.log('No non-unknown faces found, not auto-selecting any face');
+            return;
+        }
+        
+        // Auto-select the largest non-unknown face
+        selectedFaces.clear();
+        selectedFaces.add(largestFaceIndex);
+        updateFaceSelection();
+        updateNameInputFromSelection();
+        
+        console.log(`Auto-selected largest non-unknown face (index ${largestFaceIndex}) with area ${largestArea}`);
+    } catch (error) {
+        console.error('Error auto-selecting largest face:', error);
+    }
+}
+
+// Call auto-select after drawing face boxes
+setTimeout(autoSelectLargestFace, 100);
+
+// Rotate functionality
+const faceImage = document.getElementById('face-image');
+const rotateLeftBtn = document.getElementById('rotate-left');
+const rotateRightBtn = document.getElementById('rotate-right');
+let currentRotation = parseInt(faceImage ? faceImage.getAttribute('data-rotation') : '0') || 0;
+
+function rotateImage(direction) {
+    console.log('rotateImage called with direction:', direction);
+    console.log('faceImage:', faceImage);
+    
+    if (!faceImage) {
+        console.log('No faceImage found');
+        return;
+    }
+    
+    const rotationAmount = direction === 'left' ? -90 : 90;
+    currentRotation = (currentRotation + rotationAmount) % 360;
+    
+    console.log('New rotation:', currentRotation);
+    
+    // Disable rotate buttons during processing and show loading state
+    if (rotateLeftBtn) {
+        rotateLeftBtn.disabled = true;
+        rotateLeftBtn.innerHTML = '<svg class="w-5 h-5 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>';
+    }
+    if (rotateRightBtn) {
+        rotateRightBtn.disabled = true;
+        rotateRightBtn.innerHTML = '<svg class="w-5 h-5 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>';
+    }
+    
+    // Update the data-rotation attribute for tracking
+    faceImage.setAttribute('data-rotation', currentRotation);
+    
+    // Save rotation to backend and wait for completion
+    saveRotation().then(() => {
+        console.log('Rotation saved successfully, reloading page to show properly scaled image...');
+        // Reload the page to show the physically rotated image with proper scaling
+        window.location.reload();
+    }).catch((error) => {
+        console.error('Error saving rotation:', error);
+        // Re-enable buttons on error
+        if (rotateLeftBtn) {
+            rotateLeftBtn.disabled = false;
+            rotateLeftBtn.innerHTML = '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path></svg>';
+        }
+        if (rotateRightBtn) {
+            rotateRightBtn.disabled = false;
+            rotateRightBtn.innerHTML = '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"></path></svg>';
+        }
+    });
+}
+
+function saveRotation() {
+    if (!currentImageId) {
+        return Promise.reject('No current image ID');
+    }
+    
+    return fetch('/api/namer/save_rotation', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            image_id: parseInt(currentImageId),
+            rotation: currentRotation
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            console.log('Rotation saved successfully');
+            return data;
+        } else {
+            console.error('Error saving rotation:', data.error);
+            throw new Error(data.error || 'Failed to save rotation');
+        }
+    })
+    .catch(error => {
+        console.error('Error saving rotation:', error);
+        throw error;
+    });
+}
+
+// Setup rotate button event listeners
+console.log('Setting up rotate buttons');
+console.log('rotateLeftBtn:', rotateLeftBtn);
+console.log('rotateRightBtn:', rotateRightBtn);
+
+if (rotateLeftBtn) {
+    rotateLeftBtn.addEventListener('mousedown', (e) => {
+        console.log('Left rotate button mousedown event');
+        e.stopPropagation();
+    });
+    
+    rotateLeftBtn.addEventListener('click', (e) => {
+        console.log('Left rotate button clicked');
+        e.stopPropagation();
+        rotateImage('left');
+    });
+    console.log('Left rotate button listener added');
+} else {
+    console.log('Left rotate button not found');
+}
+
+if (rotateRightBtn) {
+    rotateRightBtn.addEventListener('mousedown', (e) => {
+        console.log('Right rotate button mousedown event');
+        e.stopPropagation();
+    });
+    
+    rotateRightBtn.addEventListener('click', (e) => {
+        console.log('Right rotate button clicked');
+        e.stopPropagation();
+        rotateImage('right');
+    });
+    console.log('Right rotate button listener added');
+} else {
+    console.log('Right rotate button not found');
+}
+
+console.log('Namer initialization complete');
+</script>
+{% endblock %} 

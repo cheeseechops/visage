@@ -1,0 +1,3282 @@
+{% extends "base.html" %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block content %}
+<div class="fade-in h-screen flex flex-col bg-gray-900" data-backend-mode="{{ mode }}" data-backend-person-id="{{ person_id or '' }}">
+    <!-- Top Control Panel -->
+    <div id="viewer-controls" class="bg-gray-800 border-b border-gray-700 p-4">
+        <div class="flex items-center justify-between mb-4">
+            <!-- Left side controls -->
+            <div class="flex items-center space-x-6">
+                <!-- View Selector - Redesigned as Tabs -->
+                <div class="flex items-center space-x-3">
+                    <label class="text-sm font-medium text-gray-300">View:</label>
+                    <div class="flex bg-gray-700 rounded-lg p-1">
+                        <!-- All Images Tab -->
+                        <button id="view-all-tab" class="flex items-center space-x-2 px-4 py-2 rounded-md text-sm font-medium transition-all duration-200 bg-blue-600 text-white shadow-sm">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                            </svg>
+                            <span>All Images</span>
+                        </button>
+                        
+                        <!-- Favorites Tab -->
+                        <button id="view-favorites-tab" class="flex items-center space-x-2 px-4 py-2 rounded-md text-sm font-medium transition-all duration-200 text-gray-300 hover:text-white hover:bg-gray-600">
+                            <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                                <path fill-rule="evenodd" d="M3.172 5.172a4 4 0 015.656 0L10 6.343l1.172-1.171a4 4 0 115.656 5.656L10 17.657l-6.828-6.829a4 4 0 010-5.656z" clip-rule="evenodd"></path>
+                            </svg>
+                            <span>Favorites</span>
+                        </button>
+                        
+                        <!-- People Tab -->
+                        <button id="view-people-tab" class="flex items-center space-x-2 px-4 py-2 rounded-md text-sm font-medium transition-all duration-200 text-gray-300 hover:text-white hover:bg-gray-600">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
+                            </svg>
+                            <span>People</span>
+                        </button>
+                        
+                        <!-- People Selection Button -->
+                        <button id="people-selection-btn" class="flex items-center space-x-2 px-3 py-2 rounded-md text-sm font-medium transition-all duration-200 text-gray-300 hover:text-white hover:bg-gray-600">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z"></path>
+                            </svg>
+                            <span>Select</span>
+                        </button>
+                        
+                        <!-- Experimental Tab -->
+                        <button id="view-experimental-tab" class="flex items-center space-x-2 px-4 py-2 rounded-md text-sm font-medium transition-all duration-200 text-gray-300 hover:text-white hover:bg-gray-600">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c1.657 0 3-1.79 3-4s-1.343-4-3-4-3 1.79-3 4 1.343 4 3 4zm0 0v4m0 0l-3 8h6l-3-8z" />
+                            </svg>
+                            <span>Experimental</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Sort Controls -->
+                <div class="flex items-center space-x-3">
+                    <label class="text-sm font-medium text-gray-300">Sort:</label>
+                    <select id="order-combo" class="px-3 py-2 border border-gray-600 rounded-lg text-sm bg-gray-700 text-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <option value="size-largest">Size (Largest)</option>
+                        <option value="size-smallest">Size (Smallest)</option>
+                        <option value="id-asc">ID (Low→High)</option>
+                        <option value="id-desc">ID (High→Low)</option>
+                        {% if mode == "all" or mode == "favorites" %}
+                        <option value="name-asc">Name (A→Z)</option>
+                        <option value="name-desc">Name (Z→A)</option>
+                        {% endif %}
+                        <option value="random">Random</option>
+                    </select>
+                    <!-- Randomize button (only shown when random sort is selected) -->
+                    <button id="randomize-btn" class="hidden px-2 py-2 bg-blue-600 text-white rounded text-sm hover:bg-blue-700 transition-colors" title="Randomize sort">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+                        </svg>
+                    </button>
+                </div>
+                </div>
+
+            <!-- Right side controls -->
+            <div class="flex items-center space-x-4">
+                <!-- Grid Size -->
+                <div class="flex items-center space-x-2">
+                    <label for="grid-size" class="text-sm font-medium text-gray-300">Grid:</label>
+                    <select id="grid-size" class="px-3 py-2 border border-gray-600 rounded-lg text-sm bg-gray-700 text-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <option value="1">1</option>
+                        <option value="2">2</option>
+                        <option value="3">3</option>
+                        <option value="4">4</option>
+                        <option value="5">5</option>
+                        <option value="6">6</option>
+                        <option value="7">7</option>
+                        <option value="8">8</option>
+                        <option value="9">9</option>
+                        <option value="10">10</option>
+                    </select>
+                    <label for="grid-rows" class="text-sm font-medium text-gray-300 ml-3">Rows:</label>
+                    <select id="grid-rows" class="px-3 py-2 border border-gray-600 rounded-lg text-sm bg-gray-700 text-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <option value="1">1</option>
+                        <option value="2">2</option>
+                        <option value="3">3</option>
+                        <option value="4">4</option>
+                        <option value="5">5</option>
+                        <option value="6">6</option>
+                        <option value="7">7</option>
+                        <option value="8">8</option>
+                        <option value="9">9</option>
+                        <option value="10">10</option>
+                    </select>
+                </div>
+                <!-- Navigation Controls -->
+                <div class="flex items-center space-x-2">
+                    <button id="prev-btn" class="flex items-center space-x-2 px-4 py-2 bg-gray-600 text-white rounded-lg text-sm hover:bg-gray-700 transition-colors" title="Previous">
+                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
+                             </svg>
+                         </button>
+                    <button id="next-btn" class="flex items-center space-x-2 px-4 py-2 bg-gray-600 text-white rounded-lg text-sm hover:bg-gray-700 transition-colors" title="Next">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+                        </svg>
+                    </button>
+                </div>
+
+                <!-- Auto Next Controls -->
+                <div class="flex items-center space-x-2">
+                    <button id="auto-next-toggle" class="flex items-center space-x-2 px-4 py-2 bg-green-600 text-white rounded-lg text-sm hover:bg-green-700 transition-colors" title="Auto Next">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-6.518-3.759A1 1 0 006 8.259v7.482a1 1 0 001.534.844l6.518-3.759a1 1 0 000-1.718z"></path>
+                        </svg>
+                    </button>
+                </div>
+
+                <!-- Mode Controls -->
+                <div class="flex items-center space-x-2">
+                    <button id="full-random-mode" class="flex items-center space-x-2 px-4 py-2 bg-orange-600 text-white rounded-lg text-sm hover:bg-orange-700 transition-colors" title="Full Random">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+                        </svg>
+                    </button>
+                </div>
+
+                <!-- Chromecast Controls -->
+                <div class="flex items-center space-x-2">
+                    <button id="chromecast-btn" class="flex items-center space-x-2 px-4 py-2 bg-purple-600 text-white rounded-lg text-sm hover:bg-purple-700 transition-colors">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019 9"></path>
+                        </svg>
+                        <span id="chromecast-text">Cast to TV</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Auto-Next Speed Control -->
+        <div class="flex items-center justify-center space-x-4">
+            <label class="text-sm font-medium text-gray-300">Auto-Next Speed:</label>
+            <input type="range" id="auto-next-slider" min="0.1" max="3.0" step="0.1" value="1.0" class="w-32">
+            <span id="speed-label" class="text-sm text-gray-400">1.0s</span>
+        </div>
+    </div>
+
+    <!-- People Selection Overlay -->
+    <div id="people-overlay" class="fixed inset-0 bg-black bg-opacity-75 z-50 hidden flex items-center justify-center">
+        <div class="bg-gray-800 rounded-xl shadow-2xl max-w-6xl w-full mx-4 max-h-[90vh] overflow-hidden">
+            <!-- Header -->
+            <div class="flex items-center justify-between p-6 border-b border-gray-700">
+                                    <div class="flex items-center space-x-3">
+                    <h3 class="text-xl font-semibold text-gray-200">Select People to View</h3>
+                    <span id="selected-count" class="px-2 py-1 bg-blue-600 text-white text-sm rounded-full">0 selected</span>
+                                    </div>
+                <div class="flex items-center space-x-3">
+                    <button id="select-all-people-btn" class="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700 transition-colors">
+                        Select All
+                    </button>
+                    <button id="clear-selection-btn" class="px-4 py-2 bg-gray-600 text-white rounded-lg text-sm hover:bg-gray-700 transition-colors">
+                        Clear All
+                    </button>
+                    <button id="close-people-overlay" class="p-2 text-gray-400 hover:text-white transition-colors">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                        </svg>
+                    </button>
+                                </div>
+                                </div>
+            
+            <!-- Search Bar -->
+            <div class="p-6 border-b border-gray-700">
+                <div class="relative">
+                    <svg class="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                    </svg>
+                    <input type="text" id="people-search" placeholder="Search people..." 
+                           class="w-full pl-10 pr-4 py-3 rounded-lg bg-gray-700 text-gray-200 border border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                </div>
+            </div>
+            
+            <!-- People Grid -->
+            <div class="p-6 overflow-y-auto max-h-[60vh]">
+                <div id="people-grid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
+                                    {% for person in people %}
+                    <div class="person-card bg-gray-700 rounded-xl p-4 cursor-pointer hover:bg-gray-600 transition-all duration-200 border-2 border-transparent hover:border-blue-500 group" 
+                         data-person-id="{{ person.id }}" data-person-name="{{ person.name }}">
+                        <div class="flex flex-col items-center space-y-3">
+                            <!-- Profile Picture -->
+                            <div class="relative">
+                                <div class="w-16 h-16 rounded-full overflow-hidden bg-gray-600 flex items-center justify-center">
+                                    <img src="{{ person.thumbnail_path or ('https://via.placeholder.com/64x64/6B7280/FFFFFF?text=' ~ person.name[:2]) }}"
+                                         alt="{{ person.name }}"
+                                         class="w-full h-full object-cover">
+                                    </div>
+                                <!-- Selection Indicator -->
+                                <div class="absolute -top-1 -right-1 w-6 h-6 bg-blue-600 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                                    <svg class="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 20 20">
+                                        <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path>
+                                    </svg>
+                                </div>
+                                <!-- Selected State -->
+                                <div class="absolute -top-1 -right-1 w-6 h-6 bg-green-600 rounded-full flex items-center justify-center opacity-0 selected-indicator">
+                                    <svg class="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 20 20">
+                                        <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path>
+                                    </svg>
+                            </div>
+                            </div>
+                            <!-- Name -->
+                            <div class="text-center">
+                                <p class="text-sm font-medium text-gray-200 truncate max-w-full">{{ person.name }}</p>
+                        </div>
+                            <!-- Hidden Checkbox -->
+                            <input type="checkbox" id="person-{{ person.id }}" 
+                                   class="hidden person-checkbox" 
+                                   data-person-id="{{ person.id }}" data-person-name="{{ person.name }}">
+                    </div>
+                </div>
+                    {% endfor %}
+            </div>
+                </div>
+
+            <!-- Footer -->
+            <div class="flex items-center justify-between p-6 border-t border-gray-700 bg-gray-900">
+                <div class="text-sm text-gray-400">
+                    Click on people to select them. Selected people will be highlighted.
+                </div>
+                <div class="flex items-center space-x-3">
+                    <button id="cancel-people-selection" class="px-4 py-2 bg-gray-600 text-white rounded-lg text-sm hover:bg-gray-700 transition-colors">
+                        Cancel
+                    </button>
+                    <button id="apply-people-selection" class="px-6 py-2 bg-green-600 text-white rounded-lg text-sm hover:bg-green-700 transition-colors font-semibold">
+                        Apply Selection
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Display Area -->
+    <div id="main-display" class="flex-1 bg-black flex items-center justify-center relative" style="height: calc(100vh - 200px);">
+        <!-- Single Image Mode -->
+        <div id="single-image-mode" class="w-full h-full flex items-center justify-center">
+            <img id="main-image" src="" alt="Main image" class="w-full h-full object-contain">
+            <div id="filename-label" class="absolute bottom-4 left-1/2 transform -translate-x-1/2 bg-black bg-opacity-75 text-white px-4 py-2 rounded-lg text-sm"></div>
+            
+            <!-- Top Right Buttons -->
+            <div class="absolute top-4 right-4 flex items-center space-x-2">
+                <!-- Fullscreen Button -->
+                <button id="fullscreen-btn" class="bg-black bg-opacity-75 text-white p-3 rounded-lg hover:bg-opacity-90 transition-opacity" title="Enter Fullscreen">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"></path>
+                    </svg>
+                </button>
+                <!-- 3-Dot Menu Button -->
+                <button id="menu-btn" class="bg-black bg-opacity-75 text-white p-3 rounded-lg hover:bg-opacity-90 transition-opacity">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z"></path>
+                    </svg>
+                </button>
+            </div>
+        </div>
+
+        <!-- Multi-Image Mode (hidden by default) -->
+        <div id="multi-image-mode" class="hidden grid grid-cols-1 gap-4 w-full h-full p-4 overflow-auto">
+            <!-- Grid will be populated by JavaScript -->
+        </div>
+
+        <!-- Experimental Mode (hidden by default) -->
+        <div id="experimental-mode" class="hidden w-full h-full overflow-auto"></div>
+    </div>
+
+    <!-- Thumbnail Navigation Bar -->
+    <div id="thumbnail-bar" class="bg-gray-800 border-t border-gray-700 p-3">
+        <div class="flex space-x-2 overflow-x-auto pb-2" style="scrollbar-width: thin; scrollbar-color: #4a5568 #2d3748;">
+            <!-- Virtual scrolling container - maintains consistent size -->
+            <div id="thumbnail-container" class="flex space-x-2" style="min-width: 100%;">
+                <!-- Thumbnails will be dynamically inserted here -->
+            </div>
+        </div>
+        <!-- Custom scrollbar -->
+        <div class="h-2 bg-gray-700 rounded-full mt-2">
+            <div class="h-2 bg-blue-500 rounded-full transition-all duration-300" style="width: 0%"></div>
+        </div>
+        
+        <!-- Load More Info -->
+        <div id="load-more-container" class="mt-3 text-center" style="display: none;">
+            <div id="load-more-info" class="text-xs text-gray-400 mt-1">
+                Showing <span id="current-count">{{ images|length }}</span> of <span id="total-count">{{ pagination.total }}</span> images
+            </div>
+        </div>
+    </div>
+
+    <!-- 3-Dot Menu Overlay -->
+    <div id="menu-overlay" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden">
+        <div id="menu-container" class="absolute bg-gray-800 rounded-lg shadow-xl border border-gray-700 min-w-48">
+            <div class="py-2">
+                <button id="menu-view-person-gallery" class="w-full text-left px-4 py-2 text-sm text-gray-200 hover:bg-gray-700 transition-colors flex items-center space-x-2">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
+                    </svg>
+                    <span>View Person Gallery</span>
+                </button>
+                <button id="menu-view-image-details" class="w-full text-left px-4 py-2 text-sm text-gray-200 hover:bg-gray-700 transition-colors flex items-center space-x-2">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                    </svg>
+                    <span>View Image Details</span>
+                </button>
+                <button id="menu-toggle-favorite" class="w-full text-left px-4 py-2 text-sm text-gray-200 hover:bg-gray-700 transition-colors flex items-center space-x-2">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z"></path>
+                    </svg>
+                    <span id="menu-favorite-text">Toggle Favorite</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Slideshow Overlay -->
+    <div id="slideshow-overlay" class="fixed inset-0 bg-black z-50 hidden">
+        <div class="w-full h-full flex items-center justify-center relative">
+            <img id="slideshow-image" src="" alt="Slideshow image" class="w-full h-full object-contain">
+            <div id="slideshow-filename" class="absolute bottom-4 left-1/2 transform -translate-x-1/2 bg-black bg-opacity-75 text-white px-4 py-2 rounded-lg text-sm"></div>
+            <div class="absolute top-4 left-1/2 transform -translate-x-1/2 bg-black bg-opacity-75 text-white px-4 py-2 rounded-lg text-sm">
+                Slideshow Mode - Press ESC to exit
+            </div>
+        </div>
+    </div>
+
+    <!-- Chromecast Overlay -->
+    <div id="chromecast-overlay" class="fixed inset-0 bg-black bg-opacity-75 z-50 hidden flex items-center justify-center">
+        <div class="bg-gray-800 rounded-xl shadow-2xl max-w-2xl w-full mx-4 max-h-[90vh] overflow-hidden">
+            <!-- Header -->
+            <div class="flex items-center justify-between p-6 border-b border-gray-700">
+                <div class="flex items-center space-x-3">
+                    <h3 class="text-xl font-semibold text-gray-200">Chromecast Control</h3>
+                    <div class="relative group">
+                        <svg class="w-5 h-5 text-gray-400 cursor-help" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                        </svg>
+                        <div class="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-gray-800 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap z-10">
+                            <div class="mb-1 font-medium">Keyboard Shortcuts:</div>
+                            <div>Ctrl+Shift+C: Open overlay</div>
+                            <div>Ctrl+Shift+S: Start/stop slideshow</div>
+                            <div>Ctrl+Shift+I: Cast current image</div>
+                            <div class="absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-gray-800"></div>
+                        </div>
+                    </div>
+                    <div id="chromecast-status" class="px-3 py-1 bg-gray-600 text-white text-sm rounded-full">Disconnected</div>
+                </div>
+                <button id="close-chromecast-overlay" class="p-2 text-gray-400 hover:text-white transition-colors">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                </button>
+            </div>
+            
+            <!-- Chromecast Device Selection -->
+            <div class="p-6 border-b border-gray-700">
+                <div class="flex items-center justify-between mb-4">
+                    <h4 class="text-lg font-medium text-gray-200">Available Devices</h4>
+                    <div class="flex space-x-2">
+                        <button id="refresh-devices-btn" class="px-3 py-2 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700 transition-colors">
+                            Refresh
+                        </button>
+                        <button id="force-refresh-devices-btn" class="px-3 py-2 bg-green-600 text-white rounded-lg text-sm hover:bg-green-700 transition-colors">
+                            Force Refresh
+                        </button>
+                    </div>
+                </div>
+                <div id="chromecast-devices" class="space-y-2">
+                    <!-- Devices will be populated here -->
+                </div>
+            </div>
+            
+            <!-- Casting Controls -->
+            <div class="p-6 border-b border-gray-700">
+                <div class="flex items-center justify-between mb-4">
+                    <h4 class="text-lg font-medium text-gray-200">Casting Options</h4>
+                </div>
+                <div class="space-y-3">
+                    <div class="flex items-center space-x-3">
+                        <button id="cast-current-btn" class="flex-1 px-4 py-2 bg-green-600 text-white rounded-lg text-sm hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed" disabled>
+                            Cast Current Image
+                        </button>
+                        <button id="cast-slideshow-btn" class="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed" disabled>
+                            Cast Slideshow
+                        </button>
+                    </div>
+                    <div class="flex items-center space-x-3">
+                        <label class="text-sm text-gray-300">Slideshow Speed:</label>
+                        <input type="range" id="cast-slideshow-speed" min="1" max="10" step="1" value="3" class="flex-1">
+                        <span id="cast-speed-label" class="text-sm text-gray-400">3s</span>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Casting Status -->
+            <div class="p-6">
+                <div class="flex items-center justify-between mb-4">
+                    <h4 class="text-lg font-medium text-gray-200">Current Status</h4>
+                </div>
+                <div id="casting-status" class="text-sm text-gray-400">
+                    No device connected
+                </div>
+                
+                <!-- Slideshow Progress -->
+                <div id="cast-progress-container" class="mt-4 hidden">
+                    <div class="flex items-center justify-between text-sm text-gray-400 mb-2">
+                        <span>Slideshow Progress</span>
+                        <span id="cast-progress-text">0 / 0</span>
+                    </div>
+                    <div class="w-full bg-gray-700 rounded-full h-2">
+                        <div id="cast-progress-bar" class="bg-blue-600 h-2 rounded-full transition-all duration-300" style="width: 0%"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+let images = {{ images|tojson }};
+let currentImageIndex = 0;
+let autoNextInterval = null;
+let isAutoNextRunning = false;
+let isFullRandomMode = false;
+let prevImageOrder = [];
+let prevImageIndex = 0;
+let currentSort = 'size-largest';
+let imageCache = new Map();
+let thumbnailObserver = null;
+let preloadQueue = [];
+let isFullscreenMode = false;
+let isSlideshowMode = false;
+let slideshowInterval = null;
+let slideshowImages = [];
+let slideshowCurrentIndex = 0;
+let gridColumns = 1;
+let gridRows = 1;
+
+// Pagination variables
+let currentPage = {{ pagination.page }};
+let totalPages = {{ pagination.pages }};
+let totalImages = {{ pagination.total }};
+let perPage = {{ pagination.per_page }};
+let isLoadingMore = false;
+let allImages = []; // Store all loaded images
+let hasAllImagesLoaded = false; // Track if we have all images loaded
+
+// Virtual scrolling variables
+let thumbnailItemWidth = 80; // Width of each thumbnail including margin
+let visibleThumbnails = 0; // Number of thumbnails currently visible
+let loadedThumbnails = 0; // Number of thumbnails currently loaded
+let thumbnailContainer = null;
+let thumbnailScrollContainer = null;
+let virtualScrollObserver = null;
+
+// Chromecast variables
+let chromecastDevices = [];
+let selectedChromecastDevice = null;
+let isCasting = false;
+let castSlideshowInterval = null;
+
+// Backend variables passed from Flask - will be read from data attributes
+let backendMode = document.querySelector('[data-backend-mode]')?.dataset.backendMode || 'all';
+let backendPersonId = document.querySelector('[data-backend-person-id]')?.dataset.backendPersonId ? parseInt(document.querySelector('[data-backend-person-id]').dataset.backendPersonId) : null;
+
+// localStorage keys for this page
+const VIEWER_STORAGE_KEYS = {
+    SORT_BY: 'viewer_sort_by',
+    SELECTED_PEOPLE: 'viewer_selected_people',
+    CURRENT_VIEW: 'viewer_current_view',
+    GRID_COLUMNS: 'viewer_grid_columns',
+    GRID_ROWS: 'viewer_grid_rows'
+};
+
+// Track selected people and current view
+let selectedPeople = new Set();
+let currentView = 'all'; // 'all', 'favorites', 'people'
+
+// Experimental layout state
+let isExperimentalMode = false;
+let experimentalTargetRowHeight = 260; // px
+let experimentalImages = []; // Images specifically for experimental gallery
+let experimentalLoadingPage = 1;
+let experimentalHasMore = true;
+let experimentalLoading = false;
+const EXPERIMENTAL_BATCH_SIZE = 500; // Load images in batches for experimental mode
+
+function loadViewerPreferences() {
+    const sortBy = localStorage.getItem(VIEWER_STORAGE_KEYS.SORT_BY) || 'size-largest';
+    const savedView = localStorage.getItem(VIEWER_STORAGE_KEYS.CURRENT_VIEW) || 'all';
+    const savedPeople = localStorage.getItem(VIEWER_STORAGE_KEYS.SELECTED_PEOPLE);
+    const savedGrid = parseInt(localStorage.getItem(VIEWER_STORAGE_KEYS.GRID_COLUMNS) || '1');
+    const savedRows = parseInt(localStorage.getItem(VIEWER_STORAGE_KEYS.GRID_ROWS) || '1');
+    
+    if (document.getElementById('order-combo')) document.getElementById('order-combo').value = sortBy;
+    
+    // Show/hide randomize button based on sort selection
+    const randomizeBtn = document.getElementById('randomize-btn');
+    if (randomizeBtn) {
+        if (sortBy === 'random') {
+            randomizeBtn.classList.remove('hidden');
+        } else {
+            randomizeBtn.classList.add('hidden');
+        }
+    }
+    
+    // Set current view
+    setCurrentView(savedView);
+    // Set grid
+    gridColumns = Math.min(Math.max(isNaN(savedGrid) ? 1 : savedGrid, 1), 10);
+    const gridSelect = document.getElementById('grid-size');
+    if (gridSelect) gridSelect.value = String(gridColumns);
+    gridRows = Math.min(Math.max(isNaN(savedRows) ? 1 : savedRows, 1), 10);
+    const rowsSelect = document.getElementById('grid-rows');
+    if (rowsSelect) rowsSelect.value = String(gridRows);
+    
+    if (savedPeople) {
+        try {
+            const peopleData = JSON.parse(savedPeople);
+            selectedPeople = new Set(peopleData.people || []);
+        } catch (e) {
+            console.error('Error loading saved people selection:', e);
+        }
+    }
+}
+
+function saveViewerPreferences() {
+    if (document.getElementById('order-combo')) localStorage.setItem(VIEWER_STORAGE_KEYS.SORT_BY, document.getElementById('order-combo').value);
+    localStorage.setItem(VIEWER_STORAGE_KEYS.CURRENT_VIEW, currentView);
+    localStorage.setItem(VIEWER_STORAGE_KEYS.GRID_COLUMNS, String(gridColumns));
+    localStorage.setItem(VIEWER_STORAGE_KEYS.GRID_ROWS, String(gridRows));
+    
+    const peopleData = {
+        people: Array.from(selectedPeople)
+    };
+    localStorage.setItem(VIEWER_STORAGE_KEYS.SELECTED_PEOPLE, JSON.stringify(peopleData));
+}
+
+function setCurrentView(view) {
+    currentView = view;
+    
+    // Update tab styling
+    document.getElementById('view-all-tab').classList.remove('bg-blue-600', 'text-white');
+    document.getElementById('view-all-tab').classList.add('text-gray-300', 'hover:text-white', 'hover:bg-gray-600');
+    
+    document.getElementById('view-favorites-tab').classList.remove('bg-blue-600', 'text-white');
+    document.getElementById('view-favorites-tab').classList.add('text-gray-300', 'hover:text-white', 'hover:bg-gray-600');
+    
+    document.getElementById('view-people-tab').classList.remove('bg-blue-600', 'text-white');
+    document.getElementById('view-people-tab').classList.add('text-gray-300', 'hover:text-white', 'hover:bg-gray-600');
+    
+    // Set active tab
+    if (view === 'all') {
+        document.getElementById('view-all-tab').classList.add('bg-blue-600', 'text-white');
+        document.getElementById('view-all-tab').classList.remove('text-gray-300', 'hover:text-white', 'hover:bg-gray-600');
+    } else if (view === 'favorites') {
+        document.getElementById('view-favorites-tab').classList.add('bg-blue-600', 'text-white');
+        document.getElementById('view-favorites-tab').classList.remove('text-gray-300', 'hover:text-white', 'hover:bg-gray-600');
+    } else if (view === 'people') {
+        document.getElementById('view-people-tab').classList.add('bg-blue-600', 'text-white');
+        document.getElementById('view-people-tab').classList.remove('text-gray-300', 'hover:text-white', 'hover:bg-gray-600');
+    }
+    
+    saveViewerPreferences();
+}
+
+function showPeopleOverlay() {
+    document.getElementById('people-overlay').classList.remove('hidden');
+    document.getElementById('people-search').focus();
+    updatePeopleGrid();
+    updateSelectedCount();
+}
+
+function hidePeopleOverlay() {
+    document.getElementById('people-overlay').classList.add('hidden');
+}
+
+function updateSelectedCount() {
+    const count = selectedPeople.size;
+    const countElement = document.getElementById('selected-count');
+    if (countElement) {
+        countElement.textContent = `${count} selected`;
+    }
+}
+
+// Randomise button removed
+
+function updatePeopleGrid() {
+    const searchInput = document.getElementById('people-search');
+    const searchTerm = searchInput ? searchInput.value.toLowerCase() : '';
+    
+    // Update all person cards
+    document.querySelectorAll('.person-card').forEach(card => {
+        const personName = card.dataset.personName.toLowerCase();
+        const checkbox = card.querySelector('.person-checkbox');
+        const selectedIndicator = card.querySelector('.selected-indicator');
+        
+        if (personName.includes(searchTerm)) {
+            card.style.display = 'block';
+            if (selectedPeople.has(checkbox.dataset.personId)) {
+                card.classList.add('border-green-500', 'bg-green-900');
+                card.classList.remove('border-transparent');
+                checkbox.checked = true;
+                selectedIndicator.classList.remove('opacity-0');
+                selectedIndicator.classList.add('opacity-100');
+            } else {
+                card.classList.remove('border-green-500', 'bg-green-900');
+                card.classList.add('border-transparent');
+                checkbox.checked = false;
+                selectedIndicator.classList.add('opacity-0');
+                selectedIndicator.classList.remove('opacity-100');
+            }
+        } else {
+            card.style.display = 'none';
+        }
+    });
+    
+    updateSelectedCount();
+}
+
+// Initialize viewer
+document.addEventListener('DOMContentLoaded', async function() {
+    console.log('DOMContentLoaded - Starting viewer initialization');
+    console.log('Images array length:', images.length);
+    console.log('Images array:', images);
+    
+    // Initialize allImages with current images
+    allImages = [...images];
+    
+    loadViewerPreferences();
+    if (document.getElementById('order-combo')) {
+        document.getElementById('order-combo').addEventListener('change', saveViewerPreferences);
+    }
+
+    // Initialize based on current URL parameters
+    initializeFromUrl();
+
+    if (images.length > 0) {
+        console.log('Images found, initializing viewer with', images.length, 'images');
+        // Initialize allImages with the first set of images
+        allImages = [...images];
+        
+        // Apply initial sorting to ensure correct order
+        currentSort = document.getElementById('order-combo')?.value || 'id-desc';
+        sortImages();
+        await renderDisplay(0);
+        // Reset thumbnail scroll to start to avoid initial offset
+        const scrollEl = document.getElementById('thumbnail-bar')?.querySelector('.flex.overflow-x-auto');
+        if (scrollEl) scrollEl.scrollLeft = 0;
+        initializeVirtualScrolling();
+        preloadNextImages(0);
+        restoreNormalView(); // Ensure normal view is restored when images are available
+        
+        // Show load more info if there are more pages
+        if (totalPages > 1) {
+            const loadMoreContainer = document.getElementById('load-more-container');
+            if (loadMoreContainer) {
+                loadMoreContainer.style.display = 'block';
+                // Set initial count without flickering
+                const loadMoreInfo = document.getElementById('load-more-info');
+                if (loadMoreInfo) {
+                    // Cap the displayed count to never exceed totalImages
+                    const displayCount = Math.min(allImages.length, totalImages);
+                    loadMoreInfo.innerHTML = `Showing <span id="current-count">${displayCount}</span> of <span id="total-count">${totalImages}</span> images`;
+                }
+            }
+        }
+    } else {
+        console.log('No images found, showing appropriate message');
+        // No images available - show appropriate message
+        if (currentView === 'people' && selectedPeople.size === 0) {
+            // Show no people selected message if in people view with no selections
+            showNoPeopleSelectedMessage();
+        } else {
+            // Show no images message for other views
+            restoreNormalView();
+            const mainDisplay = document.getElementById('main-display');
+            const singleImageMode = document.getElementById('single-image-mode');
+            singleImageMode.style.display = 'flex';
+            
+            // Create or update the no images message
+            let noImagesMessage = document.getElementById('no-images-message');
+            if (!noImagesMessage) {
+                noImagesMessage = document.createElement('div');
+                noImagesMessage.id = 'no-images-message';
+                noImagesMessage.className = 'flex flex-col items-center justify-center w-full h-full text-gray-400';
+                mainDisplay.appendChild(noImagesMessage);
+            }
+            
+            noImagesMessage.innerHTML = `
+                <svg class="w-16 h-16 mb-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                </svg>
+                <h2 class="text-xl font-semibold mb-2">No Images Available</h2>
+                <p class="text-center max-w-md">No images match the current view criteria.</p>
+            `;
+            
+            // Hide thumbnail bar when no images
+            const thumbnailBar = document.getElementById('thumbnail-bar');
+            thumbnailBar.style.display = 'none';
+        }
+    }
+    
+    // Set up event listeners
+    setupEventListeners();
+    setupKeyboardShortcuts();
+    // Ensure thumbnails highlight/centering applied after first render
+    updateThumbnailSelection();
+    console.log('Viewer initialization complete');
+});
+
+function initializeFromUrl() {
+    const urlParams = new URLSearchParams(window.location.search);
+    const favorites = urlParams.get('favorites') === 'true';
+    const peopleParam = urlParams.get('people');
+    const experimental = urlParams.get('experimental') === 'true';
+    
+    // Reset selections
+    selectedPeople.clear();
+    
+    // Set view based on URL parameters and backend variables
+    if (experimental) {
+        setExperimentalMode(true);
+        return;
+    } else if (favorites) {
+        setCurrentView('favorites');
+    } else if (peopleParam) {
+        setCurrentView('people');
+        const personIds = peopleParam.split(',').map(id => id.trim());
+        personIds.forEach(personId => {
+            selectedPeople.add(personId);
+        });
+    } else if (backendPersonId) {
+        // Handle person_id from URL path (e.g., /viewer/123)
+        setCurrentView('people');
+        selectedPeople.add(backendPersonId.toString());
+    } else if (backendMode === 'favorites') {
+        setCurrentView('favorites');
+    } else if (backendMode === 'person' || backendMode === 'multiple_people') {
+        setCurrentView('people');
+        if (backendPersonId) {
+            selectedPeople.add(backendPersonId.toString());
+        }
+    } else {
+        setCurrentView('all');
+    }
+    
+    updatePeopleGrid();
+}
+
+function setupEventListeners() {
+    // View tab buttons
+    document.getElementById('view-all-tab').addEventListener('click', function() {
+        setCurrentView('all');
+        navigateToView();
+    });
+    
+    document.getElementById('view-favorites-tab').addEventListener('click', function() {
+        setCurrentView('favorites');
+        navigateToView();
+    });
+    
+    document.getElementById('view-people-tab').addEventListener('click', function() {
+        setCurrentView('people');
+        navigateToView();
+    });
+    
+    // People selection button
+    document.getElementById('people-selection-btn').addEventListener('click', function() {
+        showPeopleOverlay();
+    });
+    
+    // People search
+    document.getElementById('people-search').addEventListener('input', updatePeopleGrid);
+    
+    // Select all people
+    document.getElementById('select-all-people-btn').addEventListener('click', function() {
+        document.querySelectorAll('.person-checkbox').forEach(checkbox => {
+                checkbox.checked = true;
+            selectedPeople.add(checkbox.dataset.personId);
+        });
+        updatePeopleGrid();
+    });
+    
+    // Clear selection
+    document.getElementById('clear-selection-btn').addEventListener('click', function() {
+        document.querySelectorAll('.person-checkbox').forEach(checkbox => {
+            checkbox.checked = false;
+            selectedPeople.delete(checkbox.dataset.personId);
+        });
+        updatePeopleGrid();
+    });
+    
+    // Apply people selection
+    document.getElementById('apply-people-selection').addEventListener('click', function() {
+        if (selectedPeople.size > 0) {
+            hidePeopleOverlay();
+            setCurrentView('people');
+            restoreNormalView(); // Restore normal view when people are selected
+            navigateToView();
+        }
+    });
+    
+    // Close overlay buttons
+    document.getElementById('close-people-overlay').addEventListener('click', hidePeopleOverlay);
+    document.getElementById('cancel-people-selection').addEventListener('click', hidePeopleOverlay);
+    
+    // Close overlay when clicking outside
+    document.getElementById('people-overlay').addEventListener('click', function(e) {
+        if (e.target === this) {
+            hidePeopleOverlay();
+        }
+    });
+    
+    // Chromecast overlay event listeners
+    document.getElementById('close-chromecast-overlay').addEventListener('click', hideChromecastOverlay);
+    document.getElementById('refresh-devices-btn').addEventListener('click', refreshChromecastDevices);
+    document.getElementById('cast-current-btn').addEventListener('click', castCurrentImage);
+    document.getElementById('cast-slideshow-btn').addEventListener('click', castSlideshow);
+    
+    // Close chromecast overlay when clicking outside
+    document.getElementById('chromecast-overlay').addEventListener('click', function(e) {
+        if (e.target === this) {
+            hideChromecastOverlay();
+        }
+    });
+    
+    // Cast slideshow speed slider
+const castSpeedSlider = document.getElementById('cast-slideshow-speed');
+const castSpeedLabel = document.getElementById('cast-speed-label');
+castSpeedSlider.addEventListener('input', function() {
+    const speed = this.value;
+    castSpeedLabel.textContent = speed + 's';
+    
+    // If slideshow is running, update the interval
+    if (castSlideshowInterval && isCasting) {
+        clearInterval(castSlideshowInterval);
+        startCastSlideshow(parseInt(speed));
+    }
+});
+    
+    // Individual person checkboxes
+    document.querySelectorAll('.person-checkbox').forEach(checkbox => {
+        checkbox.addEventListener('change', function() {
+            if (this.checked) {
+                selectedPeople.add(this.dataset.personId);
+            } else {
+                selectedPeople.delete(this.dataset.personId);
+            }
+            updatePeopleGrid();
+        });
+    });
+    
+    // Person card clicks
+    document.querySelectorAll('.person-card').forEach(card => {
+        card.addEventListener('click', function(e) {
+            if (e.target.type !== 'checkbox' && !e.target.closest('input')) {
+                const checkbox = this.querySelector('.person-checkbox');
+                checkbox.checked = !checkbox.checked;
+                if (checkbox.checked) {
+                    selectedPeople.add(checkbox.dataset.personId);
+                } else {
+                    selectedPeople.delete(checkbox.dataset.personId);
+                }
+                updatePeopleGrid();
+            }
+        });
+    });
+    
+    // Navigation buttons
+    document.getElementById('prev-btn').addEventListener('click', previousImage);
+    document.getElementById('next-btn').addEventListener('click', nextImage);
+    
+    // Auto next toggle
+    document.getElementById('auto-next-toggle').addEventListener('click', toggleAutoNext);
+    
+    // Full random mode
+    document.getElementById('full-random-mode').addEventListener('click', toggleFullRandomMode);
+    
+    // Chromecast button
+    document.getElementById('chromecast-btn').addEventListener('click', showChromecastOverlay);
+    
+    // Chromecast keyboard shortcuts - removed, handled in setupKeyboardShortcuts
+    // The keyboard shortcuts are now centralized in setupKeyboardShortcuts()
+    
+    // Randomise button
+    // Randomise button removed
+    
+    // Sort combo
+    document.getElementById('order-combo').addEventListener('change', function() {
+        currentSort = this.value;
+        // Show/hide randomize button based on sort selection
+        const randomizeBtn = document.getElementById('randomize-btn');
+        if (currentSort === 'random') {
+            randomizeBtn.classList.remove('hidden');
+        } else {
+            randomizeBtn.classList.add('hidden');
+        }
+        
+        // Check if we need to load all images for sorting
+        if (!hasAllImagesLoaded && (currentSort === 'name-asc' || currentSort === 'name-desc' || currentSort === 'size-largest' || currentSort === 'size-smallest')) {
+            // Load all images first, then sort
+            loadAllImagesForSorting();
+        } else {
+            // Apply sorting to current images
+            sortImages();
+            // Reset to first image and update everything
+            currentImageIndex = 0;
+            renderDisplay(0);
+            updateVirtualScrollingAfterSort();
+        }
+        saveViewerPreferences();
+    });
+    
+    // Randomize button
+    document.getElementById('randomize-btn').addEventListener('click', function() {
+        if (currentSort === 'random') {
+            // Re-randomize the current sort
+            sortImages();
+            // Reset to first image and update everything
+            currentImageIndex = 0;
+            renderDisplay(0);
+            updateVirtualScrollingAfterSort();
+        }
+    });
+    
+    // Auto next speed slider
+    const speedSlider = document.getElementById('auto-next-slider');
+    const speedLabel = document.getElementById('speed-label');
+    speedSlider.addEventListener('input', function() {
+        speedLabel.textContent = this.value + 's';
+        if (isAutoNextRunning) {
+            stopAutoNext();
+            startAutoNext();
+        }
+    });
+    
+    // Fullscreen button (separate from menu)
+    document.getElementById('fullscreen-btn').addEventListener('click', function() {
+        enterFullscreen();
+    });
+    
+    // Menu button
+    document.getElementById('menu-btn').addEventListener('click', showMenu);
+    
+    // Menu overlay click to close
+    document.getElementById('menu-overlay').addEventListener('click', function(e) {
+        if (e.target === this) {
+            hideMenu();
+        }
+    });
+    
+    // Menu options
+    document.getElementById('menu-view-person-gallery').addEventListener('click', function() {
+        hideMenu();
+        viewPersonGallery();
+    });
+    
+    document.getElementById('menu-view-image-details').addEventListener('click', function() {
+        hideMenu();
+        viewImageDetails();
+    });
+    
+    document.getElementById('menu-toggle-favorite').addEventListener('click', function() {
+        hideMenu();
+        toggleFavorite();
+    });
+    
+    // Thumbnail clicks - use event delegation
+    document.getElementById('thumbnail-bar').addEventListener('click', function(e) {
+        const thumbnail = e.target.closest('.thumbnail-item');
+        if (thumbnail) {
+            const imageId = parseInt(thumbnail.dataset.imageId);
+            const imageIndex = images.findIndex(img => img.id === imageId);
+            if (imageIndex !== -1) {
+                currentImageIndex = imageIndex;
+                renderDisplay(currentImageIndex);
+                updateThumbnailSelection();
+            }
+        }
+    });
+    
+    // Load more button - removed since we use infinite scroll
+    // document.getElementById('load-more-btn').addEventListener('click', function() {
+    //     loadMoreImages();
+    // });
+}
+
+function navigateToView() {
+    let url = '/viewer';
+    const params = new URLSearchParams();
+    
+    if (currentView === 'favorites') {
+        params.set('favorites', 'true');
+    } else if (currentView === 'people') {
+        if (selectedPeople.size > 0) {
+            params.set('people', Array.from(selectedPeople).join(','));
+        } else {
+            // Show "no people selected" message
+            showNoPeopleSelectedMessage();
+            return;
+        }
+    }
+    
+    if (params.toString()) {
+        url += '?' + params.toString();
+    }
+    
+    window.location.href = url;
+}
+
+// Initialize virtual scrolling for thumbnails
+function initializeVirtualScrolling() {
+    console.log('initializeVirtualScrolling called');
+    console.log('allImages length:', allImages.length);
+    console.log('totalImages:', totalImages);
+    
+    thumbnailContainer = document.getElementById('thumbnail-container');
+    thumbnailScrollContainer = document.getElementById('thumbnail-bar').querySelector('.flex.overflow-x-auto');
+    
+    console.log('thumbnailContainer:', thumbnailContainer);
+    console.log('thumbnailScrollContainer:', thumbnailScrollContainer);
+    
+    if (!thumbnailContainer || !thumbnailScrollContainer) {
+        console.error('Thumbnail containers not found');
+        return;
+    }
+    
+    // Calculate how many thumbnails can fit in the visible area
+    const containerWidth = thumbnailScrollContainer.clientWidth;
+    visibleThumbnails = Math.ceil(containerWidth / thumbnailItemWidth) + 2; // Add buffer
+    
+    // Set the total width of the container to accommodate ALL images (not just loaded ones)
+    const totalWidth = totalImages * thumbnailItemWidth;
+    thumbnailContainer.style.width = `${totalWidth}px`;
+    
+    console.log('Creating thumbnail containers for', totalImages, 'total images,', allImages.length, 'loaded');
+    
+    // Create all thumbnail containers upfront (placeholders for all images)
+    loadVisibleThumbnails();
+    
+    // Set up scroll listener for virtual scrolling
+    thumbnailScrollContainer.addEventListener('scroll', handleThumbnailScroll);
+    
+    // Set up intersection observer for infinite scroll
+    setupVirtualScrollObserver();
+    
+    console.log(`Virtual scrolling initialized: ${visibleThumbnails} visible thumbnails, ${totalImages} total images`);
+}
+
+// Handle thumbnail scroll for virtual scrolling
+function handleThumbnailScroll() {
+    // The lazy loading will handle image loading automatically
+    // We just need to update the scroll indicator
+    updateScrollIndicator();
+}
+
+// Load thumbnails in the specified range
+function loadVisibleThumbnails() {
+    // Clear existing thumbnails
+    thumbnailContainer.innerHTML = '';
+    
+    // Create all thumbnail containers upfront (placeholders for all images)
+    for (let i = 0; i < totalImages; i++) {
+        const thumbnailDiv = document.createElement('div');
+        thumbnailDiv.className = 'thumbnail-item flex-shrink-0 cursor-pointer border-2 border-transparent hover:border-blue-500 rounded-lg';
+        thumbnailDiv.style.width = `${thumbnailItemWidth - 8}px`; // Account for margin
+        thumbnailDiv.style.height = '64px';
+        
+        if (i < allImages.length) {
+            // This image is loaded, create actual thumbnail
+            const image = allImages[i];
+            thumbnailDiv.dataset.imageId = image.id;
+            thumbnailDiv.dataset.imageUrl = image.image_url;
+            
+            const img = document.createElement('img');
+            img.src = `data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' fill='%234a5568'/%3E%3C/svg%3E`;
+            img.dataset.src = image.image_url;
+            img.alt = `Thumbnail ${image.id}`;
+            img.className = 'w-16 h-16 object-contain rounded-lg lazy-thumbnail';
+            img.loading = 'lazy';
+            
+            // Add the image to the thumbnail div
+            thumbnailDiv.appendChild(img);
+            
+            // Add click handler
+            thumbnailDiv.addEventListener('click', function() {
+                const imageId = parseInt(this.dataset.imageId);
+                const imageIndex = allImages.findIndex(img => img.id === imageId);
+                if (imageIndex !== -1) {
+                    currentImageIndex = imageIndex;
+                    renderDisplay(currentImageIndex);
+                    updateThumbnailSelection();
+                }
+            });
+        } else {
+            // This is a placeholder for unloaded images
+            thumbnailDiv.style.backgroundColor = '#4a5568';
+            thumbnailDiv.style.borderRadius = '8px';
+            thumbnailDiv.dataset.placeholder = 'true';
+        }
+        
+        thumbnailContainer.appendChild(thumbnailDiv);
+    }
+    
+    // Set up lazy loading for the loaded thumbnails
+    setupLazyLoading();
+    updateThumbnailSelection();
+}
+
+// Set up intersection observer for infinite scroll
+function setupVirtualScrollObserver() {
+    if (virtualScrollObserver) {
+        virtualScrollObserver.disconnect();
+    }
+    
+    virtualScrollObserver = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+            if (entry.isIntersecting && !isLoadingMore && currentPage < totalPages) {
+                // Add a small delay to prevent rapid loading and reduce flickering
+                setTimeout(() => {
+                    if (!isLoadingMore && currentPage < totalPages) {
+                        loadMoreImages();
+                    }
+                }, 200);
+            }
+        });
+    }, {
+        rootMargin: '100px 0px',
+        threshold: 0.1
+    });
+    
+    // Create a sentinel element for infinite scroll
+    let sentinel = document.getElementById('load-more-sentinel');
+    if (!sentinel) {
+        sentinel = document.createElement('div');
+        sentinel.id = 'load-more-sentinel';
+        sentinel.style.height = '1px';
+        sentinel.style.width = '100%';
+        document.getElementById('thumbnail-bar').appendChild(sentinel);
+    }
+    virtualScrollObserver.observe(sentinel);
+}
+
+// Update scroll indicator
+function updateScrollIndicator() {
+    const scrollContainer = thumbnailScrollContainer;
+    const scrollBar = document.querySelector('#thumbnail-bar .h-2 .bg-blue-500');
+    
+    if (scrollContainer && scrollBar) {
+        const scrollLeft = scrollContainer.scrollLeft;
+        const maxScroll = scrollContainer.scrollWidth - scrollContainer.clientWidth;
+        const scrollPercentage = maxScroll > 0 ? (scrollLeft / maxScroll) * 100 : 0;
+        scrollBar.style.width = `${scrollPercentage}%`;
+    }
+}
+
+// Update virtual scrolling after sort changes
+function updateVirtualScrollingAfterSort() {
+    if (!thumbnailContainer) return;
+    
+    // Update the total width to reflect the new order
+    const totalWidth = allImages.length * thumbnailItemWidth;
+    thumbnailContainer.style.width = `${totalWidth}px`;
+    
+    // Reset scroll position and recreate all thumbnails
+    thumbnailScrollContainer.scrollLeft = 0;
+    loadVisibleThumbnails();
+}
+
+// Load more images from server
+async function loadMoreImages(page = null) {
+    if (isLoadingMore) return;
+    
+    isLoadingMore = true;
+    const targetPage = page || currentPage + 1;
+    
+    // Show loading indicator only if not already visible
+    const loadMoreContainer = document.getElementById('load-more-container');
+    const loadMoreInfo = document.getElementById('load-more-info');
+    if (loadMoreContainer && loadMoreInfo) {
+        loadMoreContainer.style.display = 'block';
+        // Only show loading text if we're not already showing the final count
+        if (allImages.length < totalImages) {
+            loadMoreInfo.innerHTML = `<span class="text-blue-400">Loading more images...</span>`;
+        }
+    }
+    
+    try {
+        const params = new URLSearchParams({
+            page: targetPage,
+            per_page: perPage
+        });
+        
+        if (currentView === 'favorites') {
+            params.set('favorites', 'true');
+        } else if (currentView === 'people' && selectedPeople.size > 0) {
+            params.set('people', Array.from(selectedPeople).join(','));
+        } else if (backendPersonId) {
+            params.set('person_id', backendPersonId);
+        }
+        
+        const response = await fetch(`/api/viewer/images?${params.toString()}`);
+        const data = await response.json();
+        
+        if (data.success) {
+            // Add new images to allImages array, but avoid duplicates
+            const existingIds = new Set(allImages.map(img => img.id));
+            const newImages = data.images.filter(img => !existingIds.has(img.id));
+            allImages = allImages.concat(newImages);
+            images = [...allImages]; // Update the main images array
+            
+            // Update pagination info
+            currentPage = data.pagination.page;
+            totalPages = data.pagination.pages;
+            totalImages = data.pagination.total;
+            
+            // Update virtual scrolling with new images
+            if (thumbnailContainer) {
+                // Recreate thumbnails to show newly loaded images
+                loadVisibleThumbnails();
+            }
+            
+            // Update loading info only when we reach the final count or if it's the first load
+            if (loadMoreInfo) {
+                // Cap the displayed count to never exceed totalImages
+                const displayCount = Math.min(allImages.length, totalImages);
+                
+                if (allImages.length >= totalImages || displayCount >= totalImages) {
+                    // Final count reached, show stable text
+                    loadMoreInfo.innerHTML = `Showing <span id="current-count">${displayCount}</span> of <span id="total-count">${totalImages}</span> images`;
+                } else if (allImages.length <= perPage) {
+                    // First load, always update
+                    loadMoreInfo.innerHTML = `Showing <span id="current-count">${displayCount}</span> of <span id="total-count">${totalImages}</span> images`;
+                }
+                // For intermediate loads, keep the loading text until final count
+            }
+            
+            console.log(`Loaded page ${targetPage}, total images: ${allImages.length}`);
+        }
+    } catch (error) {
+        console.error('Error loading more images:', error);
+        if (loadMoreInfo) {
+            loadMoreInfo.innerHTML = `<span class="text-red-400">Error loading images</span>`;
+        }
+    } finally {
+        isLoadingMore = false;
+    }
+}
+
+// Load all images for sorting (when sort changes)
+async function loadAllImagesForSorting() {
+    if (isLoadingMore) return;
+    
+    isLoadingMore = true;
+    
+    try {
+        const params = new URLSearchParams({
+            per_page: totalImages // Load all images
+        });
+        
+        if (currentView === 'favorites') {
+            params.set('favorites', 'true');
+        } else if (currentView === 'people' && selectedPeople.size > 0) {
+            params.set('people', Array.from(selectedPeople).join(','));
+        } else if (backendPersonId) {
+            params.set('person_id', backendPersonId);
+        }
+        
+        const response = await fetch(`/api/viewer/images?${params.toString()}`);
+        const data = await response.json();
+        
+        if (data.success) {
+            allImages = data.images;
+            images = [...allImages];
+            hasAllImagesLoaded = true; // Mark that we have all images loaded
+            
+            // Apply sorting
+            sortImages();
+            
+            // Reset to first image and update everything
+            currentImageIndex = 0;
+            renderDisplay(0);
+            updateVirtualScrollingAfterSort();
+            
+            console.log(`Loaded all ${allImages.length} images for sorting`);
+        }
+    } catch (error) {
+        console.error('Error loading all images for sorting:', error);
+    } finally {
+        isLoadingMore = false;
+    }
+}
+
+function showNoPeopleSelectedMessage() {
+    // Clear the main display area
+    const mainDisplay = document.getElementById('main-display');
+    const singleImageMode = document.getElementById('single-image-mode');
+    
+    // Hide the single image mode
+    singleImageMode.style.display = 'none';
+    
+    // Create or update the no people message
+    let noPeopleMessage = document.getElementById('no-people-message');
+    if (!noPeopleMessage) {
+        noPeopleMessage = document.createElement('div');
+        noPeopleMessage.id = 'no-people-message';
+        noPeopleMessage.className = 'flex flex-col items-center justify-center w-full h-full text-gray-400';
+        mainDisplay.appendChild(noPeopleMessage);
+    }
+    
+    noPeopleMessage.innerHTML = `
+        <svg class="w-16 h-16 mb-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
+        </svg>
+        <h2 class="text-xl font-semibold mb-2">No People Selected</h2>
+        <p class="text-center max-w-md">Click the "Select" button to choose people to view their images.</p>
+        <button onclick="showPeopleOverlay()" class="mt-4 px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+            Select People
+        </button>
+    `;
+    
+    // Hide thumbnail bar when no people selected
+    const thumbnailBar = document.getElementById('thumbnail-bar');
+    thumbnailBar.style.display = 'none';
+}
+
+function restoreNormalView() {
+    // Remove the no people message if it exists
+    const noPeopleMessage = document.getElementById('no-people-message');
+    if (noPeopleMessage) {
+        noPeopleMessage.remove();
+    }
+    
+    // Remove the no images message if it exists
+    const noImagesMessage = document.getElementById('no-images-message');
+    if (noImagesMessage) {
+        noImagesMessage.remove();
+    }
+    
+    // Show the single image mode
+    const singleImageMode = document.getElementById('single-image-mode');
+    singleImageMode.style.display = 'flex';
+    
+    // Show thumbnail bar
+    const thumbnailBar = document.getElementById('thumbnail-bar');
+    thumbnailBar.style.display = 'block';
+}
+
+function setupLazyLoading() {
+    // Disconnect existing observers to prevent duplicates
+    if (thumbnailObserver) {
+        thumbnailObserver.disconnect();
+    }
+    
+    // Intersection Observer for thumbnails
+    thumbnailObserver = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+            if (entry.isIntersecting) {
+                const img = entry.target;
+                if (img.dataset.src) {
+                    img.src = img.dataset.src;
+                    img.removeAttribute('data-src');
+                    img.classList.remove('lazy-thumbnail');
+                    thumbnailObserver.unobserve(img);
+                }
+            }
+        });
+    }, {
+        rootMargin: '50px 0px',
+        threshold: 0.1
+    });
+
+    // Observe all thumbnail images in the current view
+    document.querySelectorAll('.lazy-thumbnail').forEach(img => {
+        thumbnailObserver.observe(img);
+    });
+}
+
+function preloadNextImages(startIndex) {
+    // Clear previous preload queue
+    preloadQueue.forEach(img => {
+        if (img.parentNode) {
+            img.parentNode.removeChild(img);
+        }
+    });
+    preloadQueue = [];
+
+    // Preload next 3 images with error handling
+    for (let i = 1; i <= 3; i++) {
+        const index = (startIndex + i) % images.length;
+        const image = images[index];
+        
+        if (!imageCache.has(image.id)) {
+            const preloadImg = new Image();
+            preloadImg.src = image.image_url;
+            preloadImg.style.display = 'none';
+            preloadImg.onload = () => {
+                imageCache.set(image.id, preloadImg);
+            };
+            preloadImg.onerror = () => {
+                // Remove from queue if failed to load
+                const queueIndex = preloadQueue.indexOf(preloadImg);
+                if (queueIndex > -1) {
+                    preloadQueue.splice(queueIndex, 1);
+                }
+            };
+            preloadQueue.push(preloadImg);
+            document.body.appendChild(preloadImg);
+        }
+    }
+}
+
+// Paging helpers for grid mode
+function getPageSize() {
+    return Math.max(1, gridColumns * gridRows);
+}
+function getPageStart(index) {
+    const size = getPageSize();
+    return Math.floor(index / size) * size;
+}
+
+function setImageWithFallback(imgEl, urls, onAllFail) {
+    let index = 0;
+    const tried = new Set();
+    function tryNext() {
+        if (index >= urls.length) {
+            console.error('All image sources failed:', urls);
+            if (typeof onAllFail === 'function') onAllFail();
+            return;
+        }
+        const original = urls[index];
+        if (!original || (tried.has(original + '#raw') && tried.has(original + '#enc'))) {
+            index++;
+            tryNext();
+            return;
+        }
+        // Try raw first
+        if (!tried.has(original + '#raw')) {
+            tried.add(original + '#raw');
+            imgEl.onerror = () => {
+                // Try encoded variant next
+                tryEncoded();
+            };
+            imgEl.src = original;
+            return;
+        }
+        tryEncoded();
+
+        function tryEncoded() {
+            if (tried.has(original + '#enc')) {
+                index++;
+                tryNext();
+                return;
+            }
+            tried.add(original + '#enc');
+            imgEl.onerror = () => {
+                index++;
+                tryNext();
+            };
+            imgEl.src = encodeURI(original);
+        }
+    }
+    tryNext();
+}
+
+function createLoadedImage(urls, className) {
+    return new Promise((resolve) => {
+        const img = document.createElement('img');
+        if (className) img.className = className;
+        img.onload = () => resolve(img);
+        setImageWithFallback(img, urls, () => {
+            // Return a small placeholder node on failure
+            const fallback = document.createElement('div');
+            fallback.className = 'w-full h-full flex items-center justify-center text-gray-400 text-xs';
+            fallback.textContent = 'Failed to load';
+            resolve(fallback);
+        });
+    });
+}
+
+async function renderDisplay(index) {
+    // Clamp index
+    if (index < 0) index = 0;
+    if (index >= allImages.length) index = allImages.length - 1;
+
+    const singleEl = document.getElementById('single-image-mode');
+    const multiEl = document.getElementById('multi-image-mode');
+
+    if (gridColumns <= 1) {
+        // Single image mode
+        if (multiEl) multiEl.classList.add('hidden');
+        if (singleEl) {
+            singleEl.classList.remove('hidden');
+            singleEl.style.display = 'flex';
+        }
+        loadImage(index);
+        return;
+    }
+
+    // Grid mode: align to page start
+    const pageStart = getPageStart(index);
+    currentImageIndex = pageStart;
+
+    if (singleEl) {
+        singleEl.style.display = 'none';
+        singleEl.classList.add('hidden');
+    }
+    if (multiEl) multiEl.classList.remove('hidden');
+
+    // Update grid columns class
+    const existing = Array.from(multiEl.classList).find(c => /^grid-cols-\d+$/.test(c));
+    if (existing) multiEl.classList.remove(existing);
+    multiEl.classList.add(`grid-cols-${gridColumns}`);
+
+    // Items for this page (no wrap; final page can be smaller)
+    const pageSize = getPageSize();
+    const items = allImages.slice(pageStart, Math.min(pageStart + pageSize, allImages.length));
+
+    // Preload all images first
+    const loadedNodes = await Promise.all(items.map(img =>
+        createLoadedImage([img.image_url, img.thumbnail_url].filter(Boolean), 'w-full h-full object-contain')
+            .then(node => ({ node, img }))
+    ));
+
+    // Swap grid only after all are ready
+    multiEl.innerHTML = '';
+    loadedNodes.forEach(({ node, img }) => {
+        const tile = document.createElement('div');
+        tile.className = 'relative bg-black rounded-lg overflow-hidden flex items-center justify-center';
+        tile.appendChild(node);
+
+        // Only show image number overlay in single-image mode
+        if (gridColumns <= 1) {
+            const badge = document.createElement('div');
+            badge.className = 'absolute bottom-2 left-1/2 -translate-x-1/2 bg-black bg-opacity-70 text-white text-xs px-2 py-1 rounded';
+            badge.textContent = `#${img.id}`;
+            tile.appendChild(badge);
+        }
+
+        tile.addEventListener('click', () => {
+            if (gridColumns > 1) {
+                window.location.href = `/image/${img.id}`;
+                return;
+            }
+            const idx = allImages.findIndex(a => a.id === img.id);
+            if (idx !== -1) {
+                renderDisplay(idx);
+                updateThumbnailSelection();
+            }
+        });
+
+        multiEl.appendChild(tile);
+    });
+
+    // Ensure grid scroll is at top-left on initial render
+    multiEl.scrollTop = 0;
+    multiEl.scrollLeft = 0;
+
+    updateThumbnailSelection();
+    // Update fullscreen view if active
+    if (isFullscreenMode) refreshFullscreenContent();
+    preloadNextImages(pageStart);
+}
+
+function previousImage() {
+    if (isFullRandomMode) return;
+    if (gridColumns <= 1) {
+        if (currentImageIndex > 0) {
+            renderDisplay(currentImageIndex - 1);
+        } else {
+            renderDisplay(allImages.length - 1);
+        }
+        return;
+    }
+    // Grid page back
+    const pageSize = getPageSize();
+    const pageStart = getPageStart(currentImageIndex);
+    let newStart = pageStart - pageSize;
+    if (newStart < 0) {
+        newStart = Math.max(0, allImages.length - pageSize);
+    }
+    renderDisplay(newStart);
+}
+
+function nextImage() {
+    if (isFullRandomMode) {
+        if (allImages.length > 0) {
+            const randomIndex = Math.floor(Math.random() * allImages.length);
+            renderDisplay(randomIndex);
+        }
+        return;
+    }
+    if (gridColumns <= 1) {
+        if (currentImageIndex < allImages.length - 1) {
+            renderDisplay(currentImageIndex + 1);
+        } else {
+            renderDisplay(0);
+        }
+        return;
+    }
+    // Grid page forward
+    const pageSize = getPageSize();
+    const pageStart = getPageStart(currentImageIndex);
+    let newStart = pageStart + pageSize;
+    if (newStart >= allImages.length) {
+        newStart = 0;
+    }
+    renderDisplay(newStart);
+}
+
+function updateThumbnailSelection() {
+    // Get the current image/page context
+    const currentImage = allImages[currentImageIndex];
+    if (!currentImage) return;
+
+    const isGrid = gridColumns > 1;
+    const pageSize = isGrid ? getPageSize() : 1;
+    const pageStart = isGrid ? getPageStart(currentImageIndex) : currentImageIndex;
+    const pageEnd = Math.min(pageStart + pageSize - 1, allImages.length - 1);
+
+    // Precompute a fast lookup for selected IDs if possible
+    const selectedIdSet = new Set();
+    if (isGrid) {
+        for (let i = pageStart; i <= pageEnd; i++) {
+            selectedIdSet.add(allImages[i].id);
+        }
+    } else {
+        selectedIdSet.add(currentImage.id);
+    }
+
+    // Highlight thumbnails
+    const thumbnails = document.querySelectorAll('.thumbnail-item');
+    thumbnails.forEach((item, idx) => {
+        const thumbnailImageId = parseInt(item.dataset.imageId);
+        const isSelected = selectedIdSet.has(thumbnailImageId);
+        if (isSelected) {
+            item.classList.add('border-blue-500');
+            item.classList.remove('border-transparent');
+        } else {
+            item.classList.remove('border-blue-500');
+            item.classList.add('border-transparent');
+        }
+    });
+
+    // Center the selection in the scroll container
+    const scrollContainer = thumbnailScrollContainer || 
+        document.getElementById('thumbnail-bar')?.querySelector('.flex.overflow-x-auto');
+    if (scrollContainer) {
+        const containerWidth = scrollContainer.clientWidth;
+        const centerIndex = isGrid ? Math.floor((pageStart + pageEnd) / 2) : currentImageIndex;
+        const centerPos = centerIndex * thumbnailItemWidth;
+        const scrollPosition = centerPos - (containerWidth / 2) + (thumbnailItemWidth / 2);
+        const maxScroll = scrollContainer.scrollWidth - containerWidth;
+        const clampedPosition = Math.max(0, Math.min(scrollPosition, maxScroll));
+        scrollContainer.scrollLeft = clampedPosition;
+    }
+}
+
+function updateThumbnails() {
+    const thumbnailBar = document.getElementById('thumbnail-bar');
+    const thumbnailContainer = thumbnailBar.querySelector('.flex');
+    
+    // Always clear and rebuild thumbnails when sorting changes or when we have all images
+    if (thumbnailContainer.children.length === 0 || images.length <= perPage || allImages.length >= totalImages) {
+        thumbnailContainer.innerHTML = '';
+        
+        images.forEach(image => {
+            const thumbnailDiv = document.createElement('div');
+            thumbnailDiv.className = 'thumbnail-item flex-shrink-0 cursor-pointer border-2 border-transparent hover:border-blue-500 rounded-lg';
+            thumbnailDiv.dataset.imageId = image.id;
+            thumbnailDiv.dataset.imageUrl = image.image_url;
+            
+            const img = document.createElement('img');
+            img.src = `data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' fill='%234a5568'/%3E%3C/svg%3E`;
+            img.dataset.src = image.image_url;
+            img.alt = `Thumbnail ${image.id}`;
+            img.className = 'w-16 h-16 object-contain rounded-lg lazy-thumbnail';
+            img.loading = 'lazy';
+            
+            thumbnailDiv.appendChild(img);
+            thumbnailContainer.appendChild(thumbnailDiv);
+        });
+    } else {
+        // Append only new images to avoid flickering during infinite scroll
+        const existingIds = new Set();
+        thumbnailContainer.querySelectorAll('.thumbnail-item').forEach(item => {
+            existingIds.add(parseInt(item.dataset.imageId));
+        });
+        
+        // Add only new images
+        images.forEach(image => {
+            if (!existingIds.has(image.id)) {
+                const thumbnailDiv = document.createElement('div');
+                thumbnailDiv.className = 'thumbnail-item flex-shrink-0 cursor-pointer border-2 border-transparent hover:border-blue-500 rounded-lg';
+                thumbnailDiv.dataset.imageId = image.id;
+                thumbnailDiv.dataset.imageUrl = image.image_url;
+                
+                const img = document.createElement('img');
+                img.src = `data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' fill='%234a5568'/%3E%3C/svg%3E`;
+                img.dataset.src = image.image_url;
+                img.alt = `Thumbnail ${image.id}`;
+                img.className = 'w-16 h-16 object-contain rounded-lg lazy-thumbnail';
+                img.loading = 'lazy';
+                
+                thumbnailDiv.appendChild(img);
+                thumbnailContainer.appendChild(thumbnailDiv);
+            }
+        });
+    }
+    
+    // Move sentinel to end
+    const sentinel = document.getElementById('load-more-sentinel');
+    if (sentinel) {
+        thumbnailBar.appendChild(sentinel);
+    }
+    
+    setupLazyLoading();
+    updateThumbnailSelection();
+}
+
+function toggleAutoNext() {
+    if (isAutoNextRunning) {
+        stopAutoNext();
+    } else {
+        startAutoNext();
+    }
+}
+
+function startAutoNext() {
+    if (isAutoNextRunning) return;
+    
+    isAutoNextRunning = true;
+    const btn = document.getElementById('auto-next-toggle');
+    btn.classList.remove('bg-green-600', 'hover:bg-green-700');
+    btn.classList.add('bg-red-600', 'hover:bg-red-700');
+    
+    const speed = parseFloat(document.getElementById('auto-next-slider').value) * 1000;
+    autoNextInterval = setInterval(() => {
+        if (isFullRandomMode) {
+            // Pick a fully random image from the entire list
+            if (images.length > 0) {
+                const randomIndex = Math.floor(Math.random() * images.length);
+                renderDisplay(randomIndex);
+            }
+        } else {
+            nextImage();
+        }
+    }, speed);
+}
+
+function stopAutoNext() {
+    if (!isAutoNextRunning) return;
+    
+    isAutoNextRunning = false;
+    const btn = document.getElementById('auto-next-toggle');
+    btn.classList.remove('bg-red-600', 'hover:bg-red-700');
+    btn.classList.add('bg-green-600', 'hover:bg-green-700');
+    
+    if (autoNextInterval) {
+        clearInterval(autoNextInterval);
+        autoNextInterval = null;
+    }
+}
+
+function toggleFullRandomMode() {
+    const btn = document.getElementById('full-random-mode');
+    const prevBtn = document.getElementById('prev-btn');
+    const thumbnailBar = document.getElementById('thumbnail-bar');
+    isFullRandomMode = !isFullRandomMode;
+    if (isFullRandomMode) {
+        // Save current order and index
+        prevImageOrder = images.slice();
+        prevImageIndex = currentImageIndex;
+        btn.classList.remove('bg-orange-600', 'hover:bg-orange-700');
+        btn.classList.add('bg-gray-500', 'hover:bg-gray-600');
+        thumbnailBar.style.display = 'none';
+        prevBtn.disabled = true;
+        prevBtn.classList.remove('bg-gray-600', 'hover:bg-gray-700');
+        prevBtn.classList.add('bg-gray-500', 'cursor-not-allowed');
+    } else {
+        // Restore previous order and jump to current image
+        if (prevImageOrder.length > 0) {
+            const currentId = images[currentImageIndex]?.id;
+            images.length = 0;
+            prevImageOrder.forEach(img => images.push(img));
+            // Sync allImages with the restored images array
+            allImages = [...images];
+            let idx = prevImageOrder.findIndex(img => img.id === currentId);
+            if (idx === -1) idx = prevImageIndex;
+            currentImageIndex = idx;
+            
+            // Show thumbnail bar first
+            thumbnailBar.style.display = 'block';
+            
+            // Rebuild all thumbnails from the restored allImages array to ensure they match
+            // This will recreate thumbnails in the correct order matching allImages
+            loadVisibleThumbnails();
+            
+            // Update virtual scrolling to reflect the restored order
+            updateVirtualScrollingAfterSort();
+            
+            // Load the current image, which will also update thumbnail selection
+            renderDisplay(currentImageIndex);
+        }
+        btn.classList.remove('bg-gray-500', 'hover:bg-gray-600');
+        btn.classList.add('bg-orange-600', 'hover:bg-orange-700');
+        prevBtn.disabled = false;
+        prevBtn.classList.remove('bg-gray-500', 'cursor-not-allowed');
+        prevBtn.classList.add('bg-gray-600', 'hover:bg-gray-700');
+    }
+}
+
+// randomiseImages removed - sorting order should never be randomized
+// Only randomness should be in fully random mode
+
+function sortImages() {
+    switch (currentSort) {
+        case 'size-largest':
+            allImages.sort((a, b) => (b.width * b.height) - (a.width * a.height));
+            break;
+        case 'size-smallest':
+            allImages.sort((a, b) => (a.width * a.height) - (b.width * b.height));
+            break;
+        case 'id-asc':
+            allImages.sort((a, b) => a.id - b.id);
+            break;
+        case 'id-desc':
+            allImages.sort((a, b) => b.id - a.id);
+            break;
+        case 'name-asc':
+            allImages.sort((a, b) => {
+                const aNames = a.people && a.people.length > 0 ? [...a.people].sort() : [];
+                const bNames = b.people && b.people.length > 0 ? [...b.people].sort() : [];
+                
+                // If both have no people, sort by ID
+                if (aNames.length === 0 && bNames.length === 0) {
+                    return a.id - b.id;
+                }
+                
+                // If one has no people, put it at the end
+                if (aNames.length === 0) return 1;
+                if (bNames.length === 0) return -1;
+                
+                // Compare the first (alphabetically first) name from each
+                const aName = aNames[0];
+                const bName = bNames[0];
+                return aName.localeCompare(bName);
+            });
+            break;
+        case 'name-desc':
+            allImages.sort((a, b) => {
+                const aNames = a.people && a.people.length > 0 ? [...a.people].sort() : [];
+                const bNames = b.people && b.people.length > 0 ? [...b.people].sort() : [];
+                
+                // If both have no people, sort by ID (descending)
+                if (aNames.length === 0 && bNames.length === 0) {
+                    return b.id - a.id;
+                }
+                
+                // If one has no people, put it at the end
+                if (aNames.length === 0) return 1;
+                if (bNames.length === 0) return -1;
+                
+                // Compare the first (alphabetically first) name from each
+                const aName = aNames[0];
+                const bName = bNames[0];
+                return bName.localeCompare(aName);
+            });
+            break;
+        case 'random':
+            // For random sort, we just shuffle the current images array
+            for (let i = allImages.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [allImages[i], allImages[j]] = [allImages[j], allImages[i]];
+            }
+            break;
+    }
+    
+    // Also update the images array to keep them in sync
+    images = [...allImages];
+}
+
+function toggleFavorite() {
+    const image = images[currentImageIndex];
+    const favoriteIcon = document.getElementById('favorite-icon');
+    const menuFavoriteText = document.getElementById('menu-favorite-text');
+    
+    // Toggle favorite status
+    image.is_favorite = !image.is_favorite;
+    
+    // Update UI
+    if (image.is_favorite) {
+        favoriteIcon.classList.add('text-red-500');
+        favoriteIcon.classList.remove('text-gray-400');
+        favoriteIcon.setAttribute('fill', 'currentColor');
+        if (menuFavoriteText) menuFavoriteText.textContent = 'Remove from Favorites';
+    } else {
+        favoriteIcon.classList.remove('text-red-500');
+        favoriteIcon.classList.add('text-gray-400');
+        favoriteIcon.removeAttribute('fill');
+        if (menuFavoriteText) menuFavoriteText.textContent = 'Add to Favorites';
+    }
+    
+    // Send update to server
+    fetch(`/api/toggle_image_favorite/${image.id}`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        }
+    }).then(response => response.json())
+    .then(data => {
+        if (!data.success) {
+            console.error('Error updating favorite status:', data.error);
+            // Revert the change if the server request failed
+            image.is_favorite = !image.is_favorite;
+            if (image.is_favorite) {
+                favoriteIcon.classList.add('text-red-500');
+                favoriteIcon.classList.remove('text-gray-400');
+                favoriteIcon.setAttribute('fill', 'currentColor');
+                if (menuFavoriteText) menuFavoriteText.textContent = 'Remove from Favorites';
+            } else {
+                favoriteIcon.classList.remove('text-red-500');
+                favoriteIcon.classList.add('text-gray-400');
+                favoriteIcon.removeAttribute('fill');
+                if (menuFavoriteText) menuFavoriteText.textContent = 'Add to Favorites';
+            }
+        }
+    }).catch(error => {
+        console.error('Error updating favorite status:', error);
+        // Revert the change if the request failed
+        image.is_favorite = !image.is_favorite;
+        if (image.is_favorite) {
+            favoriteIcon.classList.add('text-red-500');
+            favoriteIcon.classList.remove('text-gray-400');
+            favoriteIcon.setAttribute('fill', 'currentColor');
+            if (menuFavoriteText) menuFavoriteText.textContent = 'Remove from Favorites';
+        } else {
+            favoriteIcon.classList.remove('text-red-500');
+            favoriteIcon.classList.add('text-gray-400');
+            favoriteIcon.removeAttribute('fill');
+            if (menuFavoriteText) menuFavoriteText.textContent = 'Add to Favorites';
+        }
+    });
+}
+
+function showMenu() {
+    const menuOverlay = document.getElementById('menu-overlay');
+    const menuContainer = document.getElementById('menu-container');
+    const menuBtn = document.getElementById('menu-btn');
+    const menuFavoriteText = document.getElementById('menu-favorite-text');
+    const image = images[currentImageIndex];
+    
+    // Update menu text based on current favorite status
+    if (menuFavoriteText) {
+        menuFavoriteText.textContent = image.is_favorite ? 'Remove from Favorites' : 'Add to Favorites';
+    }
+    
+    // Show overlay first to measure menu height
+    menuOverlay.classList.remove('hidden');
+    
+    // Position menu below the button
+    if (menuBtn && menuContainer) {
+        const buttonRect = menuBtn.getBoundingClientRect();
+        const menuHeight = menuContainer.offsetHeight;
+        const gap = 4; // 4px gap between button and menu
+        
+        // Position menu below the button with a small gap
+        const top = buttonRect.bottom + gap;
+        const right = window.innerWidth - buttonRect.right;
+        
+        // Ensure menu doesn't go below viewport
+        let finalTop = top;
+        if (top + menuHeight > window.innerHeight) {
+            // Position above button if there's not enough space below
+            finalTop = buttonRect.top - menuHeight - gap;
+        }
+        
+        // Ensure menu doesn't go above viewport
+        if (finalTop < 0) {
+            finalTop = gap;
+        }
+        
+        menuContainer.style.top = finalTop + 'px';
+        menuContainer.style.right = right + 'px';
+    }
+}
+
+function hideMenu() {
+    const menuOverlay = document.getElementById('menu-overlay');
+    menuOverlay.classList.add('hidden');
+}
+
+function viewPersonGallery() {
+    const image = images[currentImageIndex];
+    if (image.people && image.people.length > 0) {
+        // Get the first person's name
+        const personName = image.people[0];
+        
+        // Make an API call to get the person ID
+        fetch(`/api/people?name=${encodeURIComponent(personName)}`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.success && data.people && data.people.length > 0) {
+                    const person = data.people.find(p => p.name === personName);
+                    if (person) {
+                        window.location.href = `/person/${person.id}`;
+                    } else {
+                        alert(`Person "${personName}" not found`);
+                    }
+                } else {
+                    alert(`Person "${personName}" not found`);
+                }
+            })
+            .catch(error => {
+                console.error('Error fetching person:', error);
+                alert('Error finding person gallery');
+            });
+    } else {
+        alert('No people identified in this image');
+    }
+}
+
+function viewImageDetails() {
+    const image = images[currentImageIndex];
+    window.location.href = `/image/${image.id}`;
+}
+
+function enterFullscreen() {
+    isFullscreenMode = true;
+    const isGrid = gridColumns > 1;
+    const image = images[currentImageIndex];
+    
+    // Create a fullscreen container
+    const fullscreenContainer = document.createElement('div');
+    fullscreenContainer.id = 'true-fullscreen-container';
+    fullscreenContainer.style.cssText = `
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100vw;
+        height: 100vh;
+        background: black;
+        z-index: 10000;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    `;
+    
+    let fullscreenContent;
+    let filenameLabel;
+    
+    if (isGrid) {
+        // Clone the current grid and show it fullscreen
+        const multi = document.getElementById('multi-image-mode');
+        const wrapper = document.createElement('div');
+        wrapper.style.cssText = 'width: 100%; height: 100%; padding: 16px; overflow: auto; display: grid; gap: 1rem;';
+        // Match current columns
+        wrapper.className = `grid grid-cols-${gridColumns}`;
+        // Clone nodes
+        if (multi) {
+            Array.from(multi.children).forEach(child => {
+                wrapper.appendChild(child.cloneNode(true));
+            });
+        }
+        fullscreenContent = wrapper;
+    } else {
+        // Create the image element
+        const fullscreenImage = document.createElement('img');
+        fullscreenImage.src = image.image_url;
+        fullscreenImage.style.cssText = `
+        width: 100%;
+        height: 100%;
+        object-fit: contain;
+    `;
+        fullscreenImage.alt = `Image #${image.id}`;
+        fullscreenContent = fullscreenImage;
+        
+        // Create filename label
+        filenameLabel = document.createElement('div');
+        filenameLabel.style.cssText = `
+        position: absolute;
+        bottom: 16px;
+        left: 50%;
+        transform: translateX(-50%);
+        background: rgba(0,0,0,0.7);
+        color: white;
+        padding: 8px 12px;
+        border-radius: 8px;
+        font-size: 14px;
+    `;
+        filenameLabel.textContent = `Image #${image.id}`;
+    }
+    
+    // Create exit button
+    const exitButton = document.createElement('button');
+    exitButton.style.cssText = `
+        position: absolute;
+        top: 16px;
+        right: 16px;
+        background: rgba(0,0,0,0.7);
+        color: white;
+        border: none;
+        padding: 8px 12px;
+        border-radius: 8px;
+        cursor: pointer;
+        font-size: 14px;
+    `;
+    exitButton.textContent = 'Exit Fullscreen (Esc)';
+    exitButton.addEventListener('click', exitFullscreen);
+    
+    // Add elements to container
+    fullscreenContainer.appendChild(fullscreenContent);
+    if (filenameLabel) fullscreenContainer.appendChild(filenameLabel);
+    fullscreenContainer.appendChild(exitButton);
+    
+    // Add to document
+    document.body.appendChild(fullscreenContainer);
+    
+    // Request true fullscreen
+    if (fullscreenContainer.requestFullscreen) {
+        fullscreenContainer.requestFullscreen();
+    } else if (fullscreenContainer.webkitRequestFullscreen) {
+        fullscreenContainer.webkitRequestFullscreen();
+    } else if (fullscreenContainer.msRequestFullscreen) {
+        fullscreenContainer.msRequestFullscreen();
+    }
+    
+    // Listen for fullscreen change
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    document.addEventListener('webkitfullscreenchange', handleFullscreenChange);
+    document.addEventListener('msfullscreenchange', handleFullscreenChange);
+    
+    // Store reference to update fullscreen image
+    fullscreenContainer.fullscreenImage = isGrid ? null : fullscreenContent;
+    fullscreenContainer.filenameLabel = filenameLabel;
+}
+
+function exitFullscreen() {
+    // Exit fullscreen if in fullscreen mode
+    if (document.fullscreenElement || document.webkitFullscreenElement || document.msFullscreenElement) {
+        if (document.exitFullscreen) {
+            document.exitFullscreen();
+        } else if (document.webkitExitFullscreen) {
+            document.webkitExitFullscreen();
+        } else if (document.msExitFullscreen) {
+            document.msExitFullscreen();
+        }
+    }
+    
+    // Remove the fullscreen container
+    const container = document.getElementById('true-fullscreen-container');
+    if (container) {
+        container.remove();
+    }
+    
+    isFullscreenMode = false;
+    
+    // Remove event listeners
+    document.removeEventListener('fullscreenchange', handleFullscreenChange);
+    document.removeEventListener('webkitfullscreenchange', handleFullscreenChange);
+    document.removeEventListener('msfullscreenchange', handleFullscreenChange);
+}
+
+
+
+function handleFullscreenChange() {
+    const isFullscreen = !!(document.fullscreenElement || document.webkitFullscreenElement || document.msFullscreenElement);
+    
+    if (!isFullscreen && isFullscreenMode) {
+        // User exited fullscreen via browser controls (F11, etc.)
+        isFullscreenMode = false;
+        const container = document.getElementById('true-fullscreen-container');
+        if (container) {
+            container.remove();
+        }
+    }
+}
+
+// Chromecast Functions
+function showChromecastOverlay() {
+    document.getElementById('chromecast-overlay').classList.remove('hidden');
+    refreshChromecastDevices();
+    
+    // Start auto-refresh when overlay is shown
+    startChromecastAutoRefresh();
+}
+
+function hideChromecastOverlay() {
+    document.getElementById('chromecast-overlay').classList.add('hidden');
+}
+
+function refreshChromecastDevices() {
+    updateCastingStatus('Refreshing device list...');
+    
+    fetch('/api/chromecast/devices')
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                chromecastDevices = data.devices;
+                updateChromecastDevicesList();
+                updateChromecastStatus();
+                updateCastingStatus(`Found ${chromecastDevices.length} Chromecast devices`);
+                
+                // Check if we need to reconnect to a previously selected device
+                if (selectedChromecastDevice && !selectedChromecastDevice.is_connected) {
+                    const device = chromecastDevices.find(d => d.id === selectedChromecastDevice.id);
+                    if (device && device.is_connected) {
+                        selectedChromecastDevice = device;
+                        updateCastingStatus(`Reconnected to ${device.name}`);
+                        
+                        // Re-enable casting buttons
+                        const castCurrentBtn = document.getElementById('cast-current-btn');
+                        const castSlideshowBtn = document.getElementById('cast-slideshow-btn');
+                        if (castCurrentBtn) castCurrentBtn.disabled = false;
+                        if (castSlideshowBtn) castSlideshowBtn.disabled = false;
+                    }
+                }
+            } else {
+                console.error('Error fetching Chromecast devices:', data.error);
+                updateCastingStatus('Error fetching devices: ' + data.error);
+            }
+        })
+        .catch(error => {
+            console.error('Error fetching Chromecast devices:', error);
+            updateCastingStatus('Error fetching devices');
+        });
+}
+
+// Auto-refresh devices every 30 seconds to detect new devices
+function startChromecastAutoRefresh() {
+    if (window.chromecastAutoRefreshInterval) {
+        clearInterval(window.chromecastAutoRefreshInterval);
+    }
+    
+    window.chromecastAutoRefreshInterval = setInterval(() => {
+        if (document.getElementById('chromecast-overlay').classList.contains('hidden')) {
+            // Only refresh if overlay is not visible to avoid interrupting user
+            refreshChromecastDevices();
+        }
+    }, 30000);
+}
+
+// Cleanup function for page unload
+function cleanupChromecast() {
+    // Stop any ongoing slideshow
+    if (castSlideshowInterval) {
+        clearInterval(castSlideshowInterval);
+        castSlideshowInterval = null;
+    }
+    
+    // Stop auto-refresh
+    if (window.chromecastAutoRefreshInterval) {
+        clearInterval(window.chromecastAutoRefreshInterval);
+        window.chromecastAutoRefreshInterval = null;
+    }
+    
+    // Stop casting if active
+    if (isCasting && selectedChromecastDevice) {
+        fetch('/api/chromecast/stop', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                device_id: selectedChromecastDevice.id
+            })
+        }).catch(error => {
+            console.error('Error stopping casting on cleanup:', error);
+        });
+    }
+}
+
+// Add cleanup event listeners
+window.addEventListener('beforeunload', cleanupChromecast);
+window.addEventListener('pagehide', cleanupChromecast);
+
+function updateChromecastDevicesList() {
+    const devicesContainer = document.getElementById('chromecast-devices');
+    devicesContainer.innerHTML = '';
+    
+    if (chromecastDevices.length === 0) {
+        devicesContainer.innerHTML = '<p class="text-gray-400 text-sm">No Chromecast devices found</p>';
+        return;
+    }
+    
+    chromecastDevices.forEach(device => {
+        const deviceDiv = document.createElement('div');
+        deviceDiv.className = 'flex items-center justify-between p-3 bg-gray-700 rounded-lg cursor-pointer hover:bg-gray-600 transition-colors';
+        deviceDiv.dataset.deviceId = device.id;
+        
+        deviceDiv.innerHTML = `
+            <div class="flex items-center space-x-3">
+                <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019 9"></path>
+                </svg>
+                <div>
+                    <p class="text-sm font-medium text-gray-200">${device.name}</p>
+                    <p class="text-xs text-gray-400">${device.model_name || 'Unknown Model'}</p>
+                </div>
+            </div>
+            <div class="flex items-center space-x-2">
+                <div class="w-2 h-2 rounded-full ${device.is_connected ? 'bg-green-500' : 'bg-gray-500'}"></div>
+                <span class="text-xs text-gray-400">${device.is_connected ? 'Connected' : 'Disconnected'}</span>
+                <button class="px-2 py-1 bg-blue-600 text-white text-xs rounded hover:bg-blue-700 transition-colors" 
+                        onclick="testChromecastConnection('${device.id}')" 
+                        title="Test connection">
+                    Test
+                </button>
+            </div>
+        `;
+        
+        deviceDiv.addEventListener('click', () => selectChromecastDevice(device));
+        devicesContainer.appendChild(deviceDiv);
+    });
+}
+
+function selectChromecastDevice(device) {
+    selectedChromecastDevice = device;
+    
+    // Update device selection styling
+    document.querySelectorAll('#chromecast-devices > div').forEach(div => {
+        div.classList.remove('border-blue-500', 'border-2');
+        div.classList.add('border-transparent');
+    });
+    
+    const selectedDiv = document.querySelector(`[data-device-id="${device.id}"]`);
+    if (selectedDiv) {
+        selectedDiv.classList.add('border-blue-500', 'border-2');
+        selectedDiv.classList.remove('border-transparent');
+    }
+    
+    // Enable casting buttons if device is connected
+    const castCurrentBtn = document.getElementById('cast-current-btn');
+    const castSlideshowBtn = document.getElementById('cast-slideshow-btn');
+    
+    if (device.is_connected) {
+        castCurrentBtn.disabled = false;
+        castSlideshowBtn.disabled = false;
+        updateCastingStatus(`Selected: ${device.name}`);
+        
+        // Show device controls
+        showDeviceControls(device);
+    } else {
+        castCurrentBtn.disabled = true;
+        castSlideshowBtn.disabled = true;
+        updateCastingStatus(`Device ${device.name} is not connected`);
+        hideDeviceControls();
+    }
+}
+
+function updateChromecastStatus() {
+    const statusElement = document.getElementById('chromecast-status');
+    if (chromecastDevices.length > 0) {
+        const connectedDevices = chromecastDevices.filter(d => d.is_connected);
+        if (connectedDevices.length > 0) {
+            statusElement.textContent = `${connectedDevices.length} Connected`;
+            statusElement.className = 'px-3 py-1 bg-green-600 text-white text-sm rounded-full';
+        } else {
+            statusElement.textContent = 'No Connected Devices';
+            statusElement.className = 'px-3 py-1 bg-yellow-600 text-white text-sm rounded-full';
+        }
+    } else {
+        statusElement.textContent = 'No Devices Found';
+        statusElement.className = 'px-3 py-1 bg-gray-600 text-white text-sm rounded-full';
+    }
+    
+    // Update the main Chromecast button status
+    updateChromecastButton();
+}
+
+function testChromecastConnection(deviceId) {
+    if (!deviceId) return;
+    
+    updateCastingStatus('Testing connection...');
+    
+    fetch('/api/chromecast/test_connection', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            device_id: deviceId
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            updateCastingStatus(`Connection test successful: ${data.message}`);
+            // Update device connection status
+            const device = chromecastDevices.find(d => d.id === deviceId);
+            if (device) {
+                device.is_connected = data.is_reachable;
+                updateChromecastDevicesList();
+                updateChromecastStatus();
+            }
+        } else {
+            updateCastingStatus(`Connection test failed: ${data.error}`);
+        }
+    })
+    .catch(error => {
+        console.error('Error testing connection:', error);
+        updateCastingStatus('Error testing connection');
+    });
+}
+
+function updateCastingStatus(message) {
+    const statusElement = document.getElementById('casting-status');
+    statusElement.textContent = message;
+    
+    // Add timestamp to the message
+    const timestamp = new Date().toLocaleTimeString();
+    const fullMessage = `[${timestamp}] ${message}`;
+    
+    // Keep a log of recent messages (last 5)
+    if (!window.castingLog) {
+        window.castingLog = [];
+    }
+    window.castingLog.push(fullMessage);
+    if (window.castingLog.length > 5) {
+        window.castingLog.shift();
+    }
+    
+    // Update the display with recent messages
+    statusElement.innerHTML = window.castingLog.map(msg => 
+        `<div class="text-xs text-gray-400 mb-1">${msg}</div>`
+    ).join('');
+}
+
+function handleChromecastError(error, context) {
+    console.error(`Chromecast error in ${context}:`, error);
+    
+    let errorMessage = 'Unknown error occurred';
+    if (error.message) {
+        errorMessage = error.message;
+    } else if (typeof error === 'string') {
+        errorMessage = error;
+    }
+    
+    updateCastingStatus(`Error: ${errorMessage}`);
+    
+    // If there's a connection error, try to refresh devices
+    if (errorMessage.includes('connection') || errorMessage.includes('timeout')) {
+        setTimeout(() => {
+            updateCastingStatus('Attempting to refresh device list...');
+            refreshChromecastDevices();
+        }, 2000);
+    }
+}
+
+function handleDeviceDisconnection(deviceId) {
+    // If the disconnected device was selected, clear selection
+    if (selectedChromecastDevice && selectedChromecastDevice.id === deviceId) {
+        selectedChromecastDevice = null;
+        
+        // Stop any ongoing casting
+        if (isCasting) {
+            stopCastSlideshow();
+        }
+        
+        // Hide progress indicator
+        hideCastProgress();
+        
+        // Disable casting buttons
+        const castCurrentBtn = document.getElementById('cast-current-btn');
+        const castSlideshowBtn = document.getElementById('cast-slideshow-btn');
+        if (castCurrentBtn) castCurrentBtn.disabled = true;
+        if (castSlideshowBtn) castSlideshowBtn.disabled = true;
+        
+        updateCastingStatus('Selected device disconnected');
+    }
+    
+    // Update device list to reflect disconnection
+    const device = chromecastDevices.find(d => d.id === deviceId);
+    if (device) {
+        device.is_connected = false;
+        updateChromecastDevicesList();
+        updateChromecastStatus();
+    }
+}
+
+function castCurrentImage() {
+    if (!selectedChromecastDevice || !selectedChromecastDevice.is_connected) {
+        updateCastingStatus('No connected device selected');
+        return;
+    }
+    
+    const currentImage = images[currentImageIndex];
+    if (!currentImage) {
+        updateCastingStatus('No image to cast');
+        return;
+    }
+    
+    updateCastingStatus('Casting current image...');
+    
+    fetch('/api/chromecast/cast', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            device_id: selectedChromecastDevice.id,
+            image_url: currentImage.image_url,
+            image_id: currentImage.id
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            isCasting = true;
+            updateCastingStatus(`Casting image #${currentImage.id} to ${selectedChromecastDevice.name}`);
+            updateChromecastButton();
+        } else {
+            updateCastingStatus('Error casting image: ' + data.error);
+        }
+    })
+    .catch(error => {
+        console.error('Error casting image:', error);
+        updateCastingStatus('Error casting image');
+    });
+}
+
+function castSlideshow() {
+    if (!selectedChromecastDevice || !selectedChromecastDevice.is_connected) {
+        updateCastingStatus('No connected device selected');
+        return;
+    }
+    
+    if (isCasting) {
+        // Stop slideshow
+        stopCastSlideshow();
+        return;
+    }
+    
+    updateCastingStatus('Starting slideshow...');
+    
+    const speed = parseInt(document.getElementById('cast-slideshow-speed').value);
+    
+    // Start local slideshow that will cast each image
+    startCastSlideshow(speed);
+}
+
+function startCastSlideshow(speed) {
+    if (castSlideshowInterval) {
+        clearInterval(castSlideshowInterval);
+    }
+    
+    let currentIndex = 0;
+    const totalImages = images.length;
+    
+    // Show progress indicator
+    showCastProgress();
+    updateCastProgress(currentIndex, totalImages);
+    
+    // Cast the first image immediately
+    castImageAtIndex(currentIndex);
+    
+    // Set up interval to cast subsequent images
+    castSlideshowInterval = setInterval(() => {
+        currentIndex = (currentIndex + 1) % totalImages;
+        updateCastProgress(currentIndex, totalImages);
+        castImageAtIndex(currentIndex);
+    }, speed * 1000);
+    
+    isCasting = true;
+    updateCastingStatus(`Slideshow running on ${selectedChromecastDevice.name} (${speed}s per image) - Image ${currentIndex + 1}/${totalImages}`);
+    updateChromecastButton();
+}
+
+function showCastProgress() {
+    const progressContainer = document.getElementById('cast-progress-container');
+    progressContainer.classList.remove('hidden');
+}
+
+function hideCastProgress() {
+    const progressContainer = document.getElementById('cast-progress-container');
+    progressContainer.classList.add('hidden');
+}
+
+function updateCastProgress(currentIndex, totalImages) {
+    const progressText = document.getElementById('cast-progress-text');
+    const progressBar = document.getElementById('cast-progress-bar');
+    
+    if (progressText && progressBar) {
+        progressText.textContent = `${currentIndex + 1} / ${totalImages}`;
+        const percentage = ((currentIndex + 1) / totalImages) * 100;
+        progressBar.style.width = `${percentage}%`;
+    }
+}
+
+function castImageAtIndex(index) {
+    if (!selectedChromecastDevice || !selectedChromecastDevice.is_connected) {
+        stopCastSlideshow();
+        return;
+    }
+    
+    const image = images[index];
+    if (!image) return;
+    
+    updateCastingStatus(`Casting image ${index + 1}/${images.length} to ${selectedChromecastDevice.name}`);
+    
+    fetch('/api/chromecast/cast', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            device_id: selectedChromecastDevice.id,
+            image_url: image.image_url,
+            image_id: image.id
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // Update status with current image info
+            updateCastingStatus(`Casting image ${index + 1}/${images.length} to ${selectedChromecastDevice.name}`);
+        } else {
+            updateCastingStatus('Error casting image: ' + data.error);
+            stopCastSlideshow();
+        }
+    })
+    .catch(error => {
+        console.error('Error casting image:', error);
+        updateCastingStatus('Error casting image');
+        stopCastSlideshow();
+    });
+}
+
+function stopCastSlideshow() {
+    if (!selectedChromecastDevice) return;
+    
+    // Clear the slideshow interval
+    if (castSlideshowInterval) {
+        clearInterval(castSlideshowInterval);
+        castSlideshowInterval = null;
+    }
+    
+    // Hide progress indicator
+    hideCastProgress();
+    
+    // Stop the current casting
+    fetch('/api/chromecast/stop', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            device_id: selectedChromecastDevice.id
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            isCasting = false;
+            updateCastingStatus('Slideshow stopped');
+            updateChromecastButton();
+        } else {
+            updateCastingStatus('Error stopping slideshow: ' + data.error);
+        }
+    })
+    .catch(error => {
+        console.error('Error stopping slideshow:', error);
+        updateCastingStatus('Error stopping slideshow');
+    });
+}
+
+function updateChromecastButton() {
+    const btn = document.getElementById('chromecast-btn');
+    const text = document.getElementById('chromecast-text');
+    
+    if (isCasting) {
+        btn.classList.remove('bg-purple-600', 'hover:bg-purple-700');
+        btn.classList.add('bg-red-600', 'hover:bg-red-700');
+        text.textContent = 'Stop Casting';
+    } else {
+        btn.classList.remove('bg-red-600', 'hover:bg-red-700');
+        btn.classList.add('bg-purple-600', 'hover:bg-purple-700');
+        text.textContent = 'Cast to TV';
+    }
+}
+
+function stopSlideshow() {
+    // Placeholder function for slideshow mode
+    console.log('Slideshow stopped');
+}
+
+function setupKeyboardShortcuts() {
+    // Remove any existing keyboard event listeners to prevent duplicates
+    document.removeEventListener('keydown', handleKeyboardShortcuts);
+    
+    // Add the keyboard event listener
+    document.addEventListener('keydown', handleKeyboardShortcuts, true);
+    
+    // Add wheel event for thumbnail scrolling
+    const thumbnailBar = document.getElementById('thumbnail-bar');
+    if (thumbnailBar) {
+        // Remove existing wheel listener to prevent duplicates
+        thumbnailBar.removeEventListener('wheel', handleThumbnailWheel);
+        // Add wheel listener with passive: false to allow preventDefault
+        thumbnailBar.addEventListener('wheel', handleThumbnailWheel, { passive: false });
+    }
+}
+
+function handleKeyboardShortcuts(event) {
+    // Define the shortcut keys we want to handle
+    const shortcutKeys = ['n', 'N', 'p', 'P', 'a', 'A', 'f', 'F', 'Escape'];
+    
+    // Check if the pressed key is one of our shortcuts
+    if (shortcutKeys.includes(event.key)) {
+        // Always prevent default and stop propagation for our shortcuts
+        event.preventDefault();
+        event.stopPropagation();
+        
+        // Handle slideshow mode first
+        if (isSlideshowMode) {
+            if (event.key === 'Escape') {
+                stopSlideshow();
+            }
+            return;
+        }
+        
+        // Handle menu overlay
+        const menuOverlay = document.getElementById('menu-overlay');
+        if (!menuOverlay.classList.contains('hidden')) {
+            if (event.key === 'Escape') {
+                hideMenu();
+                return;
+            }
+        }
+        
+        // Handle fullscreen mode
+        if (isFullscreenMode) {
+            switch(event.key) {
+                case 'n':
+                case 'N':
+                    nextImage();
+                    break;
+                case 'p':
+                case 'P':
+                    if (!isFullRandomMode) {
+                        previousImage();
+                    }
+                    break;
+                case 'a':
+                case 'A':
+                    toggleAutoNext();
+                    break;
+                case 'f':
+                case 'F':
+                case 'Escape':
+                    exitFullscreen();
+                    break;
+            }
+            return;
+        }
+        
+        // Normal mode keyboard shortcuts
+        switch(event.key) {
+            case 'n':
+            case 'N':
+                nextImage();
+                break;
+            case 'p':
+            case 'P':
+                if (!isFullRandomMode) {
+                    previousImage();
+                }
+                break;
+            case 'a':
+            case 'A':
+                toggleAutoNext();
+                break;
+            case 'f':
+            case 'F':
+                if (isFullscreenMode) {
+                    exitFullscreen();
+                } else {
+                    enterFullscreen();
+                }
+                break;
+            case 'Escape':
+                if (isFullscreenMode) {
+                    exitFullscreen();
+                }
+                break;
+        }
+    }
+    
+    // Handle Chromecast shortcuts (Ctrl/Cmd + Shift combinations)
+    if ((event.ctrlKey || event.metaKey) && event.shiftKey) {
+        switch(event.key) {
+            case 'C':
+                event.preventDefault();
+                showChromecastOverlay();
+                break;
+            case 'S':
+                event.preventDefault();
+                if (selectedChromecastDevice && selectedChromecastDevice.is_connected) {
+                    if (isCasting) {
+                        stopCastSlideshow();
+                    } else {
+                        castSlideshow();
+                    }
+                }
+                break;
+            case 'I':
+                event.preventDefault();
+                if (selectedChromecastDevice && selectedChromecastDevice.is_connected) {
+                    castCurrentImage();
+                }
+                break;
+        }
+    }
+}
+
+function handleThumbnailWheel(e) {
+    // Find the scrollable container within the thumbnail bar
+    const thumbnailBar = this;
+    const scrollContainer = thumbnailScrollContainer || 
+        thumbnailBar.querySelector('.flex.overflow-x-auto') ||
+        thumbnailBar.querySelector('.overflow-x-auto');
+    
+    if (scrollContainer) {
+        e.preventDefault();
+        // Use deltaY for vertical scroll to horizontal scroll conversion
+        scrollContainer.scrollLeft += e.deltaY;
+    }
+}
+
+// Cleanup on page unload
+window.addEventListener('beforeunload', function() {
+    if (thumbnailObserver) {
+        thumbnailObserver.disconnect();
+    }
+    preloadQueue.forEach(img => {
+        if (img.parentNode) {
+            img.parentNode.removeChild(img);
+        }
+    });
+    imageCache.clear();
+});
+
+// Randomize button
+document.getElementById('randomize-btn').addEventListener('click', function() {
+    if (currentSort === 'random') {
+        // Re-randomize the current sort
+        sortImages();
+        // Reset to first image and update everything
+        currentImageIndex = 0;
+        renderDisplay(0);
+        updateVirtualScrollingAfterSort();
+    }
+});
+
+// Auto next speed slider
+const speedSlider = document.getElementById('auto-next-slider');
+const speedLabel = document.getElementById('speed-label');
+speedSlider.addEventListener('input', function() {
+    speedLabel.textContent = this.value + 's';
+    if (isAutoNextRunning) {
+        stopAutoNext();
+        startAutoNext();
+    }
+});
+
+// Grid size selector
+document.getElementById('grid-size').addEventListener('change', function() {
+    gridColumns = Math.min(Math.max(parseInt(this.value) || 1, 1), 10);
+    saveViewerPreferences();
+    renderDisplay(currentImageIndex);
+});
+
+// Grid rows selector
+document.getElementById('grid-rows').addEventListener('change', function() {
+    gridRows = Math.min(Math.max(parseInt(this.value) || 1, 1), 10);
+    saveViewerPreferences();
+    renderDisplay(currentImageIndex);
+});
+
+// legacy loadImage may be used by single-image mode
+function loadImage(index) {
+    console.log('loadImage called with index:', index);
+    if (index < 0 || index >= allImages.length) return;
+    const image = allImages[index];
+    const urls = [image.image_url, image.thumbnail_url].filter(Boolean);
+    console.log('Attempting to load single image from URLs:', urls);
+    const mainImage = document.getElementById('main-image');
+    const filenameLabel = document.getElementById('filename-label');
+    if (!mainImage) return;
+    // Hide until loaded to prevent blank flash/layout shift
+    mainImage.classList.add('invisible');
+    mainImage.onload = () => {
+        mainImage.classList.remove('invisible');
+    };
+    mainImage.onerror = () => {
+        console.error('Single image failed to load all URLs:', urls);
+        if (filenameLabel) filenameLabel.textContent = `Failed to load image #${image.id}`;
+    };
+    setImageWithFallback(mainImage, urls);
+    if (filenameLabel) filenameLabel.textContent = `Image #${image.id}`;
+    if (isFullscreenMode) {
+        const fullscreenContainer = document.getElementById('true-fullscreen-container');
+        if (fullscreenContainer && fullscreenContainer.fullscreenImage && fullscreenContainer.filenameLabel) {
+            fullscreenContainer.fullscreenImage.classList.add('invisible');
+            fullscreenContainer.fullscreenImage.onload = () => {
+                fullscreenContainer.fullscreenImage.classList.remove('invisible');
+            };
+            setImageWithFallback(fullscreenContainer.fullscreenImage, urls);
+            fullscreenContainer.filenameLabel.textContent = `Image #${image.id}`;
+        }
+    }
+    currentImageIndex = index;
+    updateThumbnailSelection();
+    preloadNextImages(index);
+}
+
+function getCachedImageSrcById(imageId) {
+    const cached = imageCache && imageCache.get && imageCache.get(imageId);
+    return cached && cached.src ? cached.src : null;
+}
+
+function preloadNextPageImages(startIndex) {
+    const pageSize = getPageSize();
+    for (let i = 0; i < pageSize; i++) {
+        const idx = startIndex + i;
+        if (idx >= allImages.length) break;
+        const image = allImages[idx];
+        if (!image || imageCache.has(image.id)) continue;
+        const preloadImg = new Image();
+        preloadImg.src = image.image_url;
+        preloadImg.onload = () => {
+            imageCache.set(image.id, preloadImg);
+        };
+        preloadImg.onerror = () => {
+            // Try thumbnail as fallback caching
+            if (image.thumbnail_url) {
+                const fallback = new Image();
+                fallback.src = image.thumbnail_url;
+                fallback.onload = () => imageCache.set(image.id, fallback);
+            }
+        };
+    }
+}
+
+function createLoadedImage(urls, className, imageId) {
+    return new Promise((resolve) => {
+        // If cached, resolve immediately with cached src
+        if (imageId) {
+            const cachedSrc = getCachedImageSrcById(imageId);
+            if (cachedSrc) {
+                const img = document.createElement('img');
+                if (className) img.className = className;
+                img.onload = () => resolve(img);
+                img.src = cachedSrc;
+                // If already complete (from cache), onload may not fire; resolve next tick
+                if (img.complete) {
+                    resolve(img);
+                }
+                return;
+            }
+        }
+        const img = document.createElement('img');
+        if (className) img.className = className;
+        img.onload = () => resolve(img);
+        setImageWithFallback(img, urls, () => {
+            const fallback = document.createElement('div');
+            fallback.className = 'w-full h-full flex items-center justify-center text-gray-400 text-xs';
+            fallback.textContent = 'Failed to load';
+            resolve(fallback);
+        });
+    });
+}
+
+// Refresh fullscreen content if active
+function refreshFullscreenContent() {
+    const container = document.getElementById('true-fullscreen-container');
+    if (!container) return;
+
+    const isGrid = gridColumns > 1;
+
+    if (isGrid) {
+        // Rebuild grid inside fullscreen
+        // Clear existing content except the exit button and optional filename label (not used for grid)
+        const exitBtn = container.querySelector('button');
+        const label = container.filenameLabel || null;
+        // Remove all children first
+        while (container.firstChild) container.removeChild(container.firstChild);
+
+        // Build wrapper grid
+        const wrapper = document.createElement('div');
+        wrapper.style.cssText = 'width: 100%; height: 100%; padding: 16px; overflow: auto; display: grid; gap: 1rem;';
+        wrapper.className = `grid grid-cols-${gridColumns}`;
+
+        // Build current page items
+        const pageStart = getPageStart(currentImageIndex);
+        const pageSize = getPageSize();
+        const items = allImages.slice(pageStart, Math.min(pageStart + pageSize, allImages.length));
+        items.forEach(img => {
+            const tile = document.createElement('div');
+            tile.className = 'relative bg-black rounded-lg overflow-hidden flex items-center justify-center';
+            const node = document.createElement('img');
+            node.className = 'w-full h-full object-contain';
+            setImageWithFallback(node, [img.image_url, img.thumbnail_url].filter(Boolean));
+            tile.appendChild(node);
+            wrapper.appendChild(tile);
+        });
+
+        container.appendChild(wrapper);
+        if (label) container.appendChild(label);
+        if (exitBtn) container.appendChild(exitBtn);
+    } else {
+        // Single image fullscreen already wired: update image src if present
+        if (container.fullscreenImage) {
+            const image = allImages[currentImageIndex];
+            const urls = [image.image_url, image.thumbnail_url].filter(Boolean);
+            container.fullscreenImage.classList.add('invisible');
+            container.fullscreenImage.onload = () => container.fullscreenImage.classList.remove('invisible');
+            setImageWithFallback(container.fullscreenImage, urls);
+            if (container.filenameLabel) container.filenameLabel.textContent = `Image #${image.id}`;
+        }
+    }
+}
+
+function setExperimentalMode(on) {
+    isExperimentalMode = on;
+    const exp = document.getElementById('experimental-mode');
+    const single = document.getElementById('single-image-mode');
+    const multi = document.getElementById('multi-image-mode');
+    const thumbBar = document.getElementById('thumbnail-bar');
+
+    if (on) {
+        if (single) single.classList.add('hidden');
+        if (multi) multi.classList.add('hidden');
+        if (exp) exp.classList.remove('hidden');
+        if (thumbBar) thumbBar.style.display = 'none';
+        renderExperimentalGallery();
+    } else {
+        if (exp) exp.classList.add('hidden');
+        restoreNormalView();
+        if (thumbBar) thumbBar.style.display = 'block';
+    }
+}
+
+// Load a batch of images for experimental mode
+async function loadExperimentalImagesBatch() {
+    if (experimentalLoading || !experimentalHasMore) return;
+    
+    experimentalLoading = true;
+    try {
+        const params = new URLSearchParams({
+            page: experimentalLoadingPage,
+            per_page: EXPERIMENTAL_BATCH_SIZE
+        });
+        
+        if (currentView === 'favorites') {
+            params.set('favorites', 'true');
+        } else if (currentView === 'people' && selectedPeople.size > 0) {
+            params.set('people', Array.from(selectedPeople).join(','));
+        } else if (backendPersonId) {
+            params.set('person_id', backendPersonId);
+        }
+        
+        const response = await fetch(`/api/viewer/images?${params.toString()}`);
+        const data = await response.json();
+        
+        if (data.success && data.images && data.images.length > 0) {
+            experimentalImages = experimentalImages.concat(data.images);
+            experimentalLoadingPage++;
+            experimentalHasMore = data.pagination && data.pagination.page < data.pagination.pages;
+        } else {
+            experimentalHasMore = false;
+        }
+    } catch (error) {
+        console.error('Error loading experimental images batch:', error);
+        experimentalHasMore = false;
+    } finally {
+        experimentalLoading = false;
+    }
+}
+
+// Handle scroll for experimental mode lazy loading
+function handleExperimentalScroll() {
+    if (!isExperimentalMode) return;
+    
+    const exp = document.getElementById('experimental-mode');
+    if (!exp) return;
+    
+    const scrollBottom = exp.scrollTop + exp.clientHeight;
+    const scrollThreshold = exp.scrollHeight - 1500; // Load when 1500px from bottom
+    
+    if (scrollBottom >= scrollThreshold && experimentalHasMore && !experimentalLoading) {
+        loadExperimentalImagesBatch().then(() => {
+            renderExperimentalGallery();
+        });
+    }
+}
+
+function renderExperimentalGallery() {
+    const exp = document.getElementById('experimental-mode');
+    if (!exp) return;
+    
+    const containerWidth = exp.clientWidth || exp.offsetWidth || window.innerWidth;
+    const items = experimentalImages.map(img => ({
+        id: img.id,
+        url: img.image_url,
+        thumb: img.thumbnail_url,
+        ar: (img.width && img.height && img.height !== 0) ? (img.width / img.height) : 1.5
+    }));
+
+    const target = experimentalTargetRowHeight;
+    const rows = [];
+    let row = [];
+    let arSum = 0;
+
+    items.forEach((it, idx) => {
+        row.push(it);
+        arSum += it.ar;
+        const rowWidthAtTarget = arSum * target;
+        if (rowWidthAtTarget >= containerWidth * 0.95 || idx === items.length - 1) {
+            // finalize row
+            const rowHeight = containerWidth / arSum;
+            rows.push({ items: row, height: Math.round(rowHeight) });
+            row = [];
+            arSum = 0;
+        }
+    });
+
+    // Build DOM
+    exp.innerHTML = '';
+    rows.forEach(({ items: rItems, height }) => {
+        const rowDiv = document.createElement('div');
+        rowDiv.style.cssText = 'display:flex; width:100%;';
+        let accumulated = 0;
+        rItems.forEach((it, i) => {
+            const w = Math.round(height * it.ar);
+            accumulated += w;
+            const tile = document.createElement('div');
+            tile.style.cssText = `width:${w}px;height:${height}px;overflow:hidden;display:flex;align-items:center;justify-content:center;background:black;`;
+            const img = document.createElement('img');
+            img.className = 'w-full h-full object-contain';
+            img.loading = 'lazy'; // Add native lazy loading
+            setImageWithFallback(img, [it.url, it.thumb].filter(Boolean));
+            img.alt = `Image ${it.id}`;
+            tile.appendChild(img);
+            tile.addEventListener('click', () => {
+                window.location.href = `/image/${it.id}`;
+            });
+            rowDiv.appendChild(tile);
+        });
+        // Pixel rounding fix: stretch last tile to fill row exactly
+        const diff = (containerWidth - accumulated);
+        if (diff !== 0 && rowDiv.lastChild) {
+            const last = rowDiv.lastChild;
+            const currentW = parseInt(last.style.width, 10) || 0;
+            last.style.width = `${currentW + diff}px`;
+        }
+        exp.appendChild(rowDiv);
+    });
+    
+    // Check if we should load more
+    if (experimentalHasMore && !experimentalLoading) {
+        const scrollThreshold = exp.scrollHeight - exp.clientHeight - 2000;
+        if (exp.scrollTop >= scrollThreshold) {
+            loadExperimentalImagesBatch().then(() => {
+                renderExperimentalGallery();
+            });
+        }
+    }
+}
+
+// Resize handling for experimental layout
+window.addEventListener('resize', () => {
+    if (isExperimentalMode) renderExperimentalGallery();
+});
+
+// Wire Experimental tab
+(function wireExperimentalTab() {
+    const btn = document.getElementById('view-experimental-tab');
+    if (!btn) return;
+    btn.addEventListener('click', function() {
+        // Toggle styling on tabs similar to other views
+        document.getElementById('view-all-tab').classList.remove('bg-blue-600', 'text-white');
+        document.getElementById('view-all-tab').classList.add('text-gray-300', 'hover:text-white', 'hover:bg-gray-600');
+        document.getElementById('view-favorites-tab').classList.remove('bg-blue-600', 'text-white');
+        document.getElementById('view-favorites-tab').classList.add('text-gray-300', 'hover:text-white', 'hover:bg-gray-600');
+        document.getElementById('view-people-tab').classList.remove('bg-blue-600', 'text-white');
+        document.getElementById('view-people-tab').classList.add('text-gray-300', 'hover:text-white', 'hover:bg-gray-600');
+        btn.classList.add('bg-blue-600', 'text-white');
+        btn.classList.remove('text-gray-300', 'hover:text-white', 'hover:bg-gray-600');
+        setExperimentalMode(true);
+    });
+})();
+
+// Exit experimental if other view tabs clicked
+(function wireExitExperimental() {
+    ['view-all-tab','view-favorites-tab','view-people-tab'].forEach(id => {
+        const el = document.getElementById(id);
+        if (!el) return;
+        el.addEventListener('click', () => setExperimentalMode(false));
+    });
+})();
+
+async function enterExperimentalMode() {
+    isExperimentalMode = true;
+    const controls = document.getElementById('viewer-controls');
+    const exp = document.getElementById('experimental-mode');
+    const single = document.getElementById('single-image-mode');
+    const multi = document.getElementById('multi-image-mode');
+    const thumbBar = document.getElementById('thumbnail-bar');
+
+    if (controls) controls.style.display = 'none';
+    if (single) single.classList.add('hidden');
+    if (multi) multi.classList.add('hidden');
+    if (exp) exp.classList.remove('hidden');
+    if (thumbBar) thumbBar.style.display = 'none';
+
+    // Load initial batch of images for experimental gallery (progressive loading)
+    experimentalImages = [];
+    experimentalLoadingPage = 1;
+    experimentalHasMore = true;
+    experimentalLoading = false;
+    
+    // Use existing allImages if already loaded and we're in the same view/filter
+    if (hasAllImagesLoaded && allImages.length > 0) {
+        experimentalImages = [...allImages];
+        renderExperimentalGallery();
+    } else {
+        // Load initial batch quickly
+        await loadExperimentalImagesBatch();
+        renderExperimentalGallery();
+        
+        // Set up scroll-based lazy loading
+        exp.addEventListener('scroll', handleExperimentalScroll, { passive: true });
+    }
+}
+
+function exitExperimentalMode() {
+    isExperimentalMode = false;
+    const controls = document.getElementById('viewer-controls');
+    const exp = document.getElementById('experimental-mode');
+    const thumbBar = document.getElementById('thumbnail-bar');
+    if (exp) {
+        exp.classList.add('hidden');
+        // Remove scroll listener to avoid memory leaks
+        exp.removeEventListener('scroll', handleExperimentalScroll);
+    }
+    if (controls) controls.style.display = 'block';
+    if (thumbBar) thumbBar.style.display = 'block';
+    restoreNormalView();
+}
+
+function setExperimentalMode(on) {
+    if (on) {
+        enterExperimentalMode();
+    } else {
+        exitExperimentalMode();
+    }
+}
+</script>
+{% endblock %} 

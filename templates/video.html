@@ -1,0 +1,1369 @@
+{% extends "base.html" %}
+
+{% block title %}Video Tab{% endblock %}
+
+{% block content %}
+<div class="fade-in h-screen flex flex-col bg-gray-900">
+
+    <!-- Tabs, Sort Options, and Upload Button -->
+    <div class="px-4 pt-4">
+        <div class="flex items-center justify-between">
+            <div class="flex items-center space-x-4">
+                
+                <!-- Sort Options -->
+                <div class="flex items-center space-x-2">
+                    <label for="sort-select" class="text-sm text-gray-300">Sort by:</label>
+                    <select id="sort-select" class="bg-gray-800 text-white px-3 py-1 rounded-md text-sm border border-gray-600 focus:border-blue-500 focus:outline-none" onchange="sortVideos()">
+                        <option value="random">Random</option>
+                        <option value="date-newest">Date (Newest First)</option>
+                        <option value="date-oldest">Date (Oldest First)</option>
+                        <option value="filename-a-z">Filename (A-Z)</option>
+                        <option value="filename-z-a">Filename (Z-A)</option>
+                        <option value="size-largest">File Size (Largest)</option>
+                        <option value="size-smallest">File Size (Smallest)</option>
+                        <option value="duration-longest">Duration (Longest)</option>
+                        <option value="duration-shortest">Duration (Shortest)</option>
+                    </select>
+                    <!-- Randomize button (only shown when random sort is selected) -->
+                    <button id="randomize-btn" class="hidden px-2 py-2 bg-blue-600 text-white rounded text-sm hover:bg-blue-700 transition-colors" title="Randomize sort">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+            
+            <input type="file" id="video-upload" accept="video/*" multiple class="hidden">
+            <div class="flex items-center space-x-2">
+                <button onclick="document.getElementById('video-upload').click()" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg">
+                    Upload Videos
+                </button>
+                <button id="random-view-btn" onclick="startRandomView()" class="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg flex items-center gap-2">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+                    </svg>
+                    Random View
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Videos Grid -->
+    <div class="flex-1 p-4">
+        <!-- Videos Content -->
+        <div id="all-content">
+            <!-- Video Count Display -->
+            <div class="mb-4 text-right">
+                <span class="text-sm text-gray-400 font-medium">Videos: <span id="video-count-num">0</span></span>
+            </div>
+            
+            <div id="videos-grid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+                <!-- Videos will be loaded dynamically here -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Simple Video Modal -->
+    <div id="video-modal" class="fixed inset-0 bg-black bg-opacity-95 hidden items-center justify-center z-50 p-4 transition-opacity duration-300" onclick="closeVideo()">
+        <div class="relative w-full h-full flex items-center justify-center overflow-hidden">
+            <!-- Current video with thumbnail overlay -->
+            <div class="relative w-full h-full">
+                <video id="modal-video-current" class="w-full h-full object-contain transition-transform duration-300 ease-in-out" controls onclick="event.stopPropagation()" style="opacity: 0;">
+                    Your browser does not support the video tag.
+                </video>
+                <img id="modal-thumbnail-current" class="absolute inset-0 w-full h-full object-contain transition-opacity duration-300" style="opacity: 0;" onclick="event.stopPropagation()">
+            </div>
+            
+            <!-- Next video with thumbnail overlay -->
+            <div class="absolute inset-0 w-full h-full" style="transform: translateX(100%); opacity: 0;">
+                <video id="modal-video-next" class="w-full h-full object-contain transition-transform duration-300 ease-in-out" controls onclick="event.stopPropagation()" style="opacity: 0;">
+                    Your browser does not support the video tag.
+                </video>
+                <img id="modal-thumbnail-next" class="absolute inset-0 w-full h-full object-contain transition-opacity duration-300" style="opacity: 0;" onclick="event.stopPropagation()">
+            </div>
+        </div>
+    </div>
+
+    <!-- Random View Modal -->
+    <div id="random-view-modal" class="fixed inset-0 bg-black hidden items-center justify-center z-50 transition-opacity duration-300" tabindex="-1">
+        <video id="random-view-video" class="w-full h-full object-contain" autoplay tabindex="0">
+            Your browser does not support the video tag.
+        </video>
+        
+        <!-- Progress Indicator -->
+        <div id="random-progress-indicator" class="absolute top-4 right-4 bg-black bg-opacity-50 rounded-lg px-3 py-2 text-white text-sm font-medium hidden">
+            <div class="flex items-center gap-2">
+                <div class="w-2 h-2 bg-white rounded-full animate-pulse"></div>
+                <span id="random-video-progress">00:00 / 00:00</span>
+            </div>
+        </div>
+        
+        <!-- Close button -->
+        <button onclick="closeRandomView()" class="absolute top-4 left-4 bg-black bg-opacity-50 hover:bg-opacity-70 rounded-lg px-4 py-2 text-white text-sm font-medium transition">
+            Close (ESC)
+        </button>
+    </div>
+</div>
+
+<!-- Video Context Menu -->
+<div id="video-context-menu" class="absolute bg-white border border-gray-300 rounded-lg shadow-lg py-2 min-w-48" style="z-index: 2000; display: none;">
+    <div class="px-3 py-2 text-sm font-semibold text-gray-700 border-b border-gray-200">
+        Video Actions
+    </div>
+    <div class="py-1">
+        <button id="remove-all-people" class="w-full text-left px-3 py-2 text-sm text-red-600 hover:bg-red-50 cursor-pointer flex items-center gap-2">
+            <span>🗑️</span>
+            <span>Remove All People</span>
+        </button>
+    </div>
+    <div class="px-3 py-2 border-t border-gray-200">
+        <button id="video-context-cancel" class="text-sm text-gray-600 hover:text-gray-800">Cancel</button>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<style>
+/* Ensure thumbnail overlay is always visible during loading states */
+.thumbnail-overlay {
+    transition: opacity 0.2s ease-in-out;
+    z-index: 1;
+}
+
+.hover-video {
+    z-index: 0;
+}
+
+/* Loading state - keep thumbnail visible */
+.video-card.loading .thumbnail-overlay {
+    opacity: 1 !important;
+}
+
+
+/* Fix z-index for tags and badges */
+.video-card .absolute.top-2.left-2,
+.video-card .absolute.top-2.right-2,
+.video-card .absolute.bottom-2.left-2 {
+    z-index: 5;
+}
+
+/* Hide video loading states and spinners */
+#modal-video-current,
+#modal-video-next {
+    background: transparent !important;
+}
+
+#modal-video-current::-webkit-media-controls,
+#modal-video-next::-webkit-media-controls {
+    background: transparent !important;
+}
+
+/* Ensure thumbnails are always on top when visible */
+#modal-thumbnail-current,
+#modal-thumbnail-next {
+    z-index: 10;
+}
+</style>
+<script>
+// Video navigation state
+let currentVideoIndex = -1;
+let videoElements = [];
+let isCurrentVideoFirst = true; // Track which video element is currently active
+
+// Tab management
+// Removed people tab functionality
+let currentPersonId = null;
+let currentPersonName = null;
+
+// Handle file upload
+document.getElementById('video-upload').addEventListener('change', function(e) {
+    if (e.target.files.length > 0) {
+        uploadVideos(e.target.files);
+    }
+});
+
+// Initialize video elements array
+document.addEventListener('DOMContentLoaded', function() {
+    // Set the correct sort option based on URL parameter
+    const urlParams = new URLSearchParams(window.location.search);
+    const currentSort = urlParams.get('sort') || 'random';
+    const sortSelect = document.getElementById('sort-select');
+    if (sortSelect) {
+        sortSelect.value = currentSort;
+    }
+    
+    // Show/hide randomize button based on sort selection
+    updateRandomizeButtonVisibility(currentSort);
+    
+    // Initialize auto pagination
+    initializeAutoPagination();
+});
+
+function updateVideoElements() {
+    console.log('updateVideoElements called');
+    videoElements = Array.from(document.querySelectorAll('.video-card'));
+    console.log('Found video elements:', videoElements.length);
+    console.log('Video elements:', videoElements.map(el => el.getAttribute('data-video-id')));
+    
+    // Add right-click event listeners to video cards
+    videoElements.forEach(videoCard => {
+        videoCard.addEventListener('contextmenu', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            showVideoContextMenu(e, videoCard);
+        });
+    });
+    
+    // Setup hover play functionality
+    setupHoverPlay();
+}
+
+// Optimized hover-to-play functionality
+function setupHoverPlay() {
+    const videoCards = document.querySelectorAll('.video-card');
+    
+    videoCards.forEach(card => {
+        const video = card.querySelector('.hover-video');
+        const thumbnail = card.querySelector('.thumbnail-overlay');
+        
+        if (!video) return;
+        
+        // Only set up hover play for cards that don't already have it set up
+        if (card.dataset.hoverSetup) return;
+        card.dataset.hoverSetup = 'true';
+        
+        // Use a debounced approach to prevent rapid play/pause cycles
+        let hoverTimeout;
+        let isHovering = false;
+        let isLoading = false;
+        
+        // Reset video to beginning when not playing
+        video.addEventListener('pause', function() {
+            if (!isHovering) {
+                video.currentTime = 0;
+                if (thumbnail) {
+                    thumbnail.style.opacity = '1';
+                }
+            }
+        });
+        
+        // Hide thumbnail when video starts playing (not just loading)
+        video.addEventListener('play', function() {
+            isLoading = false;
+            if (thumbnail) {
+                thumbnail.style.opacity = '0';
+            }
+        });
+        
+        // Show thumbnail when video ends
+        video.addEventListener('ended', function() {
+            video.currentTime = 0;
+            if (thumbnail) {
+                thumbnail.style.opacity = '1';
+            }
+        });
+        
+        // Show thumbnail during loading states
+        video.addEventListener('loadstart', function() {
+            isLoading = true;
+            if (thumbnail) {
+                thumbnail.style.opacity = '1';
+            }
+        });
+        
+        video.addEventListener('waiting', function() {
+            isLoading = true;
+            if (thumbnail) {
+                thumbnail.style.opacity = '1';
+            }
+        });
+        
+        video.addEventListener('canplay', function() {
+            isLoading = false;
+            // Only hide thumbnail if we're actually hovering and video is ready to play
+            if (isHovering && video.readyState >= 3) {
+                if (thumbnail) {
+                    thumbnail.style.opacity = '0';
+                }
+            }
+        });
+        
+        video.addEventListener('error', function() {
+            isLoading = false;
+            // Show thumbnail on error
+            if (thumbnail) {
+                thumbnail.style.opacity = '1';
+            }
+        });
+        
+        // Optimized hover to play with debouncing and delay
+        card.addEventListener('mouseenter', function() {
+            isHovering = true;
+            clearTimeout(hoverTimeout);
+            
+            // Wait 200ms before starting to load the video
+            hoverTimeout = setTimeout(() => {
+                // Only load and play if video hasn't been loaded yet
+                if (video.readyState < 2) { // HAVE_CURRENT_DATA
+                    video.load(); // Load the video source
+                    video.play().catch(error => {
+                        console.log('Video autoplay prevented:', error);
+                        // If autoplay fails, ensure thumbnail stays visible
+                        if (thumbnail) {
+                            thumbnail.style.opacity = '1';
+                        }
+                    });
+                } else {
+                    video.play().catch(error => {
+                        console.log('Video autoplay prevented:', error);
+                        // If autoplay fails, ensure thumbnail stays visible
+                        if (thumbnail) {
+                            thumbnail.style.opacity = '1';
+                        }
+                    });
+                }
+            }, 600); // 600ms delay before starting to load
+        });
+        
+        // Leave to pause with debouncing
+        card.addEventListener('mouseleave', function() {
+            isHovering = false;
+            clearTimeout(hoverTimeout);
+            
+            hoverTimeout = setTimeout(() => {
+                video.pause();
+                // Ensure thumbnail is visible when leaving
+                if (thumbnail) {
+                    thumbnail.style.opacity = '1';
+                }
+            }, 100); // Small delay to prevent flickering
+        });
+    });
+}
+
+// Generate thumbnail for a video
+async function generateThumbnailForVideo(videoId, thumbnailContainer) {
+    console.log('Generating thumbnail for video ID:', videoId);
+    
+    try {
+        const response = await fetch(`/api/generate_thumbnail/${videoId}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            }
+        });
+        
+        const data = await response.json();
+        
+        if (data.success && data.thumbnail_path) {
+            console.log('Thumbnail generated successfully:', data.thumbnail_path);
+            
+            // Create and display the generated thumbnail
+            const img = document.createElement('img');
+            img.src = data.thumbnail_path;
+            img.className = 'w-full h-full object-contain';
+            img.style.position = 'absolute';
+            img.style.top = '0';
+            img.style.left = '0';
+            img.style.width = '100%';
+            img.style.height = '100%';
+            img.style.objectFit = 'contain';
+            img.style.opacity = '1';
+            img.style.zIndex = '10';
+            
+            thumbnailContainer.innerHTML = '';
+            thumbnailContainer.appendChild(img);
+            thumbnailContainer.style.opacity = '1';
+            thumbnailContainer.style.display = 'block';
+            
+            console.log('Generated thumbnail displayed');
+        } else {
+            console.log('Failed to generate thumbnail:', data.error);
+            thumbnailContainer.style.opacity = '0';
+            thumbnailContainer.style.display = 'none';
+        }
+    } catch (error) {
+        console.error('Error generating thumbnail:', error);
+        thumbnailContainer.style.opacity = '0';
+        thumbnailContainer.style.display = 'none';
+    }
+}
+
+// Upload videos
+function uploadVideos(files) {
+    const formData = new FormData();
+    for (let file of files) {
+        formData.append('videos', file);
+    }
+
+    fetch('/api/videos/upload', {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            location.reload(); // Simple reload to show new videos
+            updateVideoElements(); // Update video elements array
+        } else {
+            alert('Upload failed: ' + data.error);
+        }
+    })
+    .catch(error => {
+        alert('Upload failed: ' + error);
+    });
+}
+
+// Open video in modal
+function openVideo(videoPath, clickedElement = null) {
+    console.log('openVideo called with:', videoPath);
+    console.log('clickedElement:', clickedElement);
+    
+    const modal = document.getElementById('video-modal');
+    const currentVideo = document.getElementById('modal-video-current');
+    const nextVideo = document.getElementById('modal-video-next');
+    const currentThumbnail = document.getElementById('modal-thumbnail-current');
+    const nextThumbnail = document.getElementById('modal-thumbnail-next');
+    
+    // Find the index of the clicked video
+    // Use the passed element or find it from the current event
+    const targetElement = clickedElement || (event && event.target.closest('.video-card'));
+    if (!targetElement) {
+        console.error('Could not find video card element');
+        return;
+    }
+    
+    console.log('targetElement:', targetElement);
+    console.log('targetElement data-video-id:', targetElement.getAttribute('data-video-id'));
+    
+    currentVideoIndex = videoElements.indexOf(targetElement);
+    console.log('currentVideoIndex:', currentVideoIndex);
+    console.log('videoElements length:', videoElements.length);
+    
+    // Get the MIME type from the clicked video element
+    const videoSource = targetElement.querySelector('video source');
+    const mimeType = videoSource ? videoSource.type : 'video/mp4';
+    console.log('mimeType:', mimeType);
+    
+    // Get the existing thumbnail from the grid (the one that's already visible)
+    const existingThumbnail = targetElement.querySelector('.thumbnail-overlay');
+    console.log('Existing thumbnail element:', existingThumbnail);
+    
+    // IMMEDIATELY clone and show the existing thumbnail
+    if (existingThumbnail) {
+        console.log('Cloning existing thumbnail for instant display');
+        console.log('Original thumbnail HTML:', existingThumbnail.outerHTML);
+        
+        // Clone the entire thumbnail overlay (img or div with SVG)
+        const clonedThumbnail = existingThumbnail.cloneNode(true);
+        
+        // Clear the modal thumbnail container and add the cloned content
+        currentThumbnail.innerHTML = '';
+        
+        // If it's an img element, copy it directly
+        if (existingThumbnail.tagName === 'IMG') {
+            const img = document.createElement('img');
+            img.src = existingThumbnail.src;
+            img.alt = existingThumbnail.alt;
+            img.className = 'w-full h-full object-contain';
+            img.style.position = 'absolute';
+            img.style.top = '0';
+            img.style.left = '0';
+            img.style.width = '100%';
+            img.style.height = '100%';
+            img.style.objectFit = 'contain';
+            img.style.opacity = '1';
+            img.style.zIndex = '10';
+            currentThumbnail.appendChild(img);
+            console.log('Cloned IMG thumbnail');
+        } else {
+            // If it's a div with SVG or other content, clone the entire structure
+            clonedThumbnail.style.position = 'absolute';
+            clonedThumbnail.style.top = '0';
+            clonedThumbnail.style.left = '0';
+            clonedThumbnail.style.width = '100%';
+            clonedThumbnail.style.height = '100%';
+            clonedThumbnail.style.objectFit = 'contain';
+            clonedThumbnail.style.opacity = '1';
+            clonedThumbnail.style.zIndex = '10';
+            currentThumbnail.appendChild(clonedThumbnail);
+            console.log('Cloned DIV thumbnail');
+        }
+        
+        currentThumbnail.style.opacity = '1';
+        currentThumbnail.style.display = 'block';
+        console.log('Thumbnail cloned and displayed instantly');
+    } else {
+        console.log('No existing thumbnail found, attempting to generate one');
+        // Try to generate thumbnail for this video
+        const videoId = targetElement.getAttribute('data-video-id');
+        if (videoId) {
+            generateThumbnailForVideo(videoId, currentThumbnail);
+        } else {
+            currentThumbnail.style.opacity = '0';
+            currentThumbnail.style.display = 'none';
+        }
+    }
+    currentVideo.style.opacity = '0'; // Keep video hidden until ready
+    nextThumbnail.style.opacity = '0';
+    
+    // Show modal immediately with thumbnail
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+    
+    // Reset both videos completely
+    currentVideo.pause();
+    currentVideo.currentTime = 0;
+    currentVideo.innerHTML = '';
+    const source = document.createElement('source');
+    source.src = videoPath;
+    source.type = mimeType;
+    currentVideo.appendChild(source);
+    
+    nextVideo.pause();
+    nextVideo.currentTime = 0;
+    nextVideo.innerHTML = '';
+    nextVideo.style.transform = 'translateX(100%)';
+    nextVideo.style.opacity = '0';
+    
+    // Set current video as active
+    isCurrentVideoFirst = true;
+    
+    // Simplified animation - no complex transforms
+    currentVideo.style.transform = 'translateX(0)';
+    
+    console.log('About to load video:', videoPath);
+    
+    // Set up event listeners for smooth transition from thumbnail to video
+    currentVideo.addEventListener('loadeddata', function() {
+        console.log('Video loaded, transitioning from thumbnail to video');
+        // Video is ready to play, fade out thumbnail and fade in video
+        currentThumbnail.style.opacity = '0';
+        currentThumbnail.style.display = 'none';
+        currentVideo.style.opacity = '1';
+    }, { once: true });
+    
+    currentVideo.addEventListener('error', function() {
+        console.log('Video failed to load, keeping thumbnail visible');
+        // Keep thumbnail visible on error
+        currentThumbnail.style.opacity = '1';
+        currentThumbnail.style.display = 'block';
+        currentVideo.style.opacity = '0';
+    }, { once: true });
+    
+    // Start loading the video
+    currentVideo.load();
+    
+    // Try to play the video
+    currentVideo.play().catch(e => {
+        console.log('Autoplay failed:', e);
+        // Keep thumbnail visible if autoplay fails
+        currentThumbnail.style.opacity = '1';
+        currentThumbnail.style.display = 'block';
+        currentVideo.style.opacity = '0';
+    });
+}
+
+// Close video modal
+function closeVideo() {
+    console.log('closeVideo called');
+    const modal = document.getElementById('video-modal');
+    const currentVideo = document.getElementById('modal-video-current');
+    const nextVideo = document.getElementById('modal-video-next');
+    const currentThumbnail = document.getElementById('modal-thumbnail-current');
+    const nextThumbnail = document.getElementById('modal-thumbnail-next');
+    
+    console.log('Before close - currentVideo src:', currentVideo.querySelector('source')?.src);
+    console.log('Before close - nextVideo src:', nextVideo.querySelector('source')?.src);
+    
+    currentVideo.pause();
+    currentVideo.currentTime = 0;
+    nextVideo.pause();
+    nextVideo.currentTime = 0;
+    currentVideo.innerHTML = '';
+    nextVideo.innerHTML = '';
+    currentVideo.load(); // Force reload
+    nextVideo.load(); // Force reload
+    
+    // Hide thumbnails and reset video opacity
+    currentThumbnail.style.opacity = '0';
+    currentThumbnail.style.display = 'none';
+    nextThumbnail.style.opacity = '0';
+    nextThumbnail.style.display = 'none';
+    currentVideo.style.opacity = '0';
+    nextVideo.style.opacity = '0';
+    
+    modal.classList.add('hidden');
+    modal.classList.remove('flex');
+    
+    console.log('After close - currentVideo innerHTML:', currentVideo.innerHTML);
+    console.log('After close - nextVideo innerHTML:', nextVideo.innerHTML);
+}
+
+// Navigate to next video
+function nextVideo() {
+    if (currentVideoIndex < videoElements.length - 1) {
+        currentVideoIndex++;
+        const nextVideoElement = videoElements[currentVideoIndex];
+        const videoSource = nextVideoElement.querySelector('video source');
+        const videoPath = videoSource.src;
+        const mimeType = videoSource.type;
+        const existingThumbnail = nextVideoElement.querySelector('.thumbnail-overlay');
+        openVideoWithSwipe(videoPath, mimeType, 'left', existingThumbnail);
+    }
+}
+
+// Navigate to previous video
+function previousVideo() {
+    if (currentVideoIndex > 0) {
+        currentVideoIndex--;
+        const prevVideoElement = videoElements[currentVideoIndex];
+        const videoSource = prevVideoElement.querySelector('video source');
+        const videoPath = videoSource.src;
+        const mimeType = videoSource.type;
+        const existingThumbnail = prevVideoElement.querySelector('.thumbnail-overlay');
+        openVideoWithSwipe(videoPath, mimeType, 'right', existingThumbnail);
+    }
+}
+
+// Open video with swipe transition
+function openVideoWithSwipe(videoPath, mimeType, direction, existingThumbnail = null) {
+    const currentVideo = document.getElementById('modal-video-current');
+    const nextVideo = document.getElementById('modal-video-next');
+    const currentThumbnail = document.getElementById('modal-thumbnail-current');
+    const nextThumbnail = document.getElementById('modal-thumbnail-next');
+    
+    // Determine which video is currently active
+    const activeVideo = isCurrentVideoFirst ? currentVideo : nextVideo;
+    const inactiveVideo = isCurrentVideoFirst ? nextVideo : currentVideo;
+    const activeThumbnail = isCurrentVideoFirst ? currentThumbnail : nextThumbnail;
+    const inactiveThumbnail = isCurrentVideoFirst ? nextThumbnail : currentThumbnail;
+    
+    // Clear existing sources and add new source with proper MIME type
+    inactiveVideo.innerHTML = '';
+    const source = document.createElement('source');
+    source.src = videoPath;
+    source.type = mimeType;
+    inactiveVideo.appendChild(source);
+    
+    // Clone and show thumbnail for the incoming video
+    if (existingThumbnail) {
+        console.log('Cloning thumbnail for swipe transition');
+        const clonedThumbnail = existingThumbnail.cloneNode(true);
+        clonedThumbnail.style.position = 'absolute';
+        clonedThumbnail.style.top = '0';
+        clonedThumbnail.style.left = '0';
+        clonedThumbnail.style.width = '100%';
+        clonedThumbnail.style.height = '100%';
+        clonedThumbnail.style.objectFit = 'contain';
+        clonedThumbnail.style.opacity = '1';
+        clonedThumbnail.style.zIndex = '10';
+        
+        inactiveThumbnail.innerHTML = '';
+        inactiveThumbnail.appendChild(clonedThumbnail);
+        inactiveThumbnail.style.opacity = '1';
+        inactiveThumbnail.style.display = 'block';
+    } else {
+        inactiveThumbnail.style.opacity = '0';
+        inactiveThumbnail.style.display = 'none';
+    }
+    inactiveVideo.style.opacity = '0'; // Hide video until ready
+    
+    // Wait for new video to load metadata
+    inactiveVideo.addEventListener('loadedmetadata', function() {
+        // Set initial position based on direction
+        if (direction === 'left') {
+            inactiveVideo.style.transform = 'translateX(100%)';
+            inactiveVideo.style.opacity = '1';
+        } else {
+            inactiveVideo.style.transform = 'translateX(-100%)';
+            inactiveVideo.style.opacity = '1';
+        }
+        
+        // Start the swipe animation
+        setTimeout(() => {
+            // Move active video out and inactive video in
+            if (direction === 'left') {
+                activeVideo.style.transform = 'translateX(-100%)';
+                inactiveVideo.style.transform = 'translateX(0)';
+            } else {
+                activeVideo.style.transform = 'translateX(100%)';
+                inactiveVideo.style.transform = 'translateX(0)';
+            }
+            
+            // After animation completes, switch which video is active
+            setTimeout(() => {
+                // Pause the old active video
+                activeVideo.pause();
+                
+                // Reset old active video position and hide it
+                activeVideo.style.transform = 'translateX(100%)';
+                activeVideo.style.opacity = '0';
+                activeThumbnail.style.opacity = '0';
+                
+                // Make the new video active
+                inactiveVideo.style.transform = 'translateX(0)';
+                inactiveVideo.style.opacity = '1';
+                
+                // Toggle which video is considered "current"
+                isCurrentVideoFirst = !isCurrentVideoFirst;
+                
+                // Set up event listeners for smooth transition from thumbnail to video
+                inactiveVideo.addEventListener('loadeddata', function() {
+                    console.log('Swipe video loaded, transitioning from thumbnail to video');
+                    // Video is ready to play, fade out thumbnail and fade in video
+                    inactiveThumbnail.style.opacity = '0';
+                    inactiveThumbnail.style.display = 'none';
+                    inactiveVideo.style.opacity = '1';
+                }, { once: true });
+                
+                inactiveVideo.addEventListener('error', function() {
+                    console.log('Swipe video failed to load, keeping thumbnail visible');
+                    // Keep thumbnail visible on error
+                    inactiveThumbnail.style.opacity = '1';
+                    inactiveThumbnail.style.display = 'block';
+                    inactiveVideo.style.opacity = '0';
+                }, { once: true });
+                
+                // Start loading the video
+                inactiveVideo.load();
+                
+                // Try to play the new active video
+                inactiveVideo.play().catch(e => {
+                    console.log('Swipe autoplay failed:', e);
+                    // Keep thumbnail visible if autoplay fails
+                    inactiveThumbnail.style.opacity = '1';
+                    inactiveThumbnail.style.display = 'block';
+                    inactiveVideo.style.opacity = '0';
+                });
+            }, 300); // Match the CSS transition duration
+        }, 50);
+    }, { once: true });
+}
+
+// Handle keyboard navigation
+document.addEventListener('keydown', function(e) {
+    const modal = document.getElementById('video-modal');
+    const randomModal = document.getElementById('random-view-modal');
+    
+    if (!modal.classList.contains('hidden')) {
+        if (e.key === 'Escape') {
+            closeVideo();
+        } else if (e.key === 'ArrowRight') {
+            e.preventDefault();
+            nextVideo();
+        } else if (e.key === 'ArrowLeft') {
+            e.preventDefault();
+            previousVideo();
+        }
+    } else if (!randomModal.classList.contains('hidden')) {
+        if (e.key === 'Escape') {
+            closeRandomView();
+        } else if (e.key === ' ') {
+            e.preventDefault();
+            skipToNextRandomVideo();
+        }
+    }
+});
+
+// Removed people tab functionality - people are now managed in the main People page
+
+// Video context menu functionality
+let currentContextVideo = null;
+
+function showVideoContextMenu(event, videoCard) {
+    console.log('Right-clicked video card');
+    
+    const menu = document.getElementById('video-context-menu');
+    if (!menu) return;
+    
+    // Store reference to the clicked video card
+    currentContextVideo = videoCard;
+    
+    // Position the menu at the click location
+    menu.style.left = event.clientX + 'px';
+    menu.style.top = event.clientY + 'px';
+    menu.style.display = 'block';
+    
+    // Add click outside to close menu
+    const closeMenu = (e) => {
+        if (!menu.contains(e.target)) {
+            hideVideoContextMenu();
+            document.removeEventListener('click', closeMenu);
+        }
+    };
+    
+    setTimeout(() => {
+        document.addEventListener('click', closeMenu);
+    }, 100);
+}
+
+function hideVideoContextMenu() {
+    const menu = document.getElementById('video-context-menu');
+    if (menu) {
+        menu.style.display = 'none';
+    }
+    currentContextVideo = null;
+}
+
+// Remove all people from video
+async function removeAllPeopleFromVideo() {
+    if (!currentContextVideo) return;
+    
+    // Get video ID from the video card
+    const videoId = currentContextVideo.getAttribute('data-video-id');
+    if (!videoId) {
+        console.error('No video ID found');
+        return;
+    }
+    
+    try {
+        console.log(`Removing all people from video ${videoId}`);
+        
+        const response = await fetch(`/api/remove_all_people_from_video/${videoId}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            }
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            console.log('Successfully removed all people from video');
+            
+            // Update the UI - change the people badge to "Unidentified"
+            const peopleBadge = currentContextVideo.querySelector('.absolute.top-2.left-2 span');
+            if (peopleBadge) {
+                peopleBadge.className = 'inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-orange-100 text-orange-800';
+                peopleBadge.textContent = 'Unidentified';
+            }
+            
+            // Hide the context menu
+            hideVideoContextMenu();
+            
+            // Show success message
+            showNotification('All people removed from video', 'success');
+        } else {
+            console.error('Failed to remove people:', data.error);
+            showNotification('Failed to remove people from video', 'error');
+        }
+        
+    } catch (error) {
+        console.error('Error removing people from video:', error);
+        showNotification('Error removing people from video', 'error');
+    }
+}
+
+// Show notification
+function showNotification(message, type = 'info') {
+    // Create notification element
+    const notification = document.createElement('div');
+    notification.className = `fixed top-4 right-4 px-4 py-2 rounded-lg text-white z-50 ${
+        type === 'success' ? 'bg-green-600' : 
+        type === 'error' ? 'bg-red-600' : 
+        'bg-blue-600'
+    }`;
+    notification.textContent = message;
+    
+    document.body.appendChild(notification);
+    
+    // Remove after 3 seconds
+    setTimeout(() => {
+        notification.remove();
+    }, 3000);
+}
+
+// Setup context menu event listeners
+document.addEventListener('DOMContentLoaded', function() {
+    const removeBtn = document.getElementById('remove-all-people');
+    const cancelBtn = document.getElementById('video-context-cancel');
+    const randomizeBtn = document.getElementById('randomize-btn');
+    
+    if (removeBtn) {
+        removeBtn.addEventListener('click', removeAllPeopleFromVideo);
+    }
+    
+    if (cancelBtn) {
+        cancelBtn.addEventListener('click', hideVideoContextMenu);
+    }
+    
+    if (randomizeBtn) {
+        randomizeBtn.addEventListener('click', handleRandomizeClick);
+    }
+});
+
+// Sort videos function
+function sortVideos() {
+    const sortSelect = document.getElementById('sort-select');
+    const sortValue = sortSelect.value;
+    
+    // Only sort if we're on the 'all' tab
+    // Removed tab check - always show videos
+    
+    // Show/hide randomize button based on sort selection
+    updateRandomizeButtonVisibility(sortValue);
+    
+    // Reset pagination and reload with new sort
+    resetVideoPagination();
+    loadVideosWithSort(sortValue);
+}
+
+// Update randomize button visibility
+function updateRandomizeButtonVisibility(sortValue) {
+    const randomizeBtn = document.getElementById('randomize-btn');
+    if (randomizeBtn) {
+        if (sortValue === 'random') {
+            randomizeBtn.classList.remove('hidden');
+        } else {
+            randomizeBtn.classList.add('hidden');
+        }
+    }
+}
+
+// Handle randomize button click
+function handleRandomizeClick() {
+    const sortSelect = document.getElementById('sort-select');
+    if (sortSelect.value === 'random') {
+        // Re-randomize the current sort - force a complete reload
+        resetVideoPagination();
+        // Add a timestamp to force a new random order
+        const timestamp = new Date().getTime();
+        loadVideosWithSort('random', timestamp);
+    }
+}
+
+// Auto pagination variables
+let isLoadingVideos = false;
+let hasMoreVideos = true;
+let currentVideoPage = 1;
+let totalVideos = 0;
+let lastVideoId = null;
+let lastVideoCreatedAt = null;
+let currentSortOption = 'random';
+
+// Reset pagination state
+function resetVideoPagination() {
+    isLoadingVideos = false;
+    hasMoreVideos = true;
+    currentVideoPage = 1;
+    lastVideoId = null;
+    lastVideoCreatedAt = null;
+    document.getElementById('videos-grid').innerHTML = '';
+    videoElements = [];
+}
+
+// Load videos with specific sort
+function loadVideosWithSort(sortOption, randomSeed = null) {
+    currentSortOption = sortOption;
+    resetVideoPagination();
+    loadMoreVideos(randomSeed);
+}
+
+// Load more videos
+async function loadMoreVideos(randomSeed = null) {
+    if (isLoadingVideos || !hasMoreVideos) {
+        return;
+    }
+    
+    isLoadingVideos = true;
+    
+    // Show loading indicator
+    const loadingSpinner = document.createElement('div');
+    loadingSpinner.id = 'video-loading-spinner';
+    loadingSpinner.className = 'col-span-full text-center py-8 text-gray-400';
+    loadingSpinner.innerHTML = '<span>Loading more videos...</span>';
+    document.getElementById('videos-grid').appendChild(loadingSpinner);
+    
+    try {
+        const params = new URLSearchParams({
+            page: currentVideoPage,
+            per_page: 20, // Load 20 videos at a time
+            sort: currentSortOption
+        });
+        
+        // Add random seed for random sorting to ensure different results
+        if (currentSortOption === 'random' && randomSeed) {
+            params.append('random_seed', randomSeed);
+        }
+        
+        // Add cursor for pagination (only for non-random sorts)
+        if (currentSortOption !== 'random' && lastVideoId) {
+            params.append('last_id', lastVideoId);
+        }
+        if (currentSortOption !== 'random' && lastVideoCreatedAt) {
+            params.append('last_created_at', lastVideoCreatedAt);
+        }
+        
+        const response = await fetch(`/api/videos?${params.toString()}`);
+        const data = await response.json();
+        
+        if (data.success && data.videos && data.videos.length > 0) {
+            // Remove loading spinner
+            const spinner = document.getElementById('video-loading-spinner');
+            if (spinner) spinner.remove();
+            
+            // Add new videos to the grid
+            data.videos.forEach(video => {
+                addVideoToGrid(video);
+            });
+            
+            // Update pagination state
+            currentVideoPage++;
+            totalVideos = data.pagination.total;
+            lastVideoId = data.videos[data.videos.length - 1].id;
+            lastVideoCreatedAt = data.videos[data.videos.length - 1].created_at;
+            
+            // Check if we have more videos
+            hasMoreVideos = data.videos.length === 20; // If we got less than 20, we're done
+            
+            // Update video count
+            updateVideoCount();
+            
+            // Update video elements for hover functionality
+            updateVideoElements();
+        } else {
+            // No more videos
+            hasMoreVideos = false;
+            const spinner = document.getElementById('video-loading-spinner');
+            if (spinner) spinner.remove();
+        }
+    } catch (error) {
+        console.error('Error loading videos:', error);
+        const spinner = document.getElementById('video-loading-spinner');
+        if (spinner) spinner.remove();
+    } finally {
+        isLoadingVideos = false;
+    }
+}
+
+// Add video to grid
+function addVideoToGrid(video) {
+    const videosGrid = document.getElementById('videos-grid');
+    const videoCard = document.createElement('div');
+    videoCard.className = 'video-card bg-gray-800 rounded-lg overflow-hidden cursor-pointer relative';
+    videoCard.onclick = (event) => openVideo(video.file_path, event.currentTarget);
+    videoCard.setAttribute('data-video-id', video.id);
+    videoCard.setAttribute('data-created-at', video.created_at || '');
+    videoCard.setAttribute('data-file-size', video.file_size || 0);
+    videoCard.setAttribute('data-duration', video.duration || 0);
+    
+    videoCard.innerHTML = `
+        <div class="w-full h-[500px] bg-gray-700 relative overflow-hidden rounded">
+            <!-- Video element for hover play - optimized with preload="none" -->
+            <video class="w-full h-full object-contain hover-video" preload="none" muted loop>
+                <source src="${video.file_path}" type="${video.mime_type}">
+            </video>
+            
+            <!-- Thumbnail overlay (hidden when video is playing) -->
+            ${video.thumbnail_path ? 
+                `<img class="w-full h-full object-contain thumbnail-overlay absolute top-0 left-0" 
+                      src="${video.thumbnail_path}" 
+                      alt="${video.original_filename}" 
+                      loading="lazy"
+                      decoding="async">` : 
+                `<div class="w-full h-full bg-gray-700 flex items-center justify-center thumbnail-overlay absolute top-0 left-0">
+                    <svg class="w-12 h-12 text-gray-500" fill="currentColor" viewBox="0 0 20 20">
+                        <path d="M2 6a2 2 0 012-2h6a2 2 0 012 2v8a2 2 0 01-2 2H4a2 2 0 01-2-2V6zM14.553 7.106A1 1 0 0014 8v4a1 1 0 00.553.894l2 1A1 1 0 0018 13V7a1 1 0 00-1.447-.894l-2 1z"/>
+                    </svg>
+                </div>`
+            }
+            
+            
+            <!-- People Badge -->
+            <div class="absolute top-2 left-2">
+                ${video.people && video.people.length > 0 ?
+                    `<span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                        ${video.people.length === 1 ? video.people[0].name : video.people[0].name + ' +' + (video.people.length - 1)}
+                    </span>` :
+                    `<span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-orange-100 text-orange-800">Unidentified</span>`
+                }
+            </div>
+            
+            <!-- Tags -->
+            ${video.parsed_tags && video.parsed_tags.length > 0 ?
+                `<div class="absolute bottom-2 left-2 flex flex-wrap gap-1">
+                    ${video.parsed_tags.filter(tag => tag !== 'named').map(tag => 
+                        `<span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">${tag}</span>`
+                    ).join('')}
+                </div>` : ''
+            }
+        </div>
+    `;
+    
+    videosGrid.appendChild(videoCard);
+}
+
+// Update video count display
+function updateVideoCount() {
+    const countElement = document.getElementById('video-count-num');
+    if (countElement) {
+        countElement.textContent = totalVideos || document.querySelectorAll('.video-card').length;
+    }
+}
+
+// Scroll-based loading
+function onVideoScroll() {
+    if (isLoadingVideos || !hasMoreVideos) {
+        return;
+    }
+    
+    // Trigger loading when user is within 2000px of the bottom
+    if ((window.innerHeight + window.scrollY) >= (document.body.offsetHeight - 2000)) {
+        loadMoreVideos();
+    }
+}
+
+// Initialize auto pagination
+function initializeAutoPagination() {
+    // Set up scroll listener
+    window.addEventListener('scroll', onVideoScroll, { passive: true });
+    
+    // Load initial videos
+    loadMoreVideos();
+}
+
+// Random View functionality
+let randomViewActive = false;
+let allVideosForRandom = [];
+let playedVideoIds = new Set(); // Track played videos to avoid immediate repeats
+let progressUpdateInterval = null; // Timer for updating progress indicator
+
+// Start random view mode
+async function startRandomView() {
+    if (randomViewActive) return;
+    
+    randomViewActive = true;
+    
+    // Load all videos for random viewing
+    try {
+        const response = await fetch('/api/videos?per_page=10000&sort=random');
+        const data = await response.json();
+        
+        if (data.success && data.videos && data.videos.length > 0) {
+            allVideosForRandom = data.videos;
+            playedVideoIds.clear(); // Reset played videos tracking
+            
+            // Show the random view modal
+            const modal = document.getElementById('random-view-modal');
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+            
+            // Show progress indicator
+            const progressIndicator = document.getElementById('random-progress-indicator');
+            progressIndicator.classList.remove('hidden');
+            
+            // Enter fullscreen
+            if (modal.requestFullscreen) {
+                modal.requestFullscreen().catch(e => {
+                    console.log('Fullscreen failed:', e);
+                });
+            } else if (modal.webkitRequestFullscreen) {
+                modal.webkitRequestFullscreen();
+            } else if (modal.msRequestFullscreen) {
+                modal.msRequestFullscreen();
+            }
+            
+            // Focus the modal for keyboard events
+            modal.focus();
+            
+            // Start playing a random video
+            playNextRandomVideo();
+        } else {
+            alert('No videos available for random view');
+            randomViewActive = false;
+        }
+    } catch (error) {
+        console.error('Error loading videos for random view:', error);
+        alert('Error loading videos for random view');
+        randomViewActive = false;
+    }
+}
+
+// Get a random video that hasn't been played recently
+function getRandomVideo() {
+    if (allVideosForRandom.length === 0) return null;
+    
+    // If we've played all videos, reset the played set
+    if (playedVideoIds.size >= allVideosForRandom.length) {
+        playedVideoIds.clear();
+    }
+    
+    // Filter out recently played videos
+    const availableVideos = allVideosForRandom.filter(v => !playedVideoIds.has(v.id));
+    
+    // If no available videos (shouldn't happen), use all videos
+    const videoPool = availableVideos.length > 0 ? availableVideos : allVideosForRandom;
+    
+    // Select a random video from the pool
+    const randomIndex = Math.floor(Math.random() * videoPool.length);
+    const selectedVideo = videoPool[randomIndex];
+    
+    // Mark this video as played
+    playedVideoIds.add(selectedVideo.id);
+    
+    return selectedVideo;
+}
+
+// Play the next random video
+function playNextRandomVideo() {
+    if (!randomViewActive || allVideosForRandom.length === 0) return;
+    
+    const video = getRandomVideo();
+    if (!video) {
+        console.error('No video available to play');
+        return;
+    }
+    
+    const videoElement = document.getElementById('random-view-video');
+    
+    // Clear any existing event listeners by cloning the element
+    const oldVideo = videoElement.cloneNode(false);
+    oldVideo.id = 'random-view-video';
+    oldVideo.className = 'w-full h-full object-contain';
+    oldVideo.autoplay = true;
+    oldVideo.controls = false;
+    videoElement.parentNode.replaceChild(oldVideo, videoElement);
+    
+    const newVideoElement = document.getElementById('random-view-video');
+    
+    // Load the video
+    newVideoElement.innerHTML = '';
+    const source = document.createElement('source');
+    source.src = video.file_path;
+    source.type = video.mime_type || 'video/mp4';
+    newVideoElement.appendChild(source);
+    
+    // Set up event listeners
+    newVideoElement.addEventListener('loadedmetadata', function() {
+        updateProgressIndicator();
+    }, { once: true });
+    
+    newVideoElement.addEventListener('ended', function() {
+        // When video ends, play the next random video
+        if (randomViewActive) {
+            playNextRandomVideo();
+        }
+    }, { once: true });
+    
+    newVideoElement.addEventListener('error', function() {
+        console.error('Error playing video:', video.file_path);
+        // Skip to next video on error
+        if (randomViewActive) {
+            setTimeout(() => playNextRandomVideo(), 500);
+        }
+    }, { once: true });
+    
+    // Handle space key on video element to skip
+    newVideoElement.addEventListener('keydown', function(e) {
+        if (e.key === ' ' || e.code === 'Space') {
+            e.preventDefault();
+            e.stopPropagation();
+            skipToNextRandomVideo();
+        }
+    });
+    
+    // Make video element focusable for keyboard events
+    newVideoElement.setAttribute('tabindex', '0');
+    
+    // Start playing
+    newVideoElement.play().catch(e => {
+        console.log('Autoplay failed:', e);
+        // Try again with user interaction or skip to next
+        if (randomViewActive) {
+            setTimeout(() => playNextRandomVideo(), 500);
+        }
+    });
+    
+    // Update progress indicator
+    updateProgressIndicator();
+    
+    // Start progress update timer
+    if (progressUpdateInterval) {
+        clearInterval(progressUpdateInterval);
+    }
+    progressUpdateInterval = setInterval(updateProgressIndicator, 1000);
+}
+
+// Update progress indicator
+function updateProgressIndicator() {
+    const progressElement = document.getElementById('random-video-progress');
+    if (!progressElement) return;
+    
+    const videoElement = document.getElementById('random-view-video');
+    
+    if (videoElement && videoElement.duration && !isNaN(videoElement.duration)) {
+        const currentTime = videoElement.currentTime || 0;
+        const duration = videoElement.duration;
+        
+        const formatTime = (time) => {
+            const minutes = Math.floor(time / 60);
+            const seconds = Math.floor(time % 60);
+            return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+        };
+        
+        progressElement.textContent = `${formatTime(currentTime)} / ${formatTime(duration)}`;
+    } else {
+        progressElement.textContent = '00:00 / 00:00';
+    }
+}
+
+// Skip to next random video (space key)
+function skipToNextRandomVideo() {
+    if (!randomViewActive) return;
+    
+    const videoElement = document.getElementById('random-view-video');
+    if (videoElement) {
+        videoElement.pause();
+    }
+    
+    // Play next random video
+    playNextRandomVideo();
+}
+
+// Close random view
+function closeRandomView() {
+    if (!randomViewActive) return;
+    
+    randomViewActive = false;
+    const modal = document.getElementById('random-view-modal');
+    const videoElement = document.getElementById('random-view-video');
+    const progressIndicator = document.getElementById('random-progress-indicator');
+    
+    // Exit fullscreen
+    if (document.exitFullscreen) {
+        document.exitFullscreen().catch(e => {
+            console.log('Exit fullscreen failed:', e);
+        });
+    } else if (document.webkitExitFullscreen) {
+        document.webkitExitFullscreen();
+    } else if (document.msExitFullscreen) {
+        document.msExitFullscreen();
+    }
+    
+    // Stop and clear video
+    if (videoElement) {
+        videoElement.pause();
+        videoElement.innerHTML = '';
+    }
+    
+    // Hide modal and progress indicator
+    modal.classList.add('hidden');
+    modal.classList.remove('flex');
+    if (progressIndicator) {
+        progressIndicator.classList.add('hidden');
+    }
+    
+    // Clear progress update interval
+    if (progressUpdateInterval) {
+        clearInterval(progressUpdateInterval);
+        progressUpdateInterval = null;
+    }
+    
+    // Clear played videos tracking
+    playedVideoIds.clear();
+    allVideosForRandom = [];
+}
+</script>
+{% endblock %}

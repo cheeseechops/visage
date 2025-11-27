@@ -1,0 +1,1053 @@
+{% extends "base.html" %}
+
+{% block title %}Workflow - People Viewer{% endblock %}
+
+{% block content %}
+<div class="min-h-screen bg-gray-900 text-white p-8">
+    <div class="max-w-full w-[98vw] mx-auto">
+        <!-- Header -->
+        <div class="text-center mb-8">
+            <h1 class="text-3xl font-bold text-white mb-4">Complete Workflow</h1>
+            <p class="text-gray-400">Folder → Crop → Identify → Review → Database</p>
+        </div>
+
+        <!-- Progress Bar -->
+        <div class="bg-gray-800 rounded-lg p-4 mb-6">
+            <div class="flex justify-between items-center mb-2">
+                <span id="stage-label" class="text-lg font-semibold">Select Folder</span>
+                <span id="progress-text" class="text-gray-400">0%</span>
+            </div>
+            <div class="w-full bg-gray-700 rounded-full h-3">
+                <div id="progress-bar" class="bg-blue-600 h-3 rounded-full transition-all duration-500" style="width: 0%"></div>
+            </div>
+            <div class="flex justify-between text-xs text-gray-500 mt-1">
+                <span>Folder</span>
+                <span>Crop</span>
+                <span>Identify</span>
+                <span>Review</span>
+                <span>Database</span>
+            </div>
+        </div>
+
+        <!-- Stage 1: Folder Selection -->
+        <div id="stage-folder" class="stage-content">
+            <div class="bg-gray-800 rounded-lg p-6 mb-6">
+                <h2 class="text-xl font-semibold mb-4">Step 1: Select Folder</h2>
+                <div class="flex items-center space-x-4">
+                    <input type="file" id="folder-input" webkitdirectory directory multiple class="text-gray-300">
+                </div>
+                <div id="folder-info" class="mt-4 text-gray-400"></div>
+            </div>
+        </div>
+
+        <!-- Stage 2: Cropping -->
+        <div id="stage-crop" class="stage-content hidden">
+            <div class="bg-gray-800 rounded-lg p-6 mb-6">
+                <h2 class="text-xl font-semibold mb-4">Step 2: Cropping</h2>
+                <div id="crop-progress" class="mb-4">
+                    <div class="flex justify-between items-center">
+                        <span id="crop-status">Processing images...</span>
+                        <span id="crop-counter">0 / 0</span>
+                    </div>
+                </div>
+                
+                <!-- Auto-crop results -->
+                <div id="auto-crop-results" class="hidden">
+                    <h3 class="text-lg font-medium mb-3">Auto-cropped Images</h3>
+                    <div id="auto-crops-grid" class="grid grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-6 mb-6"></div>
+                </div>
+
+                <!-- Manual crop interface -->
+                <div id="manual-crop-interface" class="hidden">
+                    <div class="flex items-center justify-between mb-4">
+                        <h3 class="text-lg font-medium">Manual Crop</h3>
+                        <div class="flex space-x-2">
+                            <button id="back-to-selection-btn" class="bg-gray-600 hover:bg-gray-700 text-white px-3 py-2 rounded text-sm">
+                                ← Back to Selection
+                            </button>
+                            <button id="save-original-btn" class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded text-sm">
+                                Save Original
+                            </button>
+                        </div>
+                    </div>
+                    <div class="flex space-x-4">
+                        <div class="flex-1">
+                            <h4 class="text-md font-medium mb-2">Original Image</h4>
+                            <div class="relative bg-gray-900 rounded border border-gray-600" style="aspect-ratio: 4/3; min-height: 400px;">
+                                <canvas id="crop-canvas" class="w-full h-full cursor-crosshair"></canvas>
+                                <div class="absolute top-2 left-2 bg-black bg-opacity-50 text-white px-2 py-1 rounded text-sm">
+                                    Draw a box to crop
+                                </div>
+                            </div>
+                        </div>
+                        <div class="flex-1">
+                            <h4 class="text-md font-medium mb-2">Preview</h4>
+                            <div class="bg-gray-900 rounded border border-gray-600 flex items-center justify-center" style="aspect-ratio: 4/3; min-height: 400px;">
+                                <img id="crop-preview" class="max-w-full max-h-full object-contain" alt="Crop Preview">
+                            </div>
+                            <div class="flex space-x-2 mt-3">
+                                <button id="confirm-crop-btn" class="bg-green-600 hover:bg-green-700 text-white px-3 py-2 rounded text-sm">
+                                    Confirm Crop
+                                </button>
+                                <button id="skip-image-btn" class="bg-gray-600 hover:bg-gray-700 text-white px-3 py-2 rounded text-sm">
+                                    Skip Image
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Multiple people selection -->
+                <div id="multi-select-interface" class="hidden">
+                    <h3 class="text-lg font-medium mb-3">Select People to Keep</h3>
+                    <div class="flex space-x-6">
+                        <div class="w-1/4">
+                            <h4 class="text-md font-medium mb-2">Original Image</h4>
+                            <div class="bg-gray-900 rounded border border-gray-600 cursor-pointer hover:border-blue-500 transition-colors relative w-full" style="aspect-ratio: 3/4;">
+                                <img id="original-image" class="w-full h-full object-contain rounded" alt="Original Image">
+                                <div class="absolute inset-0 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity bg-black bg-opacity-50 rounded">
+                                    <span class="text-white text-sm">Click to crop manually</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="w-3/4">
+                            <h4 class="text-md font-medium mb-2">Detected People</h4>
+                            <div class="flex space-x-2 mb-4" id="multi-select-controls" style="display: none;">
+                                <button id="confirm-selection-btn" class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded">
+                                    Confirm Selection
+                                </button>
+                            </div>
+                            <div id="multi-crops-grid" class="grid grid-cols-4 gap-10 w-full"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Stage 3: Identification -->
+        <div id="stage-identify" class="stage-content hidden">
+            <div class="bg-gray-800 rounded-lg p-6 mb-6">
+                <h2 class="text-xl font-semibold mb-4">Step 3: Person Identification</h2>
+                <div id="identify-progress" class="mb-4">
+                    <div class="flex justify-between items-center">
+                        <span id="identify-status">Identifying people...</span>
+                        <span id="identify-counter">0 / 0</span>
+                    </div>
+                </div>
+                
+                <div id="identify-interface" class="hidden">
+                    <div class="flex space-x-6">
+                        <div class="flex-1">
+                            <h3 class="text-lg font-medium mb-3">Current Crop</h3>
+                            <div class="bg-gray-900 rounded border border-gray-600 flex items-center justify-center" style="aspect-ratio: 4/3; min-height: 400px;">
+                                <img id="current-crop" class="max-w-full max-h-full object-contain" alt="Current Crop">
+                            </div>
+                        </div>
+                        <div class="flex-1">
+                            <h3 class="text-lg font-medium mb-3">AI Suggestions</h3>
+                            <div id="ai-suggestions" class="space-y-2 mb-4"></div>
+                            
+                            <h3 class="text-lg font-medium mb-3">Manual Entry</h3>
+                            <div class="relative">
+                                <input type="text" id="manual-name" placeholder="Enter name" class="w-full bg-gray-700 text-white px-3 py-2 rounded border border-gray-600 focus:border-blue-500 focus:outline-none">
+                                <div id="name-autocomplete" class="absolute top-full left-0 right-0 bg-gray-800 border border-gray-600 rounded-b max-h-40 overflow-y-auto hidden z-10"></div>
+                            </div>
+                            <div class="flex space-x-2 mt-2">
+                                <button id="confirm-name-btn" class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded">
+                                    Confirm
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Stage 4: Review -->
+        <div id="stage-review" class="stage-content hidden">
+            <div class="bg-gray-800 rounded-lg p-6 mb-6">
+                <h2 class="text-xl font-semibold mb-4">Step 4: Review</h2>
+                <div id="review-summary" class="mb-4 text-gray-300"></div>
+                
+                <div id="review-grid" class="grid grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-6 mb-6"></div>
+                
+                <div class="flex space-x-4">
+                    <button id="add-to-database-btn" class="bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded font-semibold">
+                        Add to Database
+                    </button>
+                    <button id="edit-review-btn" class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded">
+                        Edit
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Stage 5: Complete -->
+        <div id="stage-complete" class="stage-content hidden">
+            <div class="bg-gray-800 rounded-lg p-6 mb-6 text-center">
+                <h2 class="text-xl font-semibold mb-4">Complete!</h2>
+                <p class="text-gray-300 mb-4">All images have been processed and added to the database.</p>
+                <button id="start-new-workflow-btn" class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded font-semibold">
+                    Start New Workflow
+                </button>
+            </div>
+        </div>
+
+        <!-- Status -->
+        <div id="status" class="text-center text-gray-400 mt-4"></div>
+    </div>
+</div>
+
+<script>
+const SESSION_ID_STORAGE_KEY = 'workflow_crop_session_id_v1';
+const SESSION_IMAGE_URLS_KEY = 'workflow_crop_image_urls_v1';
+
+class WorkflowManager {
+    constructor() {
+        this.currentStage = 'folder';
+        this.imageUrls = [];
+        this.croppedImages = [];
+        this.identifiedPeople = [];
+        this.currentImageIndex = 0;
+        this.currentCropIndex = 0;
+        
+        this.initializeElements();
+        this.bindEvents();
+    }
+
+    initializeElements() {
+        this.elements = {
+            // Progress
+            stageLabel: document.getElementById('stage-label'),
+            progressBar: document.getElementById('progress-bar'),
+            progressText: document.getElementById('progress-text'),
+            
+            // Folder stage
+            folderInput: document.getElementById('folder-input'),
+            folderInfo: document.getElementById('folder-info'),
+            
+            // Crop stage
+            cropStatus: document.getElementById('crop-status'),
+            cropCounter: document.getElementById('crop-counter'),
+            autoCropsGrid: document.getElementById('auto-crops-grid'),
+            multiCropsGrid: document.getElementById('multi-crops-grid'),
+            cropCanvas: document.getElementById('crop-canvas'),
+            cropPreview: document.getElementById('crop-preview'),
+            confirmCropBtn: document.getElementById('confirm-crop-btn'),
+            skipImageBtn: document.getElementById('skip-image-btn'),
+            confirmSelectionBtn: document.getElementById('confirm-selection-btn'),
+            selectAllBtn: document.getElementById('select-all-btn'),
+            
+            // Identify stage
+            identifyStatus: document.getElementById('identify-status'),
+            identifyCounter: document.getElementById('identify-counter'),
+            currentCrop: document.getElementById('current-crop'),
+            aiSuggestions: document.getElementById('ai-suggestions'),
+            manualName: document.getElementById('manual-name'),
+            nameAutocomplete: document.getElementById('name-autocomplete'),
+            confirmNameBtn: document.getElementById('confirm-name-btn'),
+            
+            // Review stage
+            reviewSummary: document.getElementById('review-summary'),
+            reviewGrid: document.getElementById('review-grid'),
+            addToDatabaseBtn: document.getElementById('add-to-database-btn'),
+            
+            // Status
+            status: document.getElementById('status')
+        };
+    }
+
+    bindEvents() {
+        // Folder stage
+        this.elements.folderInput.addEventListener('change', (e) => this.handleFolderSelection(e));
+        
+        // Crop stage
+        this.elements.confirmCropBtn.addEventListener('click', () => this.confirmManualCrop());
+        this.elements.skipImageBtn.addEventListener('click', () => this.skipImage());
+        this.elements.confirmSelectionBtn.addEventListener('click', () => this.confirmMultiSelection());
+        this.elements.selectAllBtn.addEventListener('click', () => this.selectAllCrops());
+        document.getElementById('back-to-selection-btn').addEventListener('click', () => this.backToSelection());
+        document.getElementById('save-original-btn').addEventListener('click', () => this.saveOriginal());
+        
+        // Identify stage
+        this.elements.confirmNameBtn.addEventListener('click', () => this.confirmName());
+        this.elements.manualName.addEventListener('input', () => this.handleNameInput());
+        this.elements.manualName.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                this.confirmName();
+            }
+        });
+        
+        // Review stage
+        this.elements.addToDatabaseBtn.addEventListener('click', () => this.addToDatabase());
+        
+        // Canvas events
+        this.elements.cropCanvas.addEventListener('mousedown', (e) => this.startCropSelection(e));
+        this.elements.cropCanvas.addEventListener('mousemove', (e) => this.updateCropSelection(e));
+        this.elements.cropCanvas.addEventListener('mouseup', (e) => this.endCropSelection(e));
+        
+        // Hide autocomplete when clicking outside
+        document.addEventListener('click', (e) => {
+            if (!this.elements.manualName.contains(e.target) && !this.elements.nameAutocomplete.contains(e.target)) {
+                this.elements.nameAutocomplete.classList.add('hidden');
+            }
+        });
+    }
+
+    async handleFolderSelection(event) {
+        const files = Array.from(event.target.files);
+        if (!files.length) return;
+        
+        // Show immediate feedback
+        this.updateStatus(`Uploading ${files.length} images...`, 'info');
+        this.updateProgress(5, 'Uploading');
+        
+        // Immediately upload all files to the server
+        const formData = new FormData();
+        files.forEach(f => formData.append('files', f));
+        const resp = await fetch('/api/upload_temp', { method: 'POST', body: formData });
+        const data = await resp.json();
+        if (!data.success) {
+            this.updateStatus('Upload failed: ' + (data.error || 'Unknown error'), 'error');
+            return;
+        }
+        
+        // Store session_id and image URLs
+        localStorage.setItem(SESSION_ID_STORAGE_KEY, data.session_id);
+        localStorage.setItem(SESSION_IMAGE_URLS_KEY, JSON.stringify(data.urls));
+        this.sessionId = data.session_id;
+        this.imageUrls = data.urls;
+        
+        // Show processing feedback with detailed progress
+        this.updateStatus(`Processing ${data.urls.length} images with AI detection...`, 'info');
+        this.updateProgress(15, 'Processing');
+        
+        // Update crop counter to show progress
+        this.elements.cropCounter.textContent = `0 / ${data.urls.length}`;
+        this.elements.cropStatus.textContent = 'Running AI detection...';
+        
+        // Batch process for queue
+        const batchResp = await fetch('/api/yolo/batch_process', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ image_urls: this.imageUrls })
+        });
+        const batchData = await batchResp.json();
+        if (!batchData.success) {
+            this.updateStatus('Batch processing failed: ' + (batchData.error || 'Unknown error'), 'error');
+            return;
+        }
+        
+        this.userInputQueue = batchData.queue;
+        this.currentQueueIndex = 0;
+        this.saveCropStageState();
+        
+        if (this.userInputQueue.length === 0) {
+            this.updateStatus('All images processed automatically! No manual cropping needed.', 'success');
+            this.updateProgress(40, 'Identify');
+            this.showStage('identify');
+            await this.processIdentification();
+        } else {
+            this.updateStatus(`${this.userInputQueue.length} images need manual review`, 'info');
+            this.updateProgress(20, 'Crop');
+            this.showStage('crop');
+            await this.processUserInputQueue();
+        }
+    }
+
+    async processUserInputQueue() {
+        while (this.currentQueueIndex < this.userInputQueue.length) {
+            const item = this.userInputQueue[this.currentQueueIndex];
+            this.currentOriginalImagePath = item.image_url;
+            // Show multi-selection or manual crop as needed
+            if (item.persons_found === 0) {
+                await this.showManualCrop(item.image_url);
+            } else {
+                await this.showMultiSelection(item.crops, item.cropped_paths, item.image_url);
+            }
+            this.currentQueueIndex++;
+            this.saveCropStageState();
+        }
+        // Done with queue
+        this.updateProgress(40, 'Identify');
+        this.showStage('identify');
+        await this.processIdentification();
+    }
+
+    async processImageUrl(imageUrl) {
+        const formData = new FormData();
+        formData.append('image_url', imageUrl);
+        const response = await fetch('/api/yolo/process_url', {
+            method: 'POST',
+            body: formData
+        });
+        return await response.json();
+    }
+
+    async showManualCrop(imageUrl) {
+        return new Promise((resolve) => {
+            document.getElementById('manual-crop-interface').classList.remove('hidden');
+            
+            // Load image into canvas
+            const img = new Image();
+            img.onload = () => {
+                this.setupCanvas(img);
+                this.currentOriginalImagePath = img.src; // Store as data URL for manual crops
+                this.resolveManualCrop = resolve;
+            };
+            img.src = imageUrl;
+        });
+    }
+
+    setupCanvas(img) {
+        const canvas = this.elements.cropCanvas;
+        const ctx = canvas.getContext('2d');
+        
+        // Get the container dimensions
+        const container = canvas.parentElement;
+        const containerWidth = container.clientWidth;
+        const containerHeight = container.clientHeight;
+        
+        // Calculate scale to fit image in container while maintaining aspect ratio
+        const scaleX = containerWidth / img.width;
+        const scaleY = containerHeight / img.height;
+        const scale = Math.min(scaleX, scaleY);
+        
+        // Set canvas size to match scaled image
+        canvas.width = img.width * scale;
+        canvas.height = img.height * scale;
+        
+        // Clear canvas and draw scaled image
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        
+        this.canvasImage = img;
+        this.canvasScale = scale;
+        this.originalImageWidth = img.width;
+        this.originalImageHeight = img.height;
+    }
+
+    startCropSelection(event) {
+        const rect = this.elements.cropCanvas.getBoundingClientRect();
+        this.cropStart = {
+            x: event.clientX - rect.left,
+            y: event.clientY - rect.top
+        };
+        this.isCropping = true;
+        this.elements.cropCanvas.style.cursor = 'crosshair';
+    }
+
+    updateCropSelection(event) {
+        if (!this.isCropping) return;
+        
+        const rect = this.elements.cropCanvas.getBoundingClientRect();
+        const currentPos = {
+            x: event.clientX - rect.left,
+            y: event.clientY - rect.top
+        };
+        
+        this.drawCropSelection(currentPos);
+        this.updateCropPreview(currentPos);
+    }
+
+    endCropSelection(event) {
+        if (!this.isCropping) return;
+        
+        const rect = this.elements.cropCanvas.getBoundingClientRect();
+        const endPos = {
+            x: event.clientX - rect.left,
+            y: event.clientY - rect.top
+        };
+        
+        this.isCropping = false;
+        this.cropEnd = endPos;
+        this.elements.cropCanvas.style.cursor = 'crosshair';
+        this.updateCropPreview(endPos);
+    }
+
+    drawCropSelection(currentPos) {
+        const canvas = this.elements.cropCanvas;
+        const ctx = canvas.getContext('2d');
+        
+        // Redraw the original image
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.drawImage(this.canvasImage, 0, 0, canvas.width, canvas.height);
+        
+        const x = Math.min(this.cropStart.x, currentPos.x);
+        const y = Math.min(this.cropStart.y, currentPos.y);
+        const width = Math.abs(currentPos.x - this.cropStart.x);
+        const height = Math.abs(currentPos.y - this.cropStart.y);
+        
+        // Only draw if we have a meaningful selection
+        if (width > 5 && height > 5) {
+            ctx.strokeStyle = '#4CAF50';
+            ctx.lineWidth = 2;
+            ctx.strokeRect(x, y, width, height);
+            
+            ctx.fillStyle = 'rgba(76, 175, 80, 0.2)';
+            ctx.fillRect(x, y, width, height);
+        }
+    }
+
+    updateCropPreview(currentPos) {
+        if (!this.cropStart) return;
+        
+        const canvas = this.elements.cropCanvas;
+        const x = Math.min(this.cropStart.x, currentPos.x);
+        const y = Math.min(this.cropStart.y, currentPos.y);
+        const width = Math.abs(currentPos.x - this.cropStart.x);
+        const height = Math.abs(currentPos.y - this.cropStart.y);
+        
+        // Only update if we have a meaningful selection
+        if (width > 5 && height > 5) {
+            const previewCanvas = document.createElement('canvas');
+            const previewCtx = previewCanvas.getContext('2d');
+            
+            // Calculate original image coordinates
+            const origX = x / this.canvasScale;
+            const origY = y / this.canvasScale;
+            const origWidth = width / this.canvasScale;
+            const origHeight = height / this.canvasScale;
+            
+            previewCanvas.width = origWidth;
+            previewCanvas.height = origHeight;
+            
+            previewCtx.drawImage(
+                this.canvasImage,
+                origX, origY, origWidth, origHeight,
+                0, 0, origWidth, origHeight
+            );
+            
+            this.elements.cropPreview.src = previewCanvas.toDataURL();
+        }
+    }
+
+    confirmManualCrop() {
+        if (!this.cropStart || !this.cropEnd) return;
+        
+        // Save the manual crop
+        this.croppedImages.push({
+            image: this.elements.cropPreview.src,
+            original: this.currentOriginalImagePath,
+            confidence: 1.0,
+            manual: true
+        });
+        
+        document.getElementById('manual-crop-interface').classList.add('hidden');
+        this.resolveManualCrop();
+        this.saveCropStageState();
+    }
+
+    skipImage() {
+        document.getElementById('manual-crop-interface').classList.add('hidden');
+        this.resolveManualCrop();
+        this.saveCropStageState();
+    }
+
+    async showMultiSelection(crops, cropPaths, originalName) {
+        return new Promise((resolve) => {
+            this.elements.multiCropsGrid.innerHTML = '';
+            this.selectedCrops = [];
+            this.currentCrops = crops;
+            this.currentCropPaths = cropPaths;
+            this.currentOriginalName = originalName;
+            this.multiSelectMode = false;
+            const controls = document.getElementById('multi-select-controls');
+            controls.style.display = 'none';
+            // Always set the original image src to the correct URL
+            const originalImage = document.getElementById('original-image');
+            originalImage.src = this.currentOriginalImagePath;
+            originalImage.onclick = () => this.showManualCropFromSelection();
+            // Keyboard handlers
+            const keyHandler = (e) => {
+                if (this.multiSelectMode && (e.key === 'a' || e.key === 'A')) {
+                    // Select all and advance
+                    this.selectedCrops = Array.from({length: crops.length}, (_, i) => i);
+                    Array.from(this.elements.multiCropsGrid.children).forEach((div, idx) => {
+                        div.classList.add('ring-2', 'ring-green-500');
+                    });
+                    controls.style.display = '';
+                    // Immediately confirm and advance
+                    this.selectedCrops.forEach(index => {
+                        this.croppedImages.push({
+                            image: this.currentCropPaths[index],
+                            original: this.currentOriginalName,
+                            confidence: this.currentCrops[index].confidence
+                        });
+                    });
+                    document.getElementById('multi-select-interface').classList.add('hidden');
+                    document.removeEventListener('keydown', keyHandler);
+                    resolve();
+                } else if (this.multiSelectMode && e.key === 'Enter' && this.selectedCrops.length > 1) {
+                    // Confirm selection with Enter
+                    this.selectedCrops.forEach(index => {
+                        this.croppedImages.push({
+                            image: this.currentCropPaths[index],
+                            original: this.currentOriginalName,
+                            confidence: this.currentCrops[index].confidence
+                        });
+                    });
+                    document.getElementById('multi-select-interface').classList.add('hidden');
+                    document.removeEventListener('keydown', keyHandler);
+                    resolve();
+                }
+            };
+            document.addEventListener('keydown', keyHandler);
+            
+            crops.forEach((crop, index) => {
+                const cropDiv = document.createElement('div');
+                cropDiv.className = 'bg-gray-700 rounded p-2 cursor-pointer hover:bg-gray-600 transition-colors min-w-0 w-full';
+                cropDiv.innerHTML = `
+                    <div class="bg-gray-900 rounded flex items-center justify-center relative overflow-hidden w-full" style="aspect-ratio: 3/4;">
+                        <img src="${cropPaths[index]}" class="object-contain w-full h-full" alt="Crop ${index + 1}">
+                    </div>
+                `;
+                cropDiv.addEventListener('click', (e) => {
+                    if (e.shiftKey) {
+                        // Multi-select mode
+                        this.multiSelectMode = true;
+                        if (this.selectedCrops.includes(index)) {
+                            this.selectedCrops = this.selectedCrops.filter(i => i !== index);
+                            cropDiv.classList.remove('ring-2', 'ring-green-500');
+                        } else {
+                            this.selectedCrops.push(index);
+                            cropDiv.classList.add('ring-2', 'ring-green-500');
+                        }
+                        // Show controls if more than one selected
+                        if (this.selectedCrops.length > 1) {
+                            controls.style.display = '';
+                        } else {
+                            controls.style.display = 'none';
+                        }
+                    } else {
+                        // Single select: auto-advance
+                        this.selectedCrops = [index];
+                        cropDiv.classList.add('ring-2', 'ring-green-500');
+                        controls.style.display = 'none';
+                        // Add crop and resolve immediately
+                        this.croppedImages.push({
+                            image: this.currentCropPaths[index],
+                            original: this.currentOriginalName,
+                            confidence: this.currentCrops[index].confidence
+                        });
+                        document.getElementById('multi-select-interface').classList.add('hidden');
+                        document.removeEventListener('keydown', keyHandler);
+                        resolve();
+                    }
+                });
+                this.elements.multiCropsGrid.appendChild(cropDiv);
+            });
+            // Confirm only in multi-select mode
+            controls.querySelector('#confirm-selection-btn').onclick = () => {
+                this.selectedCrops.forEach(index => {
+                    this.croppedImages.push({
+                        image: this.currentCropPaths[index],
+                        original: this.currentOriginalName,
+                        confidence: this.currentCrops[index].confidence
+                    });
+                });
+                document.getElementById('multi-select-interface').classList.add('hidden');
+                document.removeEventListener('keydown', keyHandler);
+                resolve();
+            };
+            document.getElementById('multi-select-interface').classList.remove('hidden');
+            this.resolveMultiSelection = resolve;
+        });
+    }
+
+    selectAllCrops() {
+        // Clear current selection first
+        this.selectedCrops = [];
+        const cropDivs = this.elements.multiCropsGrid.querySelectorAll('div');
+        
+        // Select all by simulating clicks
+        cropDivs.forEach((div, index) => {
+            this.selectedCrops.push(index);
+            div.classList.add('ring-2', 'ring-green-500');
+        });
+        this.saveCropStageState();
+    }
+
+    showManualCropFromSelection() {
+        // Hide multi-select interface
+        document.getElementById('multi-select-interface').classList.add('hidden');
+        
+        // Show manual crop interface
+        document.getElementById('manual-crop-interface').classList.remove('hidden');
+        
+        // Load the original image into canvas
+        const img = new Image();
+        img.onload = () => {
+            this.setupCanvas(img);
+            this.currentOriginalImagePath = img.src; // Keep the current URL
+        };
+        img.src = this.currentOriginalImagePath;
+        this.saveCropStageState();
+    }
+
+    backToSelection() {
+        // Hide manual crop interface
+        document.getElementById('manual-crop-interface').classList.add('hidden');
+        
+        // Show multi-select interface
+        document.getElementById('multi-select-interface').classList.remove('hidden');
+        this.saveCropStageState();
+    }
+
+    saveOriginal() {
+        // Add the original image as a crop
+        this.croppedImages.push({
+            image: this.currentOriginalImagePath,
+            original: this.currentOriginalImagePath,
+            confidence: 1.0,
+            manual: true,
+            isOriginal: true
+        });
+        
+        // Hide manual crop interface
+        document.getElementById('manual-crop-interface').classList.add('hidden');
+        
+        // If we came from multi-select, go back there, otherwise resolve
+        if (this.resolveMultiSelection) {
+            document.getElementById('multi-select-interface').classList.remove('hidden');
+        } else {
+            this.resolveManualCrop();
+        }
+        this.saveCropStageState();
+    }
+
+    confirmMultiSelection() {
+        // Add selected crops
+        this.selectedCrops.forEach(index => {
+            this.croppedImages.push({
+                image: this.currentCropPaths[index],
+                original: this.currentOriginalName,
+                confidence: this.currentCrops[index].confidence
+            });
+        });
+        
+        document.getElementById('multi-select-interface').classList.add('hidden');
+        this.resolveMultiSelection();
+        this.saveCropStageState();
+    }
+
+    showAutoCropResults() {
+        this.elements.autoCropsGrid.innerHTML = '';
+        
+        this.croppedImages.forEach((crop, index) => {
+            const cropDiv = document.createElement('div');
+            cropDiv.className = 'bg-gray-700 rounded p-2';
+            cropDiv.innerHTML = `
+                <div class="bg-gray-900 rounded mb-2" style="aspect-ratio: 4/3; min-height: 200px;">
+                    <img src="${crop.image}" class="w-full h-full object-contain rounded" alt="Crop ${index + 1}">
+                </div>
+                <div class="text-xs text-gray-400 text-center">
+                    ${crop.original}
+                </div>
+            `;
+            this.elements.autoCropsGrid.appendChild(cropDiv);
+        });
+        
+        document.getElementById('auto-crop-results').classList.remove('hidden');
+        this.saveCropStageState();
+    }
+
+    async processIdentification() {
+        this.elements.identifyStatus.textContent = 'Identifying people...';
+        
+        for (let i = 0; i < this.croppedImages.length; i++) {
+            this.currentCropIndex = i;
+            this.elements.identifyCounter.textContent = `${i + 1} / ${this.croppedImages.length}`;
+            
+            await this.identifyPerson(this.croppedImages[i]);
+        }
+        
+        this.updateProgress(60, 'Review');
+        this.showStage('review');
+        this.showReview();
+        this.saveCropStageState();
+    }
+
+    async identifyPerson(crop) {
+        return new Promise((resolve) => {
+            this.elements.currentCrop.src = crop.image;
+            document.getElementById('identify-interface').classList.remove('hidden');
+            
+            // Get AI suggestions
+            this.getAISuggestions(crop.image);
+            
+            this.resolveIdentification = (name) => {
+                this.identifiedPeople.push({
+                    ...crop,
+                    name: name
+                });
+                document.getElementById('identify-interface').classList.add('hidden');
+                resolve();
+            };
+        });
+    }
+
+    async getAISuggestions(imageUrl) {
+        try {
+            // Clear previous suggestions
+            this.elements.aiSuggestions.innerHTML = '<div class="text-gray-400 text-sm">Loading suggestions...</div>';
+            
+            const response = await fetch(`/api/face_suggestions/${encodeURIComponent(imageUrl)}`);
+            const result = await response.json();
+            
+            this.elements.aiSuggestions.innerHTML = '';
+            
+            if (result.success && result.suggestions && result.suggestions.length > 0) {
+                result.suggestions.forEach(suggestion => {
+                    const suggestionDiv = document.createElement('div');
+                    suggestionDiv.className = 'bg-gray-700 rounded p-2 cursor-pointer hover:bg-gray-600 transition-colors';
+                    suggestionDiv.textContent = `${suggestion.name} (${(suggestion.confidence * 100).toFixed(1)}%)`;
+                    suggestionDiv.addEventListener('click', () => {
+                        this.elements.manualName.value = suggestion.name;
+                        this.elements.manualName.focus();
+                    });
+                    this.elements.aiSuggestions.appendChild(suggestionDiv);
+                });
+            } else {
+                this.elements.aiSuggestions.innerHTML = '<div class="text-gray-400 text-sm">No AI suggestions available</div>';
+            }
+        } catch (error) {
+            console.error('Error getting AI suggestions:', error);
+            this.elements.aiSuggestions.innerHTML = '<div class="text-red-400 text-sm">Error loading suggestions</div>';
+        }
+    }
+
+    async handleNameInput() {
+        const inputValue = this.elements.manualName.value.trim();
+        const autocompleteList = this.elements.nameAutocomplete;
+        autocompleteList.innerHTML = ''; // Clear previous suggestions
+
+        if (inputValue.length > 0) {
+            // Get existing people from the database for autocomplete
+            try {
+                const response = await fetch('/api/people');
+                const result = await response.json();
+                
+                if (result.success && result.people) {
+                    const suggestions = result.people
+                        .filter(person => person.name.toLowerCase().includes(inputValue.toLowerCase()))
+                        .sort((a, b) => b.image_count - a.image_count) // Sort by image count
+                        .slice(0, 5); // Limit to 5 suggestions
+
+                    if (suggestions.length > 0) {
+                        suggestions.forEach(suggestion => {
+                            const suggestionDiv = document.createElement('div');
+                            suggestionDiv.className = 'px-3 py-2 cursor-pointer hover:bg-gray-600 transition-colors text-sm';
+                            suggestionDiv.textContent = `${suggestion.name} (${suggestion.image_count} images)`;
+                            suggestionDiv.addEventListener('click', () => {
+                                this.elements.manualName.value = suggestion.name;
+                                autocompleteList.classList.add('hidden');
+                                this.elements.manualName.focus();
+                            });
+                            autocompleteList.appendChild(suggestionDiv);
+                        });
+                        autocompleteList.classList.remove('hidden');
+                    } else {
+                        autocompleteList.classList.add('hidden');
+                    }
+                }
+            } catch (error) {
+                console.error('Error loading people for autocomplete:', error);
+                autocompleteList.classList.add('hidden');
+            }
+        } else {
+            autocompleteList.classList.add('hidden');
+        }
+    }
+
+    confirmName() {
+        const name = this.elements.manualName.value.trim();
+        if (name) {
+            this.resolveIdentification(name);
+            this.elements.manualName.value = '';
+        } else {
+            // Show error if no name entered
+            this.elements.manualName.classList.add('border-red-500');
+            setTimeout(() => {
+                this.elements.manualName.classList.remove('border-red-500');
+            }, 2000);
+        }
+        this.saveCropStageState();
+    }
+
+    showReview() {
+        this.elements.reviewSummary.textContent = `Review ${this.identifiedPeople.length} identified people`;
+        
+        this.elements.reviewGrid.innerHTML = '';
+        this.identifiedPeople.forEach((person, index) => {
+            const personDiv = document.createElement('div');
+            personDiv.className = 'bg-gray-700 rounded p-2';
+            personDiv.innerHTML = `
+                <div class="bg-gray-900 rounded mb-2" style="aspect-ratio: 4/3; min-height: 200px;">
+                    <img src="${person.image}" class="w-full h-full object-contain rounded" alt="${person.name}">
+                </div>
+                <div class="text-sm text-white text-center mb-1">${person.name}</div>
+                <div class="text-xs text-gray-400 text-center">${person.original}</div>
+            `;
+            this.elements.reviewGrid.appendChild(personDiv);
+        });
+        this.saveCropStageState();
+    }
+
+    async addToDatabase() {
+        this.updateProgress(80, 'Database');
+        
+        try {
+            // Add each person to the database
+            for (const person of this.identifiedPeople) {
+                await this.addPersonToDatabase(person);
+            }
+            
+            this.updateProgress(100, 'Complete');
+            this.showStage('complete');
+        } catch (error) {
+            this.updateStatus(`Error adding to database: ${error.message}`, 'error');
+        }
+        this.saveCropStageState();
+    }
+
+    async addPersonToDatabase(person) {
+        try {
+            const response = await fetch('/api/workflow/add_person', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    name: person.name,
+                    image_path: person.image,
+                    original_filename: person.original
+                })
+            });
+            
+            const result = await response.json();
+            if (!result.success) {
+                throw new Error(result.error);
+            }
+            
+            return result;
+        } catch (error) {
+            console.error('Error adding person to database:', error);
+            throw error;
+        }
+    }
+
+    showStage(stage) {
+        // Hide all stages
+        document.querySelectorAll('.stage-content').forEach(el => el.classList.add('hidden'));
+        
+        // Show current stage
+        document.getElementById(`stage-${stage}`).classList.remove('hidden');
+        this.currentStage = stage;
+    }
+
+    updateProgress(percentage, stage) {
+        this.elements.progressBar.style.width = `${percentage}%`;
+        this.elements.progressText.textContent = `${percentage}%`;
+        this.elements.stageLabel.textContent = stage;
+    }
+
+    updateStatus(message, type = 'info') {
+        const colors = {
+            info: 'text-gray-400',
+            success: 'text-green-400',
+            error: 'text-red-400'
+        };
+        
+        this.elements.status.className = `text-center ${colors[type]} mt-4`;
+        this.elements.status.textContent = message;
+        
+        setTimeout(() => {
+            this.elements.status.textContent = '';
+        }, 5000);
+    }
+
+    async saveCropStageState() {
+        localStorage.setItem(SESSION_ID_STORAGE_KEY, this.sessionId);
+        localStorage.setItem(SESSION_IMAGE_URLS_KEY, JSON.stringify(this.imageUrls));
+        if (this.sessionId) {
+            const progress = {
+                currentQueueIndex: this.currentQueueIndex,
+                userInputQueue: this.userInputQueue,
+                croppedImages: this.croppedImages,
+                identifiedPeople: this.identifiedPeople,
+                currentStage: this.currentStage
+            };
+            await fetch(`/api/crop_progress/${this.sessionId}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(progress)
+            });
+        }
+    }
+
+    async loadCropStageState() {
+        const sessionId = localStorage.getItem(SESSION_ID_STORAGE_KEY);
+        const urlsStr = localStorage.getItem(SESSION_IMAGE_URLS_KEY);
+        if (!sessionId || !urlsStr) return null;
+        try {
+            const resp = await fetch(`/api/crop_progress/${sessionId}`);
+            const data = await resp.json();
+            let progress = {};
+            if (data.success && data.progress) progress = data.progress;
+            return {
+                sessionId,
+                imageUrls: JSON.parse(urlsStr),
+                currentQueueIndex: progress.currentQueueIndex || 0,
+                userInputQueue: progress.userInputQueue || [],
+                croppedImages: progress.croppedImages || [],
+                identifiedPeople: progress.identifiedPeople || [],
+                currentStage: progress.currentStage || 'crop'
+            };
+        } catch {
+            return null;
+        }
+    }
+
+    clearCropStageState() {
+        localStorage.removeItem(SESSION_ID_STORAGE_KEY);
+        localStorage.removeItem(SESSION_IMAGE_URLS_KEY);
+    }
+}
+
+// Initialize when page loads
+document.addEventListener('DOMContentLoaded', async () => {
+    const manager = new WorkflowManager();
+    const saved = await manager.loadCropStageState();
+    if (saved) {
+        manager.sessionId = saved.sessionId;
+        manager.imageUrls = saved.imageUrls;
+        manager.userInputQueue = saved.userInputQueue || [];
+        manager.currentQueueIndex = saved.currentQueueIndex || 0;
+        manager.croppedImages = saved.croppedImages || [];
+        manager.identifiedPeople = saved.identifiedPeople || [];
+        manager.currentStage = saved.currentStage || 'crop';
+        
+        // Show the appropriate stage
+        manager.showStage(manager.currentStage);
+        
+        // Update progress based on current stage
+        if (manager.currentStage === 'crop') {
+            manager.updateProgress(20, 'Crop');
+            if (manager.userInputQueue.length > 0) {
+                manager.updateStatus(`Resuming workflow: ${manager.userInputQueue.length - manager.currentQueueIndex} images remaining`, 'info');
+                await manager.processUserInputQueue();
+            }
+        } else if (manager.currentStage === 'identify') {
+            manager.updateProgress(40, 'Identify');
+            manager.updateStatus('Resuming identification...', 'info');
+            await manager.processIdentification();
+        } else if (manager.currentStage === 'review') {
+            manager.updateProgress(60, 'Review');
+            manager.updateStatus('Resuming review...', 'info');
+            manager.showReview();
+        }
+    }
+});
+</script>
+{% endblock %} 

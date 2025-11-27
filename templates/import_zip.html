@@ -1,0 +1,128 @@
+{% extends 'base.html' %}
+{% block content %}
+<style>
+  .dark-card {
+    background: #181a20;
+    border: 1px solid #23263a;
+    color: #e5e7eb;
+  }
+  .dark-card .bg-white, .dark-card .bg-white\/80 { background: #23263a !important; }
+  .dark-card .text-gray-900, .dark-card .text-gray-700, .dark-card .text-gray-600 { color: #e5e7eb !important; }
+  .dark-card .bg-blue-100 { background: #1e293b !important; color: #60a5fa !important; }
+  .dark-card .text-blue-700 { color: #60a5fa !important; }
+  .dark-card .text-blue-500 { color: #60a5fa !important; }
+  .dark-card .bg-blue-50 { background: #23263a !important; }
+  .dark-card .border-blue-100 { border-color: #23263a !important; }
+  .dark-card .border-blue-200 { border-color: #23263a !important; }
+  .dark-card .bg-green-100 { background: #234d20 !important; color: #a7f3d0 !important; }
+  .dark-card .text-green-800 { color: #6ee7b7 !important; }
+  .dark-card .bg-red-100 { background: #3b1d1d !important; color: #f87171 !important; }
+  .dark-card .text-red-800 { color: #f87171 !important; }
+  .dark-card .shadow-xl { box-shadow: 0 4px 24px 0 rgba(0,0,0,0.35); }
+  .dark-card .rounded-2xl { border-radius: 1.25rem; }
+  .dark-card .rounded-xl { border-radius: 0.75rem; }
+  .dark-card .rounded-lg { border-radius: 0.5rem; }
+  .dark-card .text-indigo-700 { color: #a5b4fc !important; }
+  .dark-card .text-indigo-600 { color: #818cf8 !important; }
+  .dark-card .text-indigo-500 { color: #6366f1 !important; }
+  .dark-card .bg-gradient-to-br { background: linear-gradient(135deg, #181a20 0%, #23263a 100%) !important; }
+  .dark-card .bg-gradient-to-r { background: linear-gradient(90deg, #6366f1 0%, #818cf8 100%) !important; }
+  .dark-card .bg-blue-400 { background: #60a5fa !important; }
+  .dark-card .text-white { color: #e5e7eb !important; }
+</style>
+<div class="flex justify-center items-center min-h-[70vh] bg-gradient-to-br from-gray-900 to-gray-800 py-8">
+  <div class="dark-card shadow-xl rounded-2xl p-8 w-full max-w-lg border border-blue-100">
+    <div class="flex flex-col items-center mb-6">
+      <div class="bg-blue-100 rounded-full p-4 mb-2">
+        <svg class="w-10 h-10 text-blue-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-14 0h14" /></svg>
+      </div>
+      <h1 class="text-3xl font-extrabold text-blue-700 mb-1">Import Zip File</h1>
+      <p class="text-gray-400 text-center max-w-xs">Upload a zip file containing images. All images will be extracted and auto-tagged as <span class="font-semibold text-indigo-700">uncropped</span> for later processing.</p>
+    </div>
+    <form method="POST" enctype="multipart/form-data" id="import-form" class="space-y-6">
+      <div>
+        <label class="block font-semibold mb-2 text-blue-700">Select Zip File</label>
+        <label for="zip_file" class="flex flex-col items-center justify-center border-2 border-dashed border-blue-300 bg-blue-50 hover:bg-blue-100 transition rounded-xl py-8 cursor-pointer group">
+          <svg class="w-12 h-12 text-blue-400 group-hover:text-blue-600 mb-2" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-14 0h14" /></svg>
+          <span class="text-blue-700 font-medium">Click to choose a zip file</span>
+          <input type="file" name="zip_file" id="zip_file" accept=".zip" required class="hidden"/>
+        </label>
+        <p class="text-xs text-gray-500 mt-2 text-center">Supported formats: PNG, JPG, JPEG, GIF, BMP, WEBP (max 16MB zip file, max 1000 images)</p>
+        <div id="file-info" class="mt-4 text-sm text-gray-400 hidden bg-blue-50 border border-blue-200 rounded-lg p-3"></div>
+        <div id="loading-indicator" class="mt-4 text-center hidden">
+          <span class="inline-block animate-spin rounded-full h-6 w-6 border-t-2 border-b-2 border-blue-500 align-middle"></span>
+          <span class="ml-2 text-blue-700 font-semibold">Processing zip file, please wait...</span>
+        </div>
+      </div>
+      <div class="flex justify-between items-center">
+        <a href="{{ url_for('import_workflow') }}" class="text-blue-500 hover:text-blue-400 text-sm">
+          ← Back to Import Options
+        </a>
+        <button type="submit" id="submit-btn" class="bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2 px-6 rounded-lg transition disabled:opacity-50 disabled:cursor-not-allowed">
+          Import Images
+        </button>
+      </div>
+    </form>
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        <div class="mt-6">
+          {% for category, message in messages %}
+            <div class="flex items-center p-3 mb-2 rounded-xl animate-fade-in-fast {{ 'bg-green-100 text-green-800 border border-green-200' if category == 'success' else 'bg-red-100 text-red-800 border border-red-200' }}">
+              {% if category == 'success' %}
+                <svg class="w-6 h-6 mr-2 text-green-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" /></svg>
+              {% else %}
+                <svg class="w-6 h-6 mr-2 text-red-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+              {% endif %}
+              <span>{{ message }}</span>
+            </div>
+          {% endfor %}
+        </div>
+      {% endif %}
+    {% endwith %}
+  </div>
+</div>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  const input = document.getElementById('zip_file');
+  const infoDiv = document.getElementById('file-info');
+  const form = document.getElementById('import-form');
+  const loading = document.getElementById('loading-indicator');
+  const submitBtn = document.getElementById('submit-btn');
+  
+  input.addEventListener('change', function() {
+    if (!input.files || input.files.length === 0) {
+      infoDiv.classList.add('hidden');
+      infoDiv.innerHTML = '';
+      submitBtn.disabled = true;
+      return;
+    }
+    
+    const file = input.files[0];
+    const fileSize = (file.size / 1024 / 1024).toFixed(2);
+    
+    infoDiv.innerHTML = `
+      <div><strong>Selected file:</strong> ${file.name}</div>
+      <div><strong>File size:</strong> ${fileSize} MB</div>
+      <div><strong>File type:</strong> ${file.type || 'application/zip'}</div>
+    `;
+    infoDiv.classList.remove('hidden');
+    submitBtn.disabled = false;
+  });
+  
+  form.addEventListener('submit', function() {
+    loading.classList.remove('hidden');
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'Processing...';
+  });
+});
+</script>
+<style>
+@keyframes fade-in-fast {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: none; }
+}
+.animate-fade-in-fast { animation: fade-in-fast 0.4s cubic-bezier(.4,0,.2,1) both; }
+.animate-spin { animation: spin 1s linear infinite; }
+@keyframes spin { 100% { transform: rotate(360deg); } }
+</style>
+{% endblock %} 

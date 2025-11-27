@@ -1,0 +1,91 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+venv_py311/
+.venv/
+env/
+ENV/
+*.egg-info/
+dist/
+build/
+
+# Node.js
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+package-lock.json
+
+# Database files
+*.db
+*.db-shm
+*.db-wal
+instance/
+visage.db
+face_crops.db
+phash_cache.db
+
+# Media files (too large for git)
+static/uploads/**
+!static/uploads/.gitkeep
+static/thumbnails/**
+!static/thumbnails/.gitkeep
+static/videos/**
+!static/videos/.gitkeep
+face_crops/**
+!face_crops/.gitkeep
+face_database/**
+!face_database/.gitkeep
+collage_cache/**
+
+# Model files (very large)
+*.pt
+*.pth
+*.onnx
+*.pkl
+*.npy
+deepfashion2_*.pt
+yolov8*.pt
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Logs
+*.log
+*.txt
+!requirements.txt
+!README*.txt
+
+# Temporary files
+*.tmp
+*.temp
+*.bak
+*.backup
+
+# OneDrive
+~$*
+
+# Large data directories
+fitpexport/
+v/
+Vids/
+visage-v2/data/
+

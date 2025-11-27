@@ -1,0 +1,1005 @@
+{% extends "base.html" %}
+
+{% block title %}Color Editor - Image {{ image.id }}{% endblock %}
+
+{% block content %}
+<style>
+  .dark-card {
+    background: #181a20;
+    border: 1px solid #23263a;
+    color: #e5e7eb;
+  }
+  .dark-card .bg-white, .dark-card .bg-white\/80, .dark-card .bg-gray-50 { background: #23263a !important; }
+  .dark-card .text-gray-900, .dark-card .text-gray-700, .dark-card .text-gray-600 { color: #e5e7eb !important; }
+  .dark-card .bg-green-100 { background: #234d20 !important; color: #a7f3d0 !important; }
+  .dark-card .bg-orange-100 { background: #4b2e05 !important; color: #fdba74 !important; }
+  .dark-card .bg-blue-100 { background: #1e293b !important; color: #60a5fa !important; }
+  .dark-card .text-blue-800 { color: #60a5fa !important; }
+  .dark-card .text-green-800 { color: #6ee7b7 !important; }
+  .dark-card .text-orange-800 { color: #fdba74 !important; }
+  .dark-card .shadow-sm { box-shadow: 0 2px 8px 0 rgba(0,0,0,0.25); }
+  .dark-card .border-gray-200, .dark-card .border-gray-300 { border-color: #23263a !important; }
+  .dark-card .border { border-color: #23263a !important; }
+  .dark-card .rounded { border-radius: 0.75rem; }
+  .dark-card .bg-primary { background: #6366f1 !important; }
+  .dark-card .text-primary { color: #6366f1 !important; }
+  .dark-card .text-red-500 { color: #f87171 !important; }
+  .dark-card .text-gray-400 { color: #9ca3af !important; }
+  .dark-card .text-gray-300 { color: #d1d5db !important; }
+  .dark-card .text-gray-200 { color: #e5e7eb !important; }
+  .dark-card .bg-gray-200 { background: #23263a !important; }
+  .dark-card .bg-gray-100 { background: #23263a !important; }
+  .dark-card .bg-gray-50 { background: #181a20 !important; }
+  .dark-card .bg-black\/60 { background: rgba(20,20,30,0.7) !important; }
+  .dark-card .hover\:bg-white:hover { background: #23263a !important; }
+  .dark-card .hover\:bg-gray-50:hover { background: #23263a !important; }
+  .dark-card .hover\:bg-red-50:hover { background: #3b1e1e !important; }
+  .dark-card .hover\:bg-blue-50:hover { background: #1e293b !important; }
+  .dark-card .hover\:bg-yellow-50:hover { background: #3b2e1e !important; }
+  .dark-card .hover\:bg-primary-dark:hover { background: #3730a3 !important; }
+  .dark-card .bg-blue-50 { background: #1e293b !important; }
+  .dark-card .bg-yellow-50 { background: #3b2e1e !important; }
+  .dark-card .bg-red-50 { background: #3b1e1e !important; }
+  
+  .slider-container {
+    margin-bottom: 1.5rem;
+  }
+  
+  .slider-label {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.5rem;
+  }
+  
+  .slider-value {
+    background: #374151;
+    padding: 0.25rem 0.5rem;
+    border-radius: 0.25rem;
+    font-size: 0.875rem;
+    min-width: 3rem;
+    text-align: center;
+  }
+  
+  .slider {
+    width: 100%;
+    height: 6px;
+    border-radius: 3px;
+    background: #374151;
+    outline: none;
+    -webkit-appearance: none;
+  }
+  
+  .slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: #6366f1;
+    cursor: pointer;
+  }
+  
+  .slider::-moz-range-thumb {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: #6366f1;
+    cursor: pointer;
+    border: none;
+  }
+</style>
+
+<div class="min-h-screen dark-card">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <!-- Header -->
+    <div class="mb-8">
+      <div class="flex items-center justify-between">
+        <div>
+          <h1 class="text-3xl font-bold text-gray-100 mb-2">Color Editor</h1>
+          <p class="text-gray-400">Adjust colors, brightness, contrast, and more for Image #{{ image.id }}</p>
+        </div>
+        <div class="flex space-x-4">
+          <button id="ab-toggle" class="inline-flex items-center px-4 py-2 border border-gray-600 rounded-md shadow-sm text-sm font-medium text-gray-200 bg-gray-900 hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary">
+            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+            </svg>
+            A/B Test
+          </button>
+          <button id="center-ab-btn" class="inline-flex items-center px-4 py-2 border border-gray-600 rounded-md shadow-sm text-sm font-medium text-gray-200 bg-gray-900 hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary hidden">
+            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"></path>
+            </svg>
+            Center
+          </button>
+          <a href="/image/{{ image.id }}" class="inline-flex items-center px-4 py-2 border border-gray-600 rounded-md shadow-sm text-sm font-medium text-gray-200 bg-gray-900 hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary">
+            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
+            </svg>
+            Back to Image
+          </a>
+        </div>
+      </div>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+      <!-- Image Display -->
+      <div class="lg:col-span-1">
+        <div class="bg-gray-800 rounded-lg shadow-sm border border-gray-700 p-6">
+          <h3 class="text-lg font-medium text-gray-100 mb-4">Image Preview</h3>
+          <div class="relative w-full h-full flex items-center justify-center bg-gray-900 rounded-lg overflow-hidden min-h-[400px]">
+            <img id="preview-image" src="{{ image.image_url }}" alt="Image {{ image.id }}" class="w-full h-auto max-h-[70vh] object-contain bg-gray-900 rounded-lg">
+            <div id="loading-overlay" class="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden">
+              <div class="text-white text-lg">Processing...</div>
+            </div>
+            <div id="preview-loading" class="absolute inset-0 bg-black bg-opacity-30 flex items-center justify-center">
+              <div class="text-white text-lg">Loading preview...</div>
+            </div>
+            
+            <!-- A/B Testing Overlay -->
+            <div id="ab-overlay" class="absolute inset-0 pointer-events-none hidden">
+              <!-- Border around the entire A/B test area -->
+              <div id="ab-border" class="absolute inset-0 border-2 border-blue-500 border-dashed pointer-events-none bg-blue-500 bg-opacity-5"></div>
+              
+              <!-- Draggable ball/handle at the top -->
+              <div id="ab-top-handle" class="absolute top-0 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-6 h-6 bg-blue-500 rounded-full shadow-lg cursor-grab pointer-events-auto flex items-center justify-center z-20 border-2 border-white hover:bg-blue-400 transition-colors">
+                <svg class="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 9l4-4 4 4m0 6l-4 4-4-4"></path>
+                </svg>
+              </div>
+              
+              <!-- Original handle (now secondary) -->
+              <div id="ab-handle" class="absolute top-4 left-4 w-8 h-8 bg-blue-600 rounded-full shadow-lg cursor-grab pointer-events-auto flex items-center justify-center z-10 hover:bg-blue-500 transition-colors">
+                <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 9l4-4 4 4m0 6l-4 4-4-4"></path>
+                </svg>
+              </div>
+              <div id="ab-line" class="absolute top-0 bottom-0 w-0.5 bg-blue-600 shadow-lg pointer-events-none"></div>
+              <div id="ab-mask" class="absolute inset-0 pointer-events-none"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Color Controls -->
+      <div class="lg:col-span-1">
+        <div class="bg-gray-800 rounded-lg shadow-sm border border-gray-700 p-6">
+          <h3 class="text-lg font-medium text-gray-100 mb-6">Color Adjustments</h3>
+          <p class="text-sm text-gray-400 mb-6">Adjust the sliders below to see live preview of your changes in real-time.</p>
+          
+          <!-- Hue Slider -->
+          <div class="slider-container">
+            <div class="slider-label">
+              <label class="text-sm font-medium text-gray-300">Hue</label>
+              <span id="hue-value" class="slider-value">0°</span>
+            </div>
+            <input type="range" id="hue-slider" class="slider" min="-180" max="180" value="0" step="1">
+          </div>
+
+          <!-- Saturation Slider -->
+          <div class="slider-container">
+            <div class="slider-label">
+              <label class="text-sm font-medium text-gray-300">Saturation</label>
+              <span id="saturation-value" class="slider-value">100%</span>
+            </div>
+            <input type="range" id="saturation-slider" class="slider" min="0" max="200" value="100" step="1">
+          </div>
+
+          <!-- Brightness Slider -->
+          <div class="slider-container">
+            <div class="slider-label">
+              <label class="text-sm font-medium text-gray-300">Brightness</label>
+              <span id="brightness-value" class="slider-value">100%</span>
+            </div>
+            <input type="range" id="brightness-slider" class="slider" min="0" max="200" value="100" step="1">
+          </div>
+
+          <!-- Contrast Slider -->
+          <div class="slider-container">
+            <div class="slider-label">
+              <label class="text-sm font-medium text-gray-300">Contrast</label>
+              <span id="contrast-value" class="slider-value">100%</span>
+            </div>
+            <input type="range" id="contrast-slider" class="slider" min="0" max="200" value="100" step="1">
+          </div>
+
+          <!-- Gamma Slider -->
+          <div class="slider-container">
+            <div class="slider-label">
+              <label class="text-sm font-medium text-gray-300">Gamma</label>
+              <span id="gamma-value" class="slider-value">1.0</span>
+            </div>
+            <input type="range" id="gamma-slider" class="slider" min="0.1" max="3.0" value="1.0" step="0.1">
+          </div>
+
+          <!-- Shadows Boost Slider -->
+          <div class="slider-container">
+            <div class="slider-label">
+              <label class="text-sm font-medium text-gray-300">Shadows Boost</label>
+              <span id="shadows-value" class="slider-value">0%</span>
+            </div>
+            <input type="range" id="shadows-slider" class="slider" min="0" max="100" value="0" step="1">
+          </div>
+
+          <!-- Highlights Dampen Slider -->
+          <div class="slider-container">
+            <div class="slider-label">
+              <label class="text-sm font-medium text-gray-300">Highlights Dampen</label>
+              <span id="highlights-value" class="slider-value">0%</span>
+            </div>
+            <input type="range" id="highlights-slider" class="slider" min="0" max="100" value="0" step="1">
+          </div>
+
+          <!-- Sharpness Slider -->
+          <div class="slider-container">
+            <div class="slider-label">
+              <label class="text-sm font-medium text-gray-300">Sharpness</label>
+              <span id="sharpness-value" class="slider-value">0%</span>
+            </div>
+            <input type="range" id="sharpness-slider" class="slider" min="0" max="100" value="0" step="1">
+          </div>
+
+          <!-- Vibrance Slider -->
+          <div class="slider-container">
+            <div class="slider-label">
+              <label class="text-sm font-medium text-gray-300">Vibrance</label>
+              <span id="vibrance-value" class="slider-value">0%</span>
+            </div>
+            <input type="range" id="vibrance-slider" class="slider" min="-100" max="100" value="0" step="1">
+          </div>
+
+          <!-- Clarity Slider -->
+          <div class="slider-container">
+            <div class="slider-label">
+              <label class="text-sm font-medium text-gray-300">Clarity</label>
+              <span id="clarity-value" class="slider-value">0%</span>
+            </div>
+            <input type="range" id="clarity-slider" class="slider" min="-100" max="100" value="0" step="1">
+          </div>
+
+          <!-- Temperature Slider -->
+          <div class="slider-container">
+            <div class="slider-label">
+              <label class="text-sm font-medium text-gray-300">Temperature</label>
+              <span id="temperature-value" class="slider-value">0°K</span>
+            </div>
+            <input type="range" id="temperature-slider" class="slider" min="-100" max="100" value="0" step="1">
+          </div>
+
+          <!-- Action Buttons -->
+          <div class="flex space-x-4 mt-8">
+            <button id="apply-btn" class="flex-1 inline-flex items-center justify-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+              <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+              </svg>
+              Apply Changes
+            </button>
+            <button id="reset-btn" class="inline-flex items-center px-4 py-2 border border-gray-600 rounded-md shadow-sm text-sm font-medium text-gray-200 bg-gray-900 hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary">
+              <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+              </svg>
+              Reset
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+let currentSettings = {
+    hue: 0,
+    saturation: 100,
+    brightness: 100,
+    contrast: 100,
+    gamma: 1.0,
+    shadows: 0,
+    highlights: 0,
+    sharpness: 0,
+    vibrance: 0,
+    clarity: 0,
+    temperature: 0
+};
+
+let originalImageData = null;
+let canvas = null;
+let ctx = null;
+let previewTimeout = null;
+let abEnabled = false;
+let abDragging = false;
+let abTopDragging = false;
+let abLinePosition = 0.5; // 50% from left
+let originalCanvas = null;
+let originalCtx = null;
+let abAnimating = false;
+let abAnimationId = null;
+
+// Initialize sliders
+document.addEventListener('DOMContentLoaded', function() {
+    const sliders = ['hue', 'saturation', 'brightness', 'contrast', 'gamma', 'shadows', 'highlights', 'sharpness', 'vibrance', 'clarity', 'temperature'];
+    
+    // Create canvas for live preview
+    setupCanvas();
+    
+    sliders.forEach(sliderName => {
+        const slider = document.getElementById(`${sliderName}-slider`);
+        const valueDisplay = document.getElementById(`${sliderName}-value`);
+        
+        if (slider && valueDisplay) {
+            slider.addEventListener('input', function() {
+                const value = parseFloat(this.value);
+                currentSettings[sliderName] = value;
+                
+                // Update display
+                if (sliderName === 'hue') {
+                    valueDisplay.textContent = `${value}°`;
+                } else if (sliderName === 'gamma') {
+                    valueDisplay.textContent = value.toFixed(1);
+                } else if (sliderName === 'temperature') {
+                    valueDisplay.textContent = `${value}°K`;
+                } else {
+                    valueDisplay.textContent = `${value}%`;
+                }
+                
+                // Apply live preview with throttling
+                if (previewTimeout) {
+                    clearTimeout(previewTimeout);
+                }
+                previewTimeout = setTimeout(applyLivePreview, 50);
+            });
+        }
+    });
+    
+    // Apply button
+    document.getElementById('apply-btn').addEventListener('click', applyColorEdits);
+    
+    // Reset button
+    document.getElementById('reset-btn').addEventListener('click', resetSliders);
+    
+    // A/B Test toggle
+    document.getElementById('ab-toggle').addEventListener('click', toggleABTest);
+    
+    // Center A/B button
+    document.getElementById('center-ab-btn').addEventListener('click', centerABLine);
+    
+    // Setup A/B testing drag functionality
+    setupABTesting();
+});
+
+function setupCanvas() {
+    const originalImage = document.getElementById('preview-image');
+    
+    // Create canvas element
+    canvas = document.createElement('canvas');
+    canvas.id = 'preview-canvas';
+    canvas.className = 'w-full h-auto max-h-[70vh] object-contain bg-gray-900 rounded-lg';
+    canvas.style.display = 'none';
+    
+    // Insert canvas after the original image
+    originalImage.parentNode.insertBefore(canvas, originalImage.nextSibling);
+    
+    // Get canvas context
+    ctx = canvas.getContext('2d');
+    
+    // Load original image data
+    if (originalImage.complete) {
+        initializeCanvas();
+    } else {
+        originalImage.onload = initializeCanvas;
+    }
+}
+
+function initializeCanvas() {
+    const originalImage = document.getElementById('preview-image');
+    const previewLoading = document.getElementById('preview-loading');
+    
+    // Set canvas dimensions to match image
+    canvas.width = originalImage.naturalWidth;
+    canvas.height = originalImage.naturalHeight;
+    
+    // Draw original image to canvas
+    ctx.drawImage(originalImage, 0, 0);
+    
+    // Store original image data
+    originalImageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    
+    // Hide original image and loading indicator, show canvas
+    originalImage.style.display = 'none';
+    if (previewLoading) {
+        previewLoading.style.display = 'none';
+    }
+    canvas.style.display = 'block';
+    
+    // Apply initial preview
+    applyLivePreview();
+}
+
+function applyLivePreview() {
+    if (!originalImageData || !canvas || !ctx) return;
+    
+    if (abEnabled) {
+        applyABPreview();
+        return;
+    }
+    
+    // Create a copy of the original image data
+    const imageData = new ImageData(
+        new Uint8ClampedArray(originalImageData.data),
+        originalImageData.width,
+        originalImageData.height
+    );
+    
+    // Apply color adjustments
+    applyColorAdjustments(imageData.data);
+    
+    // Draw the modified image data to canvas
+    ctx.putImageData(imageData, 0, 0);
+}
+
+function applyColorAdjustments(imageData) {
+    const { hue, saturation, brightness, contrast, gamma, shadows, highlights, sharpness, vibrance, clarity, temperature } = currentSettings;
+    
+    for (let i = 0; i < imageData.length; i += 4) {
+        let r = imageData[i];
+        let g = imageData[i + 1];
+        let b = imageData[i + 2];
+        
+        // Apply gamma correction first
+        if (gamma !== 1.0) {
+            r = Math.pow(r / 255, gamma) * 255;
+            g = Math.pow(g / 255, gamma) * 255;
+            b = Math.pow(b / 255, gamma) * 255;
+        }
+        
+        // Convert to HSV for hue and saturation adjustments
+        if (hue !== 0 || saturation !== 100) {
+            const hsv = rgbToHsv(r, g, b);
+            
+            // Apply hue adjustment
+            if (hue !== 0) {
+                hsv.h = (hsv.h + hue) % 360;
+                if (hsv.h < 0) hsv.h += 360;
+            }
+            
+            // Apply saturation adjustment
+            if (saturation !== 100) {
+                hsv.s = Math.max(0, Math.min(1, hsv.s * (saturation / 100)));
+            }
+            
+            // Convert back to RGB
+            const rgb = hsvToRgb(hsv.h, hsv.s, hsv.v);
+            r = rgb.r;
+            g = rgb.g;
+            b = rgb.b;
+        }
+        
+        // Apply brightness adjustment
+        if (brightness !== 100) {
+            const factor = brightness / 100;
+            r = Math.max(0, Math.min(255, r * factor));
+            g = Math.max(0, Math.min(255, g * factor));
+            b = Math.max(0, Math.min(255, b * factor));
+        }
+        
+        // Apply contrast adjustment
+        if (contrast !== 100) {
+            const factor = contrast / 100;
+            const offset = 128 * (1 - factor);
+            r = Math.max(0, Math.min(255, r * factor + offset));
+            g = Math.max(0, Math.min(255, g * factor + offset));
+            b = Math.max(0, Math.min(255, b * factor + offset));
+        }
+        
+        // Apply shadows boost
+        if (shadows !== 0) {
+            // Calculate luminance to determine if pixel is in shadow
+            const luminance = 0.299 * r + 0.587 * g + 0.114 * b;
+            const shadowThreshold = 128; // Pixels below this are considered shadows
+            
+            if (luminance < shadowThreshold) {
+                // Calculate how much to boost based on how dark the pixel is
+                const shadowFactor = 1 + (shadows / 100) * (1 - luminance / shadowThreshold);
+                r = Math.max(0, Math.min(255, r * shadowFactor));
+                g = Math.max(0, Math.min(255, g * shadowFactor));
+                b = Math.max(0, Math.min(255, b * shadowFactor));
+            }
+        }
+
+        // Apply highlights dampen
+        if (highlights !== 0) {
+            // Calculate luminance to determine if pixel is in highlights
+            const luminance = 0.299 * r + 0.587 * g + 0.114 * b;
+            const highlightThreshold = 200; // Pixels above this are considered highlights
+            
+            if (luminance > highlightThreshold) {
+                // Calculate how much to dampen based on how bright the pixel is
+                const highlightFactor = 1 - (highlights / 100) * ((luminance - highlightThreshold) / (255 - highlightThreshold));
+                r = Math.max(0, Math.min(255, r * highlightFactor));
+                g = Math.max(0, Math.min(255, g * highlightFactor));
+                b = Math.max(0, Math.min(255, b * highlightFactor));
+            }
+        }
+        
+        // Apply sharpness (using unsharp mask technique)
+        if (sharpness !== 0) {
+            // For live preview, we'll use a simplified sharpening approach
+            // In a full implementation, this would use convolution with a sharpening kernel
+            const sharpnessFactor = sharpness / 100;
+            const luminance = 0.299 * r + 0.587 * g + 0.114 * b;
+            const sharpnessBoost = luminance * sharpnessFactor * 0.3;
+            
+            r = Math.max(0, Math.min(255, r + sharpnessBoost));
+            g = Math.max(0, Math.min(255, g + sharpnessBoost));
+            b = Math.max(0, Math.min(255, b + sharpnessBoost));
+        }
+
+        // Apply vibrance (selective saturation boost)
+        if (vibrance !== 0) {
+            const hsv = rgbToHsv(r, g, b);
+            // Vibrance boosts saturation more for less saturated colors
+            const saturationBoost = vibrance / 100;
+            const currentSaturation = hsv.s;
+            
+            // Apply more boost to less saturated colors
+            const boostFactor = 1 + saturationBoost * (1 - currentSaturation);
+            hsv.s = Math.max(0, Math.min(1, hsv.s * boostFactor));
+            
+            const rgb = hsvToRgb(hsv.h, hsv.s, hsv.v);
+            r = rgb.r;
+            g = rgb.g;
+            b = rgb.b;
+        }
+
+        // Apply clarity (local contrast enhancement)
+        if (clarity !== 0) {
+            const hsv = rgbToHsv(r, g, b);
+            const clarityFactor = clarity / 100;
+            
+            // Clarity affects the value (brightness) component
+            if (clarityFactor > 0) {
+                // Increase contrast in mid-tones
+                const midToneFactor = 1 + clarityFactor * 0.5;
+                hsv.v = Math.max(0, Math.min(1, hsv.v * midToneFactor));
+            } else {
+                // Decrease contrast for negative clarity
+                const softFactor = 1 + clarityFactor * 0.3;
+                hsv.v = Math.max(0, Math.min(1, hsv.v * softFactor));
+            }
+            
+            const rgb = hsvToRgb(hsv.h, hsv.s, hsv.v);
+            r = rgb.r;
+            g = rgb.g;
+            b = rgb.b;
+        }
+
+        // Apply temperature (color temperature adjustment)
+        if (temperature !== 0) {
+            // Temperature affects the color balance
+            const tempFactor = temperature / 100;
+            
+            if (tempFactor > 0) {
+                // Warmer (more red/yellow)
+                r = Math.max(0, Math.min(255, r + tempFactor * 20));
+                g = Math.max(0, Math.min(255, g + tempFactor * 10));
+                b = Math.max(0, Math.min(255, b - tempFactor * 15));
+            } else {
+                // Cooler (more blue)
+                r = Math.max(0, Math.min(255, r + tempFactor * 15));
+                g = Math.max(0, Math.min(255, g + tempFactor * 5));
+                b = Math.max(0, Math.min(255, b - tempFactor * 20));
+            }
+        }
+        
+        // Update the image data
+        imageData[i] = Math.round(r);
+        imageData[i + 1] = Math.round(g);
+        imageData[i + 2] = Math.round(b);
+        // Alpha channel (i + 3) remains unchanged
+    }
+}
+
+// RGB to HSV conversion
+function rgbToHsv(r, g, b) {
+    r /= 255;
+    g /= 255;
+    b /= 255;
+    
+    const max = Math.max(r, g, b);
+    const min = Math.min(r, g, b);
+    const diff = max - min;
+    const sum = max + min;
+    
+    let h = 0;
+    let s = 0;
+    const v = max;
+    
+    if (diff !== 0) {
+        s = diff / max;
+        
+        switch (max) {
+            case r:
+                h = (g - b) / diff + (g < b ? 6 : 0);
+                break;
+            case g:
+                h = (b - r) / diff + 2;
+                break;
+            case b:
+                h = (r - g) / diff + 4;
+                break;
+        }
+        h /= 6;
+    }
+    
+    return { h: h * 360, s, v };
+}
+
+// HSV to RGB conversion
+function hsvToRgb(h, s, v) {
+    h /= 360;
+    const i = Math.floor(h * 6);
+    const f = h * 6 - i;
+    const p = v * (1 - s);
+    const q = v * (1 - f * s);
+    const t = v * (1 - (1 - f) * s);
+    
+    let r, g, b;
+    switch (i % 6) {
+        case 0: r = v; g = t; b = p; break;
+        case 1: r = q; g = v; b = p; break;
+        case 2: r = p; g = v; b = t; break;
+        case 3: r = p; g = q; b = v; break;
+        case 4: r = t; g = p; b = v; break;
+        case 5: r = v; g = p; b = q; break;
+    }
+    
+    return {
+        r: Math.round(r * 255),
+        g: Math.round(g * 255),
+        b: Math.round(b * 255)
+    };
+}
+
+function applyColorEdits() {
+    const applyBtn = document.getElementById('apply-btn');
+    const loadingOverlay = document.getElementById('loading-overlay');
+    
+    // Show loading state
+    applyBtn.disabled = true;
+    applyBtn.innerHTML = '<svg class="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>Processing...';
+    loadingOverlay.classList.remove('hidden');
+    
+    fetch(`/api/apply_color_edits/{{ image.id }}`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(currentSettings)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // Update the preview image
+            const previewImage = document.getElementById('preview-image');
+            previewImage.src = data.edited_image_url + '?t=' + new Date().getTime();
+            
+            // Show success message
+            alert('Color edits applied successfully!');
+        } else {
+            alert('Error applying color edits: ' + (data.error || 'Unknown error'));
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Error applying color edits: ' + error.message);
+    })
+    .finally(() => {
+        // Reset button state
+        applyBtn.disabled = false;
+        applyBtn.innerHTML = '<svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>Apply Changes';
+        loadingOverlay.classList.add('hidden');
+    });
+}
+
+function resetSliders() {
+    const defaultSettings = {
+        hue: 0,
+        saturation: 100,
+        brightness: 100,
+        contrast: 100,
+        gamma: 1.0,
+        shadows: 0,
+        highlights: 0,
+        sharpness: 0,
+        vibrance: 0,
+        clarity: 0,
+        temperature: 0
+    };
+    
+    Object.keys(defaultSettings).forEach(setting => {
+        const slider = document.getElementById(`${setting}-slider`);
+        const valueDisplay = document.getElementById(`${setting}-value`);
+        
+        if (slider && valueDisplay) {
+            slider.value = defaultSettings[setting];
+            currentSettings[setting] = defaultSettings[setting];
+            
+            // Update display
+            if (setting === 'hue') {
+                valueDisplay.textContent = `${defaultSettings[setting]}°`;
+            } else if (setting === 'gamma') {
+                valueDisplay.textContent = defaultSettings[setting].toFixed(1);
+            } else if (setting === 'temperature') {
+                valueDisplay.textContent = `${defaultSettings[setting]}°K`;
+            } else {
+                valueDisplay.textContent = `${defaultSettings[setting]}%`;
+            }
+        }
+    });
+    
+    // Apply live preview with reset values
+    applyLivePreview();
+}
+
+function setupABTesting() {
+    const abHandle = document.getElementById('ab-handle');
+    const abTopHandle = document.getElementById('ab-top-handle');
+    const abLine = document.getElementById('ab-line');
+    const abMask = document.getElementById('ab-mask');
+    const previewCanvas = document.getElementById('preview-canvas');
+    const previewImage = document.getElementById('preview-image');
+    const centerAbBtn = document.getElementById('center-ab-btn');
+
+    // Set up event listeners for dragging the main handle
+    abHandle.addEventListener('mousedown', startABDrag);
+    document.addEventListener('mousemove', dragABHandle);
+    document.addEventListener('mouseup', stopABDrag);
+    
+    // Set up event listeners for dragging the top handle
+    abTopHandle.addEventListener('mousedown', startABTopDrag);
+    document.addEventListener('mousemove', dragABTopHandle);
+    document.addEventListener('mouseup', stopABTopDrag);
+    
+    // Touch events for mobile
+    abHandle.addEventListener('touchstart', startABDrag);
+    abTopHandle.addEventListener('touchstart', startABTopDrag);
+    document.addEventListener('touchmove', dragABHandle);
+    document.addEventListener('touchmove', dragABTopHandle);
+    document.addEventListener('touchend', stopABDrag);
+    document.addEventListener('touchend', stopABTopDrag);
+
+    // Set initial line position
+    updateABLinePosition();
+
+    // Hide center button if A/B is not enabled
+    centerAbBtn.classList.toggle('hidden', !abEnabled);
+}
+
+function startABDrag(event) {
+    if (!abEnabled || abAnimating || abTopDragging) return;
+    
+    event.preventDefault();
+    
+    // Cancel any ongoing animation
+    if (abAnimationId) {
+        cancelAnimationFrame(abAnimationId);
+        abAnimationId = null;
+        abAnimating = false;
+    }
+    
+    abDragging = true;
+    const abHandle = document.getElementById('ab-handle');
+    abHandle.style.cursor = 'grabbing';
+}
+
+function stopABDrag(event) {
+    if (!abEnabled) return;
+    
+    abDragging = false;
+    const abHandle = document.getElementById('ab-handle');
+    abHandle.style.cursor = 'grab';
+}
+
+function dragABHandle(event) {
+    if (!abDragging || !abEnabled || abAnimating || abTopDragging) return;
+    
+    event.preventDefault();
+    
+    const previewCanvas = document.getElementById('preview-canvas');
+    if (!previewCanvas) return;
+    
+    const rect = previewCanvas.getBoundingClientRect();
+    const clientX = event.clientX || (event.touches && event.touches[0].clientX);
+    
+    if (!clientX) return;
+    
+    // Calculate position relative to canvas
+    const relativeX = (clientX - rect.left) / rect.width;
+    abLinePosition = Math.max(0, Math.min(1, relativeX));
+    
+    updateABLinePosition();
+    applyABPreview();
+}
+
+function startABTopDrag(event) {
+    if (!abEnabled || abAnimating) return;
+    
+    event.preventDefault();
+    
+    // Cancel any ongoing animation
+    if (abAnimationId) {
+        cancelAnimationFrame(abAnimationId);
+        abAnimationId = null;
+        abAnimating = false;
+    }
+    
+    abTopDragging = true;
+    const abTopHandle = document.getElementById('ab-top-handle');
+    abTopHandle.style.cursor = 'grabbing';
+}
+
+function dragABTopHandle(event) {
+    if (!abTopDragging || !abEnabled || abAnimating) return;
+    
+    event.preventDefault();
+    
+    const previewCanvas = document.getElementById('preview-canvas');
+    if (!previewCanvas) return;
+    
+    const rect = previewCanvas.getBoundingClientRect();
+    const clientX = event.clientX || (event.touches && event.touches[0].clientX);
+    
+    if (!clientX) return;
+    
+    // Calculate position relative to canvas
+    const relativeX = (clientX - rect.left) / rect.width;
+    abLinePosition = Math.max(0, Math.min(1, relativeX));
+    
+    updateABLinePosition();
+    applyABPreview();
+}
+
+function stopABTopDrag(event) {
+    if (!abEnabled) return;
+    
+    abTopDragging = false;
+    const abTopHandle = document.getElementById('ab-top-handle');
+    abTopHandle.style.cursor = 'grab';
+}
+
+function updateABLinePosition() {
+    const abLine = document.getElementById('ab-line');
+    const abHandle = document.getElementById('ab-handle');
+    const abTopHandle = document.getElementById('ab-top-handle');
+    const previewCanvas = document.getElementById('preview-canvas');
+    
+    if (!previewCanvas) return;
+    
+    const rect = previewCanvas.getBoundingClientRect();
+    const lineX = rect.left + (rect.width * abLinePosition);
+    const handleX = lineX - 16; // Center handle on line
+    const topHandleX = lineX - 12; // Center top handle on line (12px = 24px/2)
+    
+    // Update line position
+    abLine.style.left = `${lineX}px`;
+    abLine.style.top = `${rect.top}px`;
+    abLine.style.height = `${rect.height}px`;
+    abLine.style.display = 'block';
+    
+    // Update main handle position
+    abHandle.style.left = `${handleX}px`;
+    abHandle.style.top = `${rect.top + 16}px`;
+    abHandle.style.display = 'block';
+    
+    // Update top handle position
+    abTopHandle.style.left = `${topHandleX}px`;
+    abTopHandle.style.top = `${rect.top - 12}px`; // Position above the canvas
+    abTopHandle.style.display = 'block';
+}
+
+function applyABPreview() {
+    if (!abEnabled || !canvas || !ctx || !originalImageData) return;
+    
+    const splitX = Math.floor(abLinePosition * canvas.width);
+    
+    // Create a copy of the original image data
+    const imageData = new ImageData(
+        new Uint8ClampedArray(originalImageData.data),
+        originalImageData.width,
+        originalImageData.height
+    );
+    
+    // Apply color adjustments to the entire image
+    applyColorAdjustments(imageData.data);
+    
+    // For the left side (before the split line), use original image data
+    for (let y = 0; y < canvas.height; y++) {
+        for (let x = 0; x < splitX; x++) {
+            const index = (y * canvas.width + x) * 4;
+            imageData.data[index] = originalImageData.data[index];     // R
+            imageData.data[index + 1] = originalImageData.data[index + 1]; // G
+            imageData.data[index + 2] = originalImageData.data[index + 2]; // B
+            imageData.data[index + 3] = originalImageData.data[index + 3]; // A
+        }
+    }
+    
+    // Draw the combined image data to canvas
+    ctx.putImageData(imageData, 0, 0);
+}
+
+function toggleABTest() {
+    const abToggle = document.getElementById('ab-toggle');
+    const abOverlay = document.getElementById('ab-overlay');
+    const abBorder = document.getElementById('ab-border');
+    const abTopHandle = document.getElementById('ab-top-handle');
+    const previewImage = document.getElementById('preview-image');
+    const previewCanvas = document.getElementById('preview-canvas');
+    const centerAbBtn = document.getElementById('center-ab-btn');
+    
+    abEnabled = !abEnabled;
+    
+    if (abEnabled) {
+        abToggle.innerHTML = '<svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>Hide A/B';
+        abOverlay.classList.remove('hidden');
+        abBorder.style.display = 'block';
+        abTopHandle.style.display = 'block';
+        previewImage.style.display = 'none';
+        previewCanvas.style.display = 'block';
+        centerAbBtn.classList.remove('hidden');
+        updateABLinePosition();
+        applyABPreview();
+    } else {
+        abToggle.innerHTML = '<svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>A/B Test';
+        abOverlay.classList.add('hidden');
+        abBorder.style.display = 'none';
+        abTopHandle.style.display = 'none';
+        previewImage.style.display = 'none';
+        previewCanvas.style.display = 'block';
+        centerAbBtn.classList.add('hidden');
+        
+        // Cancel any ongoing animation
+        if (abAnimationId) {
+            cancelAnimationFrame(abAnimationId);
+            abAnimationId = null;
+            abAnimating = false;
+        }
+        
+        applyLivePreview();
+    }
+}
+
+function centerABLine() {
+    if (!abEnabled || abAnimating) return;
+    
+    const targetPosition = 0.5; // Center position
+    const startPosition = abLinePosition;
+    const distance = targetPosition - startPosition;
+    const duration = 500; // Animation duration in milliseconds
+    const startTime = performance.now();
+    
+    abAnimating = true;
+    
+    function animate(currentTime) {
+        const elapsed = currentTime - startTime;
+        const progress = Math.min(elapsed / duration, 1);
+        
+        // Easing function for smooth animation (ease-out)
+        const easeOut = 1 - Math.pow(1 - progress, 3);
+        
+        abLinePosition = startPosition + (distance * easeOut);
+        
+        updateABLinePosition();
+        applyABPreview();
+        
+        if (progress < 1) {
+            abAnimationId = requestAnimationFrame(animate);
+        } else {
+            abAnimating = false;
+            abAnimationId = null;
+        }
+    }
+    
+    abAnimationId = requestAnimationFrame(animate);
+}
+</script>
+{% endblock %} 

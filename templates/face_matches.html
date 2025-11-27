@@ -1,0 +1,1121 @@
+{% extends "base.html" %}
+
+{% block title %}Face Matches - Visage{% endblock %}
+
+{% block content %}
+<style>
+/* Modern UI Styles */
+.face-matches-container {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    min-height: 100vh;
+    padding: 2rem 0;
+}
+
+.content-wrapper {
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(10px);
+    border-radius: 20px;
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+    margin: 0 auto;
+    max-width: 1400px;
+    overflow: hidden;
+}
+
+.page-header {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 2rem;
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+}
+
+.page-header::before {
+    content: '';
+    position: absolute;
+    top: -50%;
+    left: -50%;
+    width: 200%;
+    height: 200%;
+    background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%);
+    animation: float 6s ease-in-out infinite;
+}
+
+@keyframes float {
+    0%, 100% { transform: translateY(0px) rotate(0deg); }
+    50% { transform: translateY(-20px) rotate(180deg); }
+}
+
+.page-header h1 {
+    font-size: 3rem;
+    font-weight: 700;
+    margin: 0;
+    text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+    position: relative;
+    z-index: 1;
+}
+
+.page-header .subtitle {
+    font-size: 1.2rem;
+    opacity: 0.9;
+    margin-top: 0.5rem;
+    position: relative;
+    z-index: 1;
+}
+
+.action-buttons {
+    display: flex;
+    gap: 1rem;
+    justify-content: center;
+    margin-top: 1.5rem;
+    position: relative;
+    z-index: 1;
+    flex-wrap: wrap;
+}
+
+.btn-modern {
+    padding: 12px 24px;
+    border: none;
+    border-radius: 50px;
+    font-weight: 600;
+    font-size: 1rem;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    transition: all 0.3s ease;
+    position: relative;
+    overflow: hidden;
+    cursor: pointer;
+}
+
+.btn-modern::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+    transition: left 0.5s;
+}
+
+.btn-modern:hover::before {
+    left: 100%;
+}
+
+.btn-primary-modern {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    box-shadow: 0 8px 25px rgba(102, 126, 234, 0.4);
+}
+
+.btn-primary-modern:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 12px 35px rgba(102, 126, 234, 0.6);
+}
+
+.btn-secondary-modern {
+    background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+    color: white;
+    box-shadow: 0 8px 25px rgba(240, 147, 251, 0.4);
+}
+
+.btn-secondary-modern:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 12px 35px rgba(240, 147, 251, 0.6);
+}
+
+.btn-danger-modern {
+    background: linear-gradient(135deg, #ff6b6b 0%, #ee5a52 100%);
+    color: white;
+    box-shadow: 0 8px 25px rgba(255, 107, 107, 0.4);
+}
+
+.btn-danger-modern:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 12px 35px rgba(255, 107, 107, 0.6);
+}
+
+.btn-modern:disabled {
+    opacity: 0.6;
+    transform: none !important;
+    cursor: not-allowed;
+}
+
+/* Progress Section */
+.progress-section {
+    background: white;
+    margin: 2rem;
+    border-radius: 15px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+    overflow: hidden;
+    animation: slideDown 0.5s ease-out;
+}
+
+@keyframes slideDown {
+    from { opacity: 0; transform: translateY(-20px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.progress-header {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 1.5rem;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.progress-header h5 {
+    margin: 0;
+    font-size: 1.3rem;
+    font-weight: 600;
+}
+
+.progress-badge {
+    background: rgba(255, 255, 255, 0.2);
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 0.9rem;
+    font-weight: 500;
+    backdrop-filter: blur(10px);
+}
+
+.progress-body {
+    padding: 2rem;
+}
+
+.progress-item {
+    margin-bottom: 2rem;
+}
+
+.progress-item:last-child {
+    margin-bottom: 0;
+}
+
+.progress-label {
+    font-weight: 600;
+    color: #333;
+    margin-bottom: 0.5rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.progress-bar-modern {
+    height: 12px;
+    background: #f0f0f0;
+    border-radius: 6px;
+    overflow: hidden;
+    position: relative;
+}
+
+.progress-fill {
+    height: 100%;
+    border-radius: 6px;
+    transition: width 0.3s ease;
+    position: relative;
+    overflow: hidden;
+}
+
+.progress-fill::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
+    animation: shimmer 2s infinite;
+}
+
+@keyframes shimmer {
+    0% { left: -100%; }
+    100% { left: 100%; }
+}
+
+.progress-fill.overall {
+    background: linear-gradient(90deg, #667eea, #764ba2);
+}
+
+.progress-fill.fitpexport {
+    background: linear-gradient(90deg, #4facfe, #00f2fe);
+}
+
+.progress-fill.visage {
+    background: linear-gradient(90deg, #43e97b, #38f9d7);
+}
+
+.progress-fill.matching {
+    background: linear-gradient(90deg, #fa709a, #fee140);
+}
+
+/* Statistics Grid */
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1.5rem;
+    margin-bottom: 2rem;
+}
+
+.stat-card {
+    background: white;
+    padding: 1.5rem;
+    border-radius: 15px;
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+    text-align: center;
+    transition: transform 0.3s ease;
+}
+
+.stat-card:hover {
+    transform: translateY(-5px);
+}
+
+.stat-number {
+    font-size: 2rem;
+    font-weight: 700;
+    color: #667eea;
+    margin-bottom: 0.5rem;
+}
+
+.stat-label {
+    color: #666;
+    font-size: 0.9rem;
+    font-weight: 500;
+}
+
+/* Current Activity */
+.current-activity {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 1rem 1.5rem;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 2rem;
+}
+
+.activity-spinner {
+    width: 20px;
+    height: 20px;
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    border-top: 2px solid white;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* Face Groups */
+.face-groups-container {
+    padding: 2rem;
+}
+
+.group-navigation {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 2rem;
+    background: white;
+    padding: 1.5rem;
+    border-radius: 15px;
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+}
+
+.nav-info {
+    text-align: center;
+}
+
+.nav-info h3 {
+    margin: 0 0 0.5rem 0;
+    color: #333;
+    font-size: 1.5rem;
+}
+
+.nav-info p {
+    margin: 0;
+    color: #666;
+    font-size: 1rem;
+}
+
+.nav-buttons {
+    display: flex;
+    gap: 1rem;
+}
+
+.btn-nav {
+    padding: 10px 20px;
+    border: none;
+    border-radius: 25px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+}
+
+.btn-nav:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(102, 126, 234, 0.4);
+}
+
+.btn-nav:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    transform: none;
+}
+
+.face-group-card {
+    background: white;
+    border-radius: 20px;
+    box-shadow: 0 15px 35px rgba(0, 0, 0, 0.1);
+    overflow: hidden;
+    margin-bottom: 2rem;
+    animation: slideIn 0.5s ease-out;
+}
+
+@keyframes slideIn {
+    from { opacity: 0; transform: translateX(-20px); }
+    to { opacity: 1; transform: translateX(0); }
+}
+
+.group-header {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 1.5rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.group-title {
+    margin: 0;
+    font-size: 1.5rem;
+    font-weight: 600;
+}
+
+.group-stats {
+    font-size: 1rem;
+    opacity: 0.9;
+}
+
+.group-body {
+    padding: 2rem;
+}
+
+.section-title {
+    font-size: 1.3rem;
+    font-weight: 600;
+    color: #333;
+    margin-bottom: 1rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.face-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 1.5rem;
+    margin-bottom: 2rem;
+}
+
+.face-card {
+    background: white;
+    border-radius: 15px;
+    overflow: hidden;
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+    position: relative;
+}
+
+.face-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 15px 35px rgba(0, 0, 0, 0.15);
+}
+
+.face-image {
+    width: 100%;
+    height: 200px;
+    object-fit: cover;
+    transition: transform 0.3s ease;
+}
+
+.face-card:hover .face-image {
+    transform: scale(1.05);
+}
+
+.face-info {
+    padding: 1rem;
+}
+
+.face-source {
+    font-size: 0.8rem;
+    color: #666;
+    margin-bottom: 0.5rem;
+}
+
+.face-similarity {
+    font-weight: 600;
+    color: #333;
+    font-size: 1rem;
+}
+
+/* Empty State */
+.empty-state {
+    text-align: center;
+    padding: 4rem 2rem;
+    color: #666;
+}
+
+.empty-icon {
+    font-size: 4rem;
+    margin-bottom: 1rem;
+    opacity: 0.5;
+}
+
+.empty-title {
+    font-size: 1.5rem;
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+    color: #333;
+}
+
+.empty-description {
+    font-size: 1rem;
+    opacity: 0.8;
+}
+
+/* Loading States */
+.loading-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.8);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 9999;
+    backdrop-filter: blur(5px);
+}
+
+.loading-spinner {
+    width: 60px;
+    height: 60px;
+    border: 4px solid rgba(255, 255, 255, 0.3);
+    border-top: 4px solid #667eea;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .page-header h1 {
+        font-size: 2rem;
+    }
+    
+    .action-buttons {
+        flex-direction: column;
+        align-items: center;
+    }
+    
+    .stats-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+    
+    .face-grid {
+        grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    }
+    
+    .progress-body {
+        padding: 1rem;
+    }
+    
+    .face-groups-container {
+        padding: 1rem;
+    }
+    
+    .group-navigation {
+        flex-direction: column;
+        gap: 1rem;
+    }
+}
+
+/* Success Animation */
+.success-animation {
+    animation: successPulse 0.6s ease-out;
+}
+
+@keyframes successPulse {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.05); }
+    100% { transform: scale(1); }
+}
+
+/* Error States */
+.error-alert {
+    background: linear-gradient(135deg, #ff6b6b 0%, #ee5a52 100%);
+    color: white;
+    border-radius: 15px;
+    padding: 1.5rem;
+    margin: 2rem;
+    box-shadow: 0 10px 30px rgba(255, 107, 107, 0.3);
+    animation: slideDown 0.5s ease-out;
+}
+
+/* Success States */
+.success-alert {
+    background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%);
+    color: white;
+    border-radius: 15px;
+    padding: 1.5rem;
+    margin: 2rem;
+    box-shadow: 0 10px 30px rgba(76, 175, 80, 0.3);
+    animation: slideDown 0.5s ease-out;
+}
+
+/* State Display */
+.state-display {
+    background: white;
+    margin: 2rem;
+    border-radius: 15px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+    padding: 1.5rem;
+}
+
+.state-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.5rem 0;
+    border-bottom: 1px solid #f0f0f0;
+}
+
+.state-item:last-child {
+    border-bottom: none;
+}
+
+.state-label {
+    font-weight: 600;
+    color: #333;
+}
+
+.state-value {
+    color: #667eea;
+    font-weight: 500;
+}
+</style>
+
+<div class="face-matches-container">
+    <div class="content-wrapper">
+        <!-- Page Header -->
+        <div class="page-header">
+            <h1>Face Matches</h1>
+            <div class="subtitle">Discover and organize similar faces across your photo collection</div>
+            <div class="action-buttons">
+                <button id="processBtn" class="btn-modern btn-primary-modern">
+                    <i class="fas fa-cogs"></i>
+                    <span>Process All Images</span>
+                </button>
+                <button id="refreshBtn" class="btn-modern btn-secondary-modern">
+                    <i class="fas fa-sync"></i>
+                    <span>Refresh Matches</span>
+                </button>
+                <button id="clearBtn" class="btn-modern btn-danger-modern">
+                    <i class="fas fa-trash"></i>
+                    <span>Clear Data</span>
+                </button>
+            </div>
+        </div>
+        
+        <!-- State Display -->
+        <div id="stateDisplay" class="state-display" style="display: none;">
+            <h4>Current State</h4>
+            <div id="stateContent"></div>
+        </div>
+        
+        <!-- Progress Section -->
+        <div id="progressSection" class="progress-section" style="display: none;">
+            <div class="progress-header">
+                <i class="fas fa-cogs fa-lg"></i>
+                <h5>Processing Images</h5>
+                <span id="progressStatus" class="progress-badge">Initializing...</span>
+            </div>
+            <div class="progress-body">
+                <!-- Overall Progress -->
+                <div class="progress-item">
+                    <div class="progress-label">
+                        <span>Overall Progress</span>
+                        <span id="overallProgressText">0%</span>
+                    </div>
+                    <div class="progress-bar-modern">
+                        <div id="overallProgress" class="progress-fill overall" style="width: 0%"></div>
+                    </div>
+                </div>
+                
+                <!-- Step Progress -->
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 2rem;">
+                    <!-- Fitpexport Progress -->
+                    <div class="progress-item">
+                        <div class="progress-label">
+                            <span>Fitpexport Images</span>
+                            <span id="fitpexportStatus">0/0 images</span>
+                        </div>
+                        <div class="progress-bar-modern">
+                            <div id="fitpexportProgress" class="progress-fill fitpexport" style="width: 0%"></div>
+                        </div>
+                    </div>
+                    
+                    <!-- Visage Progress -->
+                    <div class="progress-item">
+                        <div class="progress-label">
+                            <span>Visage Images</span>
+                            <span id="visageStatus">0/0 images</span>
+                        </div>
+                        <div class="progress-bar-modern">
+                            <div id="visageProgress" class="progress-fill visage" style="width: 0%"></div>
+                        </div>
+                    </div>
+                    
+                    <!-- Matching Progress -->
+                    <div class="progress-item">
+                        <div class="progress-label">
+                            <span>Face Matching</span>
+                            <span id="matchingStatus">0/0 faces</span>
+                        </div>
+                        <div class="progress-bar-modern">
+                            <div id="matchingProgress" class="progress-fill matching" style="width: 0%"></div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Statistics -->
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div id="totalImages" class="stat-number">0</div>
+                        <div class="stat-label">Total Images</div>
+                    </div>
+                    <div class="stat-card">
+                        <div id="processedImages" class="stat-number">0</div>
+                        <div class="stat-label">Processed Images</div>
+                    </div>
+                    <div class="stat-card">
+                        <div id="facesExtracted" class="stat-number">0</div>
+                        <div class="stat-label">Faces Extracted</div>
+                    </div>
+                    <div class="stat-card">
+                        <div id="faceGroups" class="stat-number">0</div>
+                        <div class="stat-label">Face Groups</div>
+                    </div>
+                </div>
+                
+                <!-- Current Activity -->
+                <div class="current-activity">
+                    <div class="activity-spinner"></div>
+                    <span id="currentActivity">Initializing...</span>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Error Status -->
+        <div id="errorStatus" class="error-alert" style="display: none;">
+            <h4><i class="fas fa-exclamation-triangle"></i> Error</h4>
+            <p id="errorMessage"></p>
+        </div>
+        
+        <!-- Success Status -->
+        <div id="successStatus" class="success-alert" style="display: none;">
+            <h4><i class="fas fa-check-circle"></i> Success</h4>
+            <p id="successMessage">Operation completed successfully!</p>
+        </div>
+        
+        <!-- Face Groups Container -->
+        <div id="matchesContainer" class="face-groups-container">
+            <!-- Groups will be loaded here -->
+        </div>
+    </div>
+</div>
+
+<!-- Loading Overlay -->
+<div id="loadingOverlay" class="loading-overlay" style="display: none;">
+    <div class="loading-spinner"></div>
+</div>
+
+<script>
+let isProcessing = false;
+let progressInterval = null;
+let currentPage = 1;
+let totalGroups = 0;
+
+document.addEventListener('DOMContentLoaded', function() {
+    const processBtn = document.getElementById('processBtn');
+    const refreshBtn = document.getElementById('refreshBtn');
+    const clearBtn = document.getElementById('clearBtn');
+    const progressSection = document.getElementById('progressSection');
+    const errorStatus = document.getElementById('errorStatus');
+    const successStatus = document.getElementById('successStatus');
+    const matchesContainer = document.getElementById('matchesContainer');
+    const loadingOverlay = document.getElementById('loadingOverlay');
+    const stateDisplay = document.getElementById('stateDisplay');
+    const stateContent = document.getElementById('stateContent');
+    
+    processBtn.addEventListener('click', startProcessing);
+    refreshBtn.addEventListener('click', loadFaceMatches);
+    clearBtn.addEventListener('click', clearData);
+    
+    // Load initial state
+    loadState();
+    loadFaceMatches();
+    
+    function loadState() {
+        fetch('/api/face-matches/state')
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    displayState(data.state);
+                }
+            })
+            .catch(error => {
+                console.error('Error loading state:', error);
+            });
+    }
+    
+    function displayState(state) {
+        if (state && Object.keys(state).length > 0) {
+            stateDisplay.style.display = 'block';
+            stateContent.innerHTML = `
+                <div class="state-item">
+                    <span class="state-label">Last Processed Group:</span>
+                    <span class="state-value">${state.last_processed_group || 0}</span>
+                </div>
+                <div class="state-item">
+                    <span class="state-label">Total Groups:</span>
+                    <span class="state-value">${state.total_groups || 0}</span>
+                </div>
+                <div class="state-item">
+                    <span class="state-label">Processing Complete:</span>
+                    <span class="state-value">${state.processing_complete ? 'Yes' : 'No'}</span>
+                </div>
+                <div class="state-item">
+                    <span class="state-label">Last Update:</span>
+                    <span class="state-value">${state.last_update ? new Date(state.last_update).toLocaleString() : 'Never'}</span>
+                </div>
+            `;
+        } else {
+            stateDisplay.style.display = 'none';
+        }
+    }
+    
+    function startProcessing() {
+        if (isProcessing) return;
+        
+        isProcessing = true;
+        processBtn.disabled = true;
+        processBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i><span>Processing...</span>';
+        errorStatus.style.display = 'none';
+        successStatus.style.display = 'none';
+        progressSection.style.display = 'block';
+        
+        // Initialize progress bars
+        updateProgress('overallProgress', 0, 'Starting...');
+        updateProgress('fitpexportProgress', 0, 'Waiting...');
+        updateProgress('visageProgress', 0, 'Waiting...');
+        updateProgress('matchingProgress', 0, 'Waiting...');
+        
+        // Start progress polling
+        startProgressPolling();
+        
+        fetch('/api/face-matches/process', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                updateCurrentActivity('Processing started successfully. Monitoring progress...');
+            } else {
+                throw new Error(data.error || 'Processing failed');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            errorStatus.style.display = 'block';
+            document.getElementById('errorMessage').textContent = error.message;
+            resetProcessingState();
+        });
+    }
+    
+    function clearData() {
+        if (confirm('Are you sure you want to clear all face matching data? This action cannot be undone.')) {
+            loadingOverlay.style.display = 'flex';
+            
+            fetch('/api/face-matches/clear', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showSuccessMessage(data.message);
+                    currentPage = 1;
+                    totalGroups = 0;
+                    loadState();
+                    loadFaceMatches();
+                } else {
+                    throw new Error(data.error || 'Failed to clear data');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                errorStatus.style.display = 'block';
+                document.getElementById('errorMessage').textContent = error.message;
+            })
+            .finally(() => {
+                loadingOverlay.style.display = 'none';
+            });
+        }
+    }
+    
+    function startProgressPolling() {
+        progressInterval = setInterval(() => {
+            fetch('/api/face-matches/progress')
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    updateProgressFromData(data);
+                }
+            })
+            .catch(error => {
+                console.error('Error fetching progress:', error);
+            });
+        }, 2000); // Poll every 2 seconds
+    }
+    
+    function updateProgressFromData(data) {
+        const progress = data.progress || {};
+        
+        // Update overall progress
+        const overallPercent = Math.round((progress.overall || 0) * 100);
+        updateProgress('overallProgress', overallPercent, `${overallPercent}%`);
+        
+        // Update step progress
+        if (progress.fitpexport) {
+            const fitpexportPercent = Math.round(progress.fitpexport.percent * 100);
+            updateProgress('fitpexportProgress', fitpexportPercent, `${fitpexportPercent}%`);
+            document.getElementById('fitpexportStatus').textContent = 
+                `${progress.fitpexport.processed}/${progress.fitpexport.total} images`;
+        }
+        
+        if (progress.visage) {
+            const visagePercent = Math.round(progress.visage.percent * 100);
+            updateProgress('visageProgress', visagePercent, `${visagePercent}%`);
+            document.getElementById('visageStatus').textContent = 
+                `${progress.visage.processed}/${progress.visage.total} images`;
+        }
+        
+        if (progress.matching) {
+            const matchingPercent = Math.round(progress.matching.percent * 100);
+            updateProgress('matchingProgress', matchingPercent, `${matchingPercent}%`);
+            document.getElementById('matchingStatus').textContent = 
+                `${progress.matching.processed}/${progress.matching.total} faces`;
+        }
+        
+        // Update statistics
+        if (progress.stats) {
+            document.getElementById('totalImages').textContent = progress.stats.total_images || 0;
+            document.getElementById('processedImages').textContent = progress.stats.processed_images || 0;
+            document.getElementById('facesExtracted').textContent = progress.stats.faces_extracted || 0;
+            document.getElementById('faceGroups').textContent = progress.stats.face_groups || 0;
+        }
+        
+        // Update current activity
+        if (progress.current_activity) {
+            updateCurrentActivity(progress.current_activity);
+        }
+        
+        // Update status badge
+        if (progress.status) {
+            document.getElementById('progressStatus').textContent = progress.status;
+            const badge = document.getElementById('progressStatus');
+            if (progress.status === 'Complete') {
+                badge.style.background = 'rgba(76, 175, 80, 0.8)';
+            }
+        }
+        
+        // Check if processing is complete
+        if (progress.status === 'Complete' || overallPercent >= 100) {
+            setTimeout(() => {
+                resetProcessingState();
+                showSuccessMessage();
+                loadState();
+                loadFaceMatches();
+            }, 2000);
+        }
+    }
+    
+    function updateProgress(elementId, percent, text) {
+        const element = document.getElementById(elementId);
+        const textElement = document.getElementById(elementId + 'Text');
+        
+        element.style.width = `${percent}%`;
+        if (textElement) {
+            textElement.textContent = text;
+        }
+    }
+    
+    function updateCurrentActivity(activity) {
+        document.getElementById('currentActivity').textContent = activity;
+    }
+    
+    function resetProcessingState() {
+        isProcessing = false;
+        processBtn.disabled = false;
+        processBtn.innerHTML = '<i class="fas fa-cogs"></i><span>Process All Images</span>';
+        progressSection.style.display = 'none';
+        
+        if (progressInterval) {
+            clearInterval(progressInterval);
+            progressInterval = null;
+        }
+    }
+    
+    function showSuccessMessage(message = 'Operation completed successfully!') {
+        successStatus.style.display = 'block';
+        document.getElementById('successMessage').textContent = message;
+        successStatus.classList.add('success-animation');
+        
+        setTimeout(() => {
+            successStatus.style.display = 'none';
+            successStatus.classList.remove('success-animation');
+        }, 5000);
+    }
+    
+    async function loadFaceMatches() {
+        try {
+            loadingOverlay.style.display = 'flex';
+            
+            const response = await fetch(`/api/face-matches/groups?page=${currentPage}&per_page=1`);
+            const data = await response.json();
+            
+            if (data.success) {
+                totalGroups = data.total_groups;
+                displayFaceGroups(data.groups, data.current_page, data.has_next, data.has_prev);
+            } else {
+                throw new Error(data.error || 'Failed to load face matches');
+            }
+        } catch (error) {
+            console.error('Error loading face matches:', error);
+            if (!isProcessing) {
+                errorStatus.style.display = 'block';
+                document.getElementById('errorMessage').textContent = error.message;
+            }
+        } finally {
+            loadingOverlay.style.display = 'none';
+        }
+    }
+    
+    function displayFaceGroups(groups, currentPage, hasNext, hasPrev) {
+        if (groups.length === 0) {
+            matchesContainer.innerHTML = `
+                <div class="empty-state">
+                    <div class="empty-icon">
+                        <i class="fas fa-search"></i>
+                    </div>
+                    <div class="empty-title">No Face Matches Found</div>
+                    <div class="empty-description">Process your images to find similar faces</div>
+                </div>
+            `;
+            return;
+        }
+        
+        // Navigation
+        const navigationHtml = `
+            <div class="group-navigation">
+                <div class="nav-info">
+                    <h3>Face Group ${currentPage}</h3>
+                    <p>${totalGroups} total groups found</p>
+                </div>
+                <div class="nav-buttons">
+                    <button class="btn-nav" onclick="navigateGroup(${currentPage - 1})" ${!hasPrev ? 'disabled' : ''}>
+                        <i class="fas fa-chevron-left"></i> Previous
+                    </button>
+                    <button class="btn-nav" onclick="navigateGroup(${currentPage + 1})" ${!hasNext ? 'disabled' : ''}>
+                        Next <i class="fas fa-chevron-right"></i>
+                    </button>
+                </div>
+            </div>
+        `;
+        
+        // Group content
+        const group = groups[0]; // Only one group per page
+        const facesHtml = group.faces.map(face => `
+            <div class="face-card">
+                <img src="${face.crop_url}" class="face-image" alt="Face crop" onerror="this.style.display='none'">
+                <div class="face-info">
+                    <div class="face-source">${face.source_type}</div>
+                    <div class="face-similarity">${(face.similarity * 100).toFixed(1)}% match</div>
+                </div>
+            </div>
+        `).join('');
+        
+        const originalImages = group.faces.map(face => `
+            <div class="face-card">
+                <img src="${face.original_url}" class="face-image" alt="Original image" onerror="this.style.display='none'">
+                <div class="face-info">
+                    <div class="face-source">${face.source_type}</div>
+                </div>
+            </div>
+        `).join('');
+        
+        const groupHtml = `
+            <div class="face-group-card">
+                <div class="group-header">
+                    <h3 class="group-title">Face Group ${currentPage}</h3>
+                    <div class="group-stats">
+                        ${group.faces.length} faces • ${(group.average_similarity * 100).toFixed(1)}% average similarity
+                    </div>
+                </div>
+                <div class="group-body">
+                    <div class="section-title">
+                        <i class="fas fa-crop"></i>
+                        Face Crops
+                    </div>
+                    <div class="face-grid">
+                        ${facesHtml}
+                    </div>
+                    
+                    <div class="section-title">
+                        <i class="fas fa-image"></i>
+                        Original Images
+                    </div>
+                    <div class="face-grid">
+                        ${originalImages}
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        matchesContainer.innerHTML = navigationHtml + groupHtml;
+    }
+    
+    // Global navigation function
+    window.navigateGroup = function(page) {
+        if (page >= 1 && page <= totalGroups) {
+            currentPage = page;
+            loadFaceMatches();
+        }
+    };
+});
+</script>
+{% endblock %} 

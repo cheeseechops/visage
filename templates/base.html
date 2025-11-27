@@ -1,0 +1,751 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" type="image/png" href="/static/logo.png">
+    <title>{% block title %}Visage{% endblock %}</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#4F46E5',
+                        secondary: '#6B7280',
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        .fade-in {
+            animation: fadeIn 0.3s ease-in;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .card-hover {
+            transition: all 0.2s ease-in-out;
+        }
+        .card-hover:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+        }
+    </style>
+    {% block extra_head %}{% endblock %}
+</head>
+<body class="bg-gray-900 min-h-screen">
+    <!-- Side Hamburger Menu -->
+    <div id="side-menu" class="fixed top-0 left-0 h-full w-64 bg-gray-900 border-r border-gray-800 z-50 transform -translate-x-full transition-transform duration-200 ease-in-out">
+        <div class="flex flex-col h-full">
+            <div class="flex items-center justify-between px-6 py-4 border-b border-gray-800">
+                <div class="flex items-center">
+                    <img src="/static/logo.png" alt="Visage" class="h-6 w-6 mr-2">
+                    <span class="text-xl font-bold text-gray-100">Menu</span>
+                </div>
+                <button id="close-menu-btn" class="text-gray-400 hover:text-primary focus:outline-none">
+                    <svg class="w-7 h-7" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+                </button>
+            </div>
+            <nav class="flex-1 px-4 py-6 space-y-2">
+                <a href="/import" class="block px-4 py-3 rounded-lg text-gray-200 hover:bg-primary/20 hover:text-primary font-medium {% if request.endpoint == 'import_workflow' %}bg-primary/20 text-primary{% endif %}">Import</a>
+                <a href="/cropper" class="block px-4 py-3 rounded-lg text-gray-200 hover:bg-primary/20 hover:text-primary font-medium {% if request.endpoint == 'cropper' %}bg-primary/20 text-primary{% endif %}">Crop</a>
+                <a href="/namer-selection" class="block px-4 py-3 rounded-lg text-gray-200 hover:bg-primary/20 hover:text-primary font-medium {% if request.endpoint in ['namer', 'namer_selection', 'video_namer'] %}bg-primary/20 text-primary{% endif %}">Name</a>
+                <a href="/chat" class="block px-4 py-3 rounded-lg text-gray-200 hover:bg-primary/20 hover:text-primary font-medium {% if request.endpoint == 'chat_page' or request.endpoint == 'chat_session' %}bg-primary/20 text-primary{% endif %}">Chat</a>
+                <a href="/video" class="block px-4 py-3 rounded-lg text-gray-200 hover:bg-primary/20 hover:text-primary font-medium {% if request.endpoint == 'video_tab' %}bg-primary/20 text-primary{% endif %}">Video</a>
+                <a href="/profile_pictures" class="block px-4 py-3 rounded-lg text-gray-200 hover:bg-primary/20 hover:text-primary font-medium {% if request.endpoint == 'profile_pictures' %}bg-primary/20 text-primary{% endif %}">People Management</a>
+                <a href="/rebuild_face_db" class="block px-4 py-3 rounded-lg text-gray-200 hover:bg-primary/20 hover:text-primary font-medium {% if request.endpoint == 'rebuild_face_db' %}bg-primary/20 text-primary{% endif %}">Rebuild Face DB</a>
+                
+                <!-- Archive Section -->
+                <div class="mt-8 pt-6 border-t border-gray-700">
+                    <h3 class="px-4 text-sm font-semibold text-gray-400 uppercase tracking-wider mb-3">Archive</h3>
+                    <div class="space-y-1">
+                        <a href="/clothing_tagger" class="block px-4 py-2 rounded-lg text-gray-400 hover:bg-gray-800 hover:text-gray-200 text-sm {% if request.endpoint == 'clothing_tagger' %}bg-gray-800 text-gray-200{% endif %}">
+                            <div class="flex items-center">
+                                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"></path>
+                                </svg>
+                                Clothing Tagger
+                            </div>
+                        </a>
+                        <a href="/missing_google_photos" class="block px-4 py-2 rounded-lg text-gray-400 hover:bg-gray-800 hover:text-gray-200 text-sm {% if request.endpoint == 'missing_google_photos' %}bg-gray-800 text-gray-200{% endif %}">
+                            <div class="flex items-center">
+                                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.34 16.5c-.77.833.192 2.5 1.732 2.5z"></path>
+                                </svg>
+                                Missing Google Photos
+                            </div>
+                        </a>
+                        <button id="fix-dimensions-btn" class="block w-full text-left px-4 py-2 rounded-lg text-gray-400 hover:bg-gray-800 hover:text-gray-200 text-sm">
+                            <div class="flex items-center">
+                                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                                </svg>
+                                Fix Missing Image Dimensions
+                            </div>
+                        </button>
+                    </div>
+                </div>
+            </nav>
+        </div>
+    </div>
+    <!-- Hamburger Button -->
+    <button id="open-menu-btn" class="fixed top-4 left-4 z-60 bg-gray-800 text-gray-200 p-2 rounded-lg shadow-lg hover:bg-primary/20 focus:outline-none">
+        <svg class="w-7 h-7" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16"/></svg>
+    </button>
+    <!-- Navigation (top) -->
+    <nav class="bg-gray-800 shadow-sm border-b border-gray-700">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between h-16">
+                <div class="flex items-center">
+                    <img src="/static/logo.png" alt="Visage" class="h-8 w-8 mr-3">
+                    <h1 class="text-xl font-semibold text-gray-100">Visage</h1>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <a href="/" class="text-gray-300 hover:text-primary px-3 py-2 rounded-md text-sm font-medium {% if request.endpoint == 'home' %}text-primary bg-primary/20{% endif %}">People</a>
+                    <a href="/images" class="text-gray-300 hover:text-primary px-3 py-2 rounded-md text-sm font-medium {% if request.endpoint == 'all_images' %}text-primary bg-primary/20{% endif %}">Images</a>
+                    <a href="/search" class="text-gray-300 hover:text-primary px-3 py-2 rounded-md text-sm font-medium {% if request.endpoint == 'search' %}text-primary bg-primary/20{% endif %}">Search</a>
+                    <a href="/viewer" class="text-gray-300 hover:text-primary px-3 py-2 rounded-md text-sm font-medium">Viewer</a>
+                    <a href="/experimental" class="text-gray-300 hover:text-primary px-3 py-2 rounded-md text-sm font-medium">Experimental</a>
+                    <a href="/video" class="text-gray-300 hover:text-primary px-3 py-2 rounded-md text-sm font-medium {% if request.endpoint == 'video_tab' %}text-primary bg-primary/20{% endif %}">Video</a>
+                    <a href="/random-grid" class="text-gray-300 hover:text-primary px-3 py-2 rounded-md text-sm font-medium {% if request.endpoint == 'random_grid' %}text-primary bg-primary/20{% endif %}">Random</a>
+                    <!-- Remove Import, Crop, Name, Missing Google Photos from here -->
+                    <a href="/mobile-slideshow" class="ml-4 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded font-semibold shadow transition" target="_blank">Mobile Slideshow</a>
+                    <button id="quick-slideshow-btn" class="ml-4 bg-pink-600 hover:bg-pink-700 text-white px-4 py-2 rounded font-semibold shadow transition">Quick Slideshow</button>
+                    <button id="bug-report-btn" class="ml-4 bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded font-semibold shadow transition">Report Bug</button>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Bug Report Modal -->
+    <div id="bug-report-modal" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden flex items-center justify-center">
+        <div class="bg-white rounded-lg p-6 w-full max-w-2xl mx-4 max-h-[90vh] overflow-y-auto">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-xl font-semibold text-gray-900">Report a Bug</h2>
+                <button onclick="closeBugReportModal()" class="text-gray-400 hover:text-gray-600">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                </button>
+            </div>
+            
+            <form id="bug-report-form">
+                <div class="mb-4">
+                    <label for="bug-description" class="block text-sm font-medium text-gray-700 mb-2">
+                        Describe the bug:
+                    </label>
+                    <textarea 
+                        id="bug-description" 
+                        name="description" 
+                        rows="4" 
+                        class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+                        placeholder="Please describe what happened, what you expected to happen, and any steps to reproduce the issue..."
+                        required
+                    ></textarea>
+                </div>
+                
+                <div class="mb-4">
+                    <label for="bug-severity" class="block text-sm font-medium text-gray-700 mb-2">
+                        Severity:
+                    </label>
+                    <select 
+                        id="bug-severity" 
+                        name="severity" 
+                        class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+                    >
+                        <option value="low">Low - Minor issue, doesn't affect functionality</option>
+                        <option value="medium" selected>Medium - Some functionality affected</option>
+                        <option value="high">High - Major functionality broken</option>
+                        <option value="critical">Critical - Application unusable</option>
+                    </select>
+                </div>
+                
+                <div class="flex justify-end space-x-3">
+                    <button 
+                        type="button" 
+                        onclick="closeBugReportModal()" 
+                        class="px-4 py-2 text-gray-600 border border-gray-300 rounded-md hover:bg-gray-50"
+                    >
+                        Cancel
+                    </button>
+                    <button 
+                        type="submit" 
+                        class="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700"
+                    >
+                        Submit Report
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    {% if not no_main_wrapper %}
+    <main class="max-w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    {% endif %}
+        {% block content %}{% endblock %}
+    {% if not no_main_wrapper %}
+    </main>
+    {% endif %}
+
+    <!-- Global Context Menu -->
+    <div id="global-context-menu" class="fixed z-50 bg-white rounded shadow-lg border border-gray-200 py-1 text-sm text-gray-800 hidden" style="min-width: 160px;">
+        <!-- Menu items will be injected here -->
+    </div>
+
+    <!-- JavaScript for interactions -->
+    <script>
+        // Bug Report functionality
+        function openBugReportModal() {
+            document.getElementById('bug-report-modal').classList.remove('hidden');
+            document.getElementById('bug-report-modal').classList.add('flex');
+        }
+
+        function closeBugReportModal() {
+            document.getElementById('bug-report-modal').classList.add('hidden');
+            document.getElementById('bug-report-modal').classList.remove('flex');
+            // Clear form
+            document.getElementById('bug-report-form').reset();
+        }
+
+        // Initialize bug report button
+        document.addEventListener('DOMContentLoaded', function() {
+            const bugReportBtn = document.getElementById('bug-report-btn');
+            if (bugReportBtn) {
+                bugReportBtn.addEventListener('click', openBugReportModal);
+            }
+
+            // Handle bug report form submission
+            const bugReportForm = document.getElementById('bug-report-form');
+            if (bugReportForm) {
+                bugReportForm.addEventListener('submit', function(e) {
+                    e.preventDefault();
+                    
+                    const formData = new FormData(bugReportForm);
+                    const description = formData.get('description');
+                    const severity = formData.get('severity');
+                    
+                    // Get current page context
+                    const currentPage = window.location.pathname;
+                    const currentUrl = window.location.href;
+                    const userAgent = navigator.userAgent;
+                    const timestamp = new Date().toISOString();
+                    
+                    // Submit report
+                    fetch('/api/report_bug', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                            description: description,
+                            severity: severity,
+                            page: currentPage,
+                            url: currentUrl,
+                            user_agent: userAgent,
+                            timestamp: timestamp
+                        })
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            alert('Bug report submitted successfully! Thank you for your feedback.');
+                            closeBugReportModal();
+                        } else {
+                            alert('Error submitting bug report: ' + data.error);
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        alert('Error submitting bug report. Please try again.');
+                    });
+                });
+            }
+        });
+
+        // Toggle favorite functionality
+        function toggleFavorite(type, id) {
+            fetch(`/api/toggle_${type}_favorite/${id}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    const button = document.querySelector(`[data-${type}-id="${id}"]`);
+                    if (button) {
+                        const icon = button.querySelector('svg');
+                        if (data.is_favorite) {
+                            icon.classList.remove('text-gray-400');
+                            icon.classList.add('text-red-500');
+                        } else {
+                            icon.classList.remove('text-red-500');
+                            icon.classList.add('text-gray-400');
+                        }
+                        // Update data-favorite attribute on the card (image or person)
+                        let card = button.closest('[data-favorite]');
+                        if (card) {
+                            card.setAttribute('data-favorite', data.is_favorite ? 'true' : 'false');
+                            // If in All Images and 'Show only favorites' is checked, remove card if unfavorited
+                            if (type === 'image') {
+                                const favOnlyCheckbox = document.getElementById('favorites-only');
+                                if (favOnlyCheckbox && favOnlyCheckbox.checked && !data.is_favorite) {
+                                    card.remove();
+                                    // Also remove from allImages array if present
+                                    if (window.allImages) {
+                                        window.allImages = window.allImages.filter(img => img !== card);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            })
+            .catch(error => console.error('Error:', error));
+        }
+
+        // Modal functionality
+        function openModal(modalId) {
+            const modal = document.getElementById(modalId);
+            if (modal) {
+                modal.classList.remove('hidden');
+                modal.classList.add('flex');
+            }
+        }
+
+        function closeModal(modalId) {
+            const modal = document.getElementById(modalId);
+            if (modal) {
+                modal.classList.add('hidden');
+                modal.classList.remove('flex');
+            }
+        }
+
+        // Close modal when clicking outside
+        document.addEventListener('click', function(event) {
+            if (event.target.classList.contains('modal-backdrop')) {
+                event.target.classList.add('hidden');
+                event.target.classList.remove('flex');
+            }
+        });
+
+        // --- Global Context Menu Logic ---
+        const contextMenu = document.getElementById('global-context-menu');
+        let contextMenuCallback = null;
+        let contextMenuVisible = false;
+
+        function showContextMenu(items, x, y, callback) {
+            contextMenu.innerHTML = '';
+            items.forEach(item => {
+                const el = document.createElement('div');
+                el.className = 'px-4 py-2 hover:bg-gray-100 cursor-pointer';
+                el.textContent = item.label;
+                el.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    hideContextMenu();
+                    if (callback) callback(item.action);
+                });
+                contextMenu.appendChild(el);
+            });
+            // Position menu, but keep it in viewport
+            const menuWidth = 180;
+            const menuHeight = items.length * 40;
+            let left = x;
+            let top = y;
+            if (left + menuWidth > window.innerWidth) left = window.innerWidth - menuWidth - 8;
+            if (top + menuHeight > window.innerHeight) top = window.innerHeight - menuHeight - 8;
+            contextMenu.style.left = left + 'px';
+            contextMenu.style.top = top + 'px';
+            contextMenu.classList.remove('hidden');
+            contextMenuCallback = callback;
+            contextMenuVisible = true;
+        }
+
+        function hideContextMenu() {
+            contextMenu.classList.add('hidden');
+            contextMenu.innerHTML = '';
+            contextMenuCallback = null;
+            contextMenuVisible = false;
+        }
+
+        // Hide menu on click elsewhere, but not on right-click or menu click
+        document.addEventListener('mousedown', function(event) {
+            if (contextMenuVisible && !contextMenu.contains(event.target)) {
+                hideContextMenu();
+            }
+        });
+        window.addEventListener('resize', hideContextMenu);
+        window.addEventListener('scroll', hideContextMenu);
+        document.addEventListener('contextmenu', function(e) {
+            if (!contextMenu.contains(e.target)) hideContextMenu();
+        });
+
+        // Quick Slideshow button logic
+        document.addEventListener('DOMContentLoaded', function() {
+            const btn = document.getElementById('quick-slideshow-btn');
+            if (btn) {
+                btn.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    // If overlay already exists, do nothing
+                    if (document.getElementById('quick-slideshow-overlay')) return;
+                    
+                    // Show loading state
+                    btn.disabled = true;
+                    btn.innerHTML = '<svg class="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>Loading...';
+                    
+                    // Fetch images via AJAX
+                    fetch('/api/images')
+                        .then(res => res.json())
+                        .then(images => {
+                            // Reset button
+                            btn.disabled = false;
+                            btn.innerHTML = 'Quick Slideshow';
+                            
+                            if (!images || images.length === 0) {
+                                alert('No images found');
+                                return;
+                            }
+                            
+                            // Create overlay
+                            const overlay = document.createElement('div');
+                            overlay.id = 'quick-slideshow-overlay';
+                            overlay.className = 'fixed inset-0 bg-black z-[9999] flex items-center justify-center';
+                            overlay.innerHTML = `
+                                <img id="quick-slideshow-img" class="w-full h-full object-contain" src="" alt="Slideshow image">
+                                <div id="quick-slideshow-top-info" class="absolute top-4 left-1/2 transform -translate-x-1/2 bg-black bg-opacity-75 text-white px-4 py-2 rounded-lg text-sm transition-opacity duration-300">
+                                    <span id="quick-slideshow-counter"></span> | Speed: <span id="quick-slideshow-speed"></span> | Quick Slideshow - N: Next | A: Auto | R: Random | +/-: Speed | Esc: Exit
+                                    <span id="quick-slideshow-mode" class="ml-2 px-2 py-1 bg-blue-600 rounded text-xs">RANDOM</span>
+                                </div>
+                            `;
+                            document.body.appendChild(overlay);
+                            
+                            // Fullscreen API
+                            if (document.fullscreenEnabled && !document.fullscreenElement) {
+                                overlay.requestFullscreen().catch(()=>{});
+                            }
+                            
+                            // Prepare images - create a copy for randomization
+                            let shuffledImages = [...images];
+                            let current = 0;
+                            let auto = true;
+                            let interval = 600; // Even faster interval for better responsiveness
+                            let timer = null;
+                            let isRandomMode = true; // Start in random mode
+                            const imgEl = document.getElementById('quick-slideshow-img');
+                            const counterEl = document.getElementById('quick-slideshow-counter');
+                            const modeEl = document.getElementById('quick-slideshow-mode');
+                            const topInfoEl = document.getElementById('quick-slideshow-top-info');
+                            const speedEl = document.getElementById('quick-slideshow-speed');
+                            
+                            // Auto-hide functionality
+                            let hideTimeout = null;
+                            const showTopInfo = () => {
+                                if (topInfoEl) {
+                                    topInfoEl.style.opacity = '1';
+                                    // Clear existing timeout
+                                    if (hideTimeout) {
+                                        clearTimeout(hideTimeout);
+                                    }
+                                    // Set new timeout to hide after 3 seconds of inactivity
+                                    hideTimeout = setTimeout(() => {
+                                        if (topInfoEl) {
+                                            topInfoEl.style.opacity = '0';
+                                        }
+                                    }, 3000);
+                                }
+                            };
+                            
+                            const hideTopInfo = () => {
+                                if (topInfoEl && hideTimeout) {
+                                    clearTimeout(hideTimeout);
+                                    topInfoEl.style.opacity = '0';
+                                }
+                            };
+                            
+                            // Preload images for better performance
+                            const preloadImages = () => {
+                                const preloadCount = Math.min(15, shuffledImages.length); // Increased preload count
+                                
+                                // Preload first image immediately for faster startup
+                                if (shuffledImages.length > 0) {
+                                    const firstImage = shuffledImages[0];
+                                    const firstImageUrl = firstImage.image_url || firstImage.cropped_path || firstImage.original_path;
+                                    if (firstImageUrl) {
+                                        const firstImg = new Image();
+                                        firstImg.src = firstImageUrl;
+                                    }
+                                }
+                                
+                                // Preload additional random images
+                                for (let i = 0; i < preloadCount; i++) {
+                                    const img = new Image();
+                                    const randomIndex = Math.floor(Math.random() * shuffledImages.length);
+                                    const imageUrl = shuffledImages[randomIndex].image_url || shuffledImages[randomIndex].cropped_path || shuffledImages[randomIndex].original_path;
+                                    if (imageUrl) {
+                                        img.src = imageUrl;
+                                    }
+                                }
+                            };
+                            
+                            // Preload queue for smooth transitions
+                            const preloadQueue = [];
+                            const preloadNextImage = () => {
+                                if (preloadQueue.length < 5) { // Increased queue size
+                                    const randomIndex = Math.floor(Math.random() * shuffledImages.length);
+                                    const nextImage = shuffledImages[randomIndex];
+                                    const nextImageUrl = nextImage.image_url || nextImage.cropped_path || nextImage.original_path;
+                                    if (nextImageUrl && !preloadQueue.includes(nextImageUrl)) {
+                                        const preloadImg = new Image();
+                                        preloadImg.src = nextImageUrl;
+                                        preloadQueue.push(nextImageUrl);
+                                        // Remove from queue after a delay
+                                        setTimeout(() => {
+                                            const index = preloadQueue.indexOf(nextImageUrl);
+                                            if (index > -1) {
+                                                preloadQueue.splice(index, 1);
+                                            }
+                                        }, 10000); // Increased timeout
+                                    }
+                                }
+                            };
+                            
+                            function updateSpeedDisplay() {
+                                if (speedEl) {
+                                    speedEl.textContent = `${interval}ms`;
+                                }
+                            }
+                            
+                            function show(idx, isAutoChange = false) {
+                                if (shuffledImages.length === 0) return;
+                                
+                                if (isRandomMode) {
+                                    // Random mode - pick a random image
+                                    current = Math.floor(Math.random() * shuffledImages.length);
+                                } else {
+                                    // Sequential mode
+                                    current = ((idx % shuffledImages.length) + shuffledImages.length) % shuffledImages.length;
+                                }
+                                
+                                const image = shuffledImages[current];
+                                const imageUrl = image.image_url || image.cropped_path || image.original_path;
+                                
+                                // Preload next image for smooth transitions
+                                if (isRandomMode) {
+                                    preloadNextImage();
+                                }
+                                
+                                // Instant transition (no crossfade)
+                                imgEl.src = imageUrl;
+                                
+                                // Update info
+                                counterEl.textContent = `${current + 1}/${shuffledImages.length}`;
+                                updateSpeedDisplay();
+                                modeEl.textContent = isRandomMode ? 'RANDOM' : 'SEQUENTIAL';
+                                
+                                // Only show top info if not an auto-change
+                                if (!isAutoChange) {
+                                    showTopInfo(); // Show info on manual image change
+                                }
+                                
+                                // Preload next image after current is loaded
+                                if (isRandomMode) {
+                                    setTimeout(preloadNextImage, 50); // Faster preloading
+                                }
+                            }
+                            
+                            function next() { 
+                                if (isRandomMode) {
+                                    show(Math.floor(Math.random() * shuffledImages.length), true); // Auto-change
+                                } else {
+                                    show((current + 1) % shuffledImages.length, true); // Auto-change
+                                }
+                            }
+                            
+                            function startAuto() { 
+                                if (timer) clearInterval(timer); 
+                                timer = setInterval(next, interval); 
+                                auto = true; 
+                            }
+                            
+                            function stopAuto() { 
+                                if (timer) clearInterval(timer); 
+                                timer = null; 
+                                auto = false; 
+                            }
+                            
+                            function toggleAuto() { 
+                                if (auto) { 
+                                    stopAuto(); 
+                                } else { 
+                                    startAuto(); 
+                                } 
+                            }
+                            
+                            function toggleRandomMode() {
+                                isRandomMode = !isRandomMode;
+                                if (isRandomMode) {
+                                    // Shuffle the array for random mode
+                                    for (let i = shuffledImages.length - 1; i > 0; i--) {
+                                        const j = Math.floor(Math.random() * (i + 1));
+                                        [shuffledImages[i], shuffledImages[j]] = [shuffledImages[j], shuffledImages[i]];
+                                    }
+                                }
+                                // Don't change the image, just update the mode display
+                                modeEl.textContent = isRandomMode ? 'RANDOM' : 'SEQUENTIAL';
+                                showTopInfo(); // Show info when mode changes
+                            }
+                            
+                            // Attach keyHandler with capture:true to block all other handlers
+                            function keyHandler(e) {
+                                // Show top info on any key press
+                                showTopInfo();
+                                
+                                // Block N, A, R, Esc, +, - from propagating
+                                if (e.key === 'N' || e.key === 'n' || e.key === 'A' || e.key === 'a' || 
+                                    e.key === 'R' || e.key === 'r' || e.key === 'Escape' || 
+                                    e.key === '+' || e.key === '-' || e.key === '=') {
+                                    e.preventDefault();
+                                    e.stopImmediatePropagation();
+                                }
+                                
+                                if (e.key === 'N' || e.key === 'n') { 
+                                    if (isRandomMode) {
+                                        show(Math.floor(Math.random() * shuffledImages.length), false); // Manual change
+                                    } else {
+                                        show((current + 1) % shuffledImages.length, false); // Manual change
+                                    }
+                                }
+                                else if (e.key === 'A' || e.key === 'a') { 
+                                    toggleAuto(); 
+                                }
+                                else if (e.key === 'R' || e.key === 'r') { 
+                                    toggleRandomMode(); 
+                                }
+                                else if (e.key === '+' || e.key === '=') { 
+                                    // Increase speed
+                                    interval = Math.max(200, interval - 100);
+                                    updateSpeedDisplay();
+                                    if (auto) {
+                                        stopAuto();
+                                        startAuto();
+                                    }
+                                }
+                                else if (e.key === '-') { 
+                                    // Decrease speed
+                                    interval = Math.min(3000, interval + 100);
+                                    updateSpeedDisplay();
+                                    if (auto) {
+                                        stopAuto();
+                                        startAuto();
+                                    }
+                                }
+                                else if (e.key === 'Escape') { 
+                                    exitSlideshow(); 
+                                }
+                            }
+                            
+                            window.addEventListener('keydown', keyHandler, true);
+                            
+                            // Add mouse movement detection for auto-hide
+                            let mouseTimeout = null;
+                            overlay.addEventListener('mousemove', () => {
+                                showTopInfo();
+                                // Clear mouse timeout
+                                if (mouseTimeout) {
+                                    clearTimeout(mouseTimeout);
+                                }
+                                // Set timeout to hide after mouse stops moving
+                                mouseTimeout = setTimeout(() => {
+                                    if (topInfoEl) {
+                                        topInfoEl.style.opacity = '0';
+                                    }
+                                }, 3000);
+                            });
+                            
+                            // Remove handler on exit
+                            function exitSlideshow() {
+                                if (timer) clearInterval(timer);
+                                if (hideTimeout) clearTimeout(hideTimeout);
+                                if (mouseTimeout) clearTimeout(mouseTimeout);
+                                overlay.remove();
+                                window.removeEventListener('keydown', keyHandler, true);
+                                document.removeEventListener('fullscreenchange', fullscreenHandler);
+                                if (document.fullscreenElement) document.exitFullscreen().catch(()=>{});
+                            }
+                            
+                            function fullscreenHandler() {
+                                if (!document.fullscreenElement) {
+                                    exitSlideshow();
+                                }
+                            }
+                            
+                            document.addEventListener('fullscreenchange', fullscreenHandler);
+                            
+                            // Preload some images and start
+                            preloadImages();
+                            show(0, false); // Initial show, not auto-change
+                            startAuto();
+                            showTopInfo(); // Show info initially
+                            
+                            // Start preloading immediately in background
+                            setTimeout(() => {
+                                preloadNextImage();
+                                preloadNextImage();
+                                preloadNextImage();
+                            }, 100);
+                        })
+                        .catch(error => {
+                            console.error('Error loading images:', error);
+                            btn.disabled = false;
+                            btn.innerHTML = 'Quick Slideshow';
+                            alert('Error loading images. Please try again.');
+                        });
+                });
+            }
+        });
+    </script>
+    {% block scripts %}{% endblock %}
+    <!-- Hamburger Menu JS -->
+    <script>
+    const sideMenu = document.getElementById('side-menu');
+    const openMenuBtn = document.getElementById('open-menu-btn');
+    const closeMenuBtn = document.getElementById('close-menu-btn');
+    function openMenu() {
+        sideMenu.classList.remove('-translate-x-full');
+    }
+    function closeMenu() {
+        sideMenu.classList.add('-translate-x-full');
+    }
+    openMenuBtn.addEventListener('click', openMenu);
+    closeMenuBtn.addEventListener('click', closeMenu);
+    // Close menu on overlay click or ESC
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') closeMenu();
+    });
+
+    // Fix Missing Image Dimensions Button
+    document.getElementById('fix-dimensions-btn').addEventListener('click', async function() {
+        if (!confirm('This will scan all images and update missing width/height. Continue?')) return;
+        const btn = this;
+        const originalText = btn.innerHTML;
+        btn.disabled = true;
+        btn.innerHTML = '<div class="flex items-center"><svg class="w-4 h-4 mr-2 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>Fixing...</div>';
+        try {
+            const resp = await fetch('/admin/fix_missing_dimensions', { method: 'POST' });
+            const data = await resp.json();
+            alert(`Fixed: ${data.fixed}\nFailed: ${data.failed}\nTotal Missing: ${data.total_missing}`);
+        } catch (e) {
+            alert('Error fixing image dimensions.');
+        } finally {
+            btn.disabled = false;
+            btn.innerHTML = originalText;
+        }
+    });
+    </script>
+</body>
+</html> 

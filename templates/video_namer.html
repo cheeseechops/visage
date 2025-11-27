@@ -1,0 +1,1666 @@
+{% extends "base.html" %}
+{% block title %}Video Namer{% endblock %}
+{% block content %}
+<div class="h-[95vh] bg-gray-900 flex">
+  <!-- Left Side - Video Thumbnail -->
+  <div class="flex-1 relative bg-gray-800 p-1">
+    {% if video %}
+      <div class="relative w-full">
+        <img id="video-thumbnail" src="{{ video.thumbnail_path or video.file_path }}" alt="Video thumbnail"
+             class="w-full h-auto max-h-[85vh] object-contain"
+             data-video-path="{{ video.file_path }}"
+             data-video-id="{{ video.id }}"
+             data-face-bbox='{{ face_bbox|tojson if face_bbox else "null" }}'
+             data-all-faces='{{ all_faces|tojson if all_faces else "[]" }}'
+             data-face-best-guesses='{{ face_best_guesses|tojson if face_best_guesses else "[]" }}'
+             data-faces='{{ faces|tojson if faces else "[]" }}'
+             data-face-suggestions='{{ suggestions|tojson if suggestions else "[]" }}'
+             data-frame-extracted="true">
+        
+        <!-- Video Player (hidden by default) -->
+        <video id="video-player" class="w-full h-auto max-h-[85vh] object-contain hidden" controls preload="metadata" src="{{ video.file_path }}">
+          <source src="{{ video.file_path }}" type="{{ video.mime_type }}">
+        </video>
+        
+        <!-- Frame Navigation Controls -->
+        <div class="absolute top-4 left-4 bg-gray-800 bg-opacity-90 rounded-lg p-2 flex gap-2" style="z-index: 1002;">
+          <button id="prev-frame" class="bg-gray-700 hover:bg-gray-600 text-white px-3 py-1 rounded text-sm">
+            ← Frame
+          </button>
+          <button id="prev-second" class="bg-gray-700 hover:bg-gray-600 text-white px-3 py-1 rounded text-sm">
+            ← 1s
+          </button>
+          <button id="next-second" class="bg-gray-700 hover:bg-gray-600 text-white px-3 py-1 rounded text-sm">
+            1s →
+          </button>
+          <button id="next-frame" class="bg-gray-700 hover:bg-gray-600 text-white px-3 py-1 rounded text-sm">
+            Frame →
+          </button>
+        </div>
+        
+        <!-- Current Time Display -->
+        <div id="current-time" class="absolute top-4 right-4 bg-gray-800 bg-opacity-90 text-white px-3 py-1 rounded text-sm" style="z-index: 1002;">
+          0:00
+        </div>
+        
+        
+        
+        <!-- Face Overlay -->
+        <div id="face-overlay" style="position: absolute; z-index: 1000; pointer-events: auto; top: 0; left: 0; width: 100%; height: 100%;"></div>
+        <div id="face-name-display" class="absolute bottom-4 left-0 right-0 text-center text-white font-bold text-shadow-lg bg-black bg-opacity-50 px-4 py-2 rounded" style="font-size: min(6vw, 3rem); z-index: 1001;"></div>
+        
+        <!-- Reprocess faces button -->
+        <button id="reprocess-faces-btn" class="absolute top-4 left-1/2 transform -translate-x-1/2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded text-sm font-medium" style="z-index: 1002; display: none;">
+          🔄 Reprocess Faces
+        </button>
+        
+        <!-- Loading Icon for Reprocessing -->
+        <div id="reprocess-loading" class="absolute top-4 left-1/2 transform -translate-x-1/2 bg-blue-600 text-white px-4 py-2 rounded text-sm font-medium" style="z-index: 1002; display: none;">
+          <div class="flex items-center gap-2">
+            <div class="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+            <span>Processing...</span>
+          </div>
+        </div>
+        
+        <!-- Face Suggestions Context Menu -->
+        <div id="face-suggestions-menu" class="absolute bg-white border border-gray-300 rounded-lg shadow-lg py-2 min-w-48" style="z-index: 2000; display: none;">
+          <div class="px-3 py-2 text-sm font-semibold text-gray-700 border-b border-gray-200">
+            Face Suggestions
+          </div>
+          <div id="face-suggestions-list" class="max-h-60 overflow-y-auto">
+            <!-- Suggestions will be populated here -->
+          </div>
+          <div class="px-3 py-2 border-t border-gray-200">
+            <button id="face-suggestions-cancel" class="text-sm text-gray-600 hover:text-gray-800">Cancel</button>
+          </div>
+        </div>
+        
+        <!-- Video Rotation Controls -->
+        <div class="absolute bottom-4 right-4 bg-gray-800 bg-opacity-90 rounded-lg p-2 flex gap-2" style="z-index: 1002;">
+          <button id="rotate-left" class="bg-gray-700 hover:bg-gray-600 text-white px-3 py-1 rounded text-sm" title="Rotate Left 90°">
+            ↶
+          </button>
+          <button id="rotate-right" class="bg-gray-700 hover:bg-gray-600 text-white px-3 py-1 rounded text-sm" title="Rotate Right 90°">
+            ↷
+          </button>
+        </div>
+        
+        <!-- Face Name Overlay -->
+        <div id="face-name-overlay" class="absolute hidden bg-gray-800 border border-gray-600 rounded-lg shadow-xl p-4 z-[9999] min-w-64 max-w-80">
+          <div class="flex justify-between items-center mb-3">
+            <h3 class="text-white font-semibold text-sm">Name Face <span id="overlay-face-number"></span></h3>
+            <button id="close-overlay" class="text-gray-400 hover:text-white">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+              </svg>
+            </button>
+          </div>
+          
+          <!-- AI Suggestions -->
+          <div id="overlay-suggestions" class="mb-3">
+            <div class="text-gray-300 text-xs mb-2">AI Suggestions</div>
+            <div id="overlay-suggestions-list" class="space-y-1">
+              <!-- Suggestions will be populated here -->
+            </div>
+          </div>
+          
+          <!-- Custom Name Input -->
+          <div class="mb-3">
+            <label for="overlay-name-input" class="block text-gray-300 text-xs mb-1">Custom Name</label>
+            <input id="overlay-name-input" type="text" 
+                   class="w-full bg-gray-700 border border-gray-600 rounded px-2 py-1 text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                   placeholder="Type custom name...">
+          </div>
+          
+          <!-- Action Buttons -->
+          <div class="flex gap-2">
+            <button id="overlay-save-btn" class="flex-1 bg-blue-600 hover:bg-blue-700 text-white text-sm py-1 px-2 rounded">
+              Save Name
+            </button>
+            <button id="overlay-cancel-btn" class="flex-1 bg-gray-600 hover:bg-gray-700 text-white text-sm py-1 px-2 rounded">
+              Cancel
+            </button>
+          </div>
+        </div>
+        
+        <!-- Video Info -->
+        <div class="absolute bottom-2 left-2 bg-gray-900/80 backdrop-blur-sm rounded-lg px-2 py-1">
+          <div class="text-white text-xs">
+            <div class="font-mono">ID: {{ video.id }}</div>
+            <div class="text-gray-300 text-xs truncate max-w-xs" title="{{ video.original_filename }}">
+              {{ video.original_filename }}
+            </div>
+          </div>
+        </div>
+      </div>
+    {% endif %}
+  </div>
+
+  <!-- Right Side - Controls -->
+  {% if video %}
+    <div class="w-96 bg-gray-800 border-l border-gray-700 p-2 flex flex-col">
+      <!-- Unnamed count badge -->
+      <div class="mb-1">
+        <div class="bg-green-800 text-white px-2 py-1 rounded-lg shadow text-sm font-semibold">
+          Unnamed videos left: {{ unnamed_count }}
+        </div>
+      </div>
+      
+      <!-- AI Suggestions -->
+      {% if not faces or faces|length == 0 %}
+      <div class="mb-1">
+        <div class="text-red-400 font-medium text-xs">No face detected in this video thumbnail.</div>
+      </div>
+      {% elif suggestions and suggestions|length > 0 %}
+      <div class="mb-1">
+        <div class="text-gray-300 font-medium text-xs mb-0.5">Top AI Suggestions</div>
+        <div id="ai-suggestions-list" class="flex flex-wrap gap-1">
+          {% for s in suggestions if s.person_id %}
+            <button type="button" class="ai-suggestion-btn bg-gray-700 hover:bg-green-700 text-white rounded px-2 py-1 text-xs font-semibold border border-gray-600 hover:border-green-500 transition-colors duration-150" data-name="{{ s.name }}">
+              {{ s.name }} <span class="text-xs text-green-300">({{ (s.confidence * 100) | round(1) }}%)</span>
+            </button>
+          {% endfor %}
+        </div>
+      </div>
+      {% endif %}
+      
+      <!-- Name Input -->
+      <div class="mb-1">
+        <label for="name-input" class="block text-gray-300 font-medium mb-0.5 text-xs">Enter Names (comma-separated for multiple)</label>
+        <div class="relative">
+          <input id="name-input" type="text"
+                 class="w-full bg-gray-700 border border-gray-600 rounded-lg px-2 py-1 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                 placeholder="Type names separated by commas..."
+                 autocomplete="off" spellcheck="false"
+                 value="{% if best_suggestion %}{{ best_suggestion.name }}{% endif %}">
+          <!-- Autocomplete Dropdown -->
+          <div id="autocomplete-dropdown" class="absolute z-10 w-full bg-gray-700 border border-gray-600 rounded-lg mt-1 max-h-60 overflow-y-auto hidden">
+            <!-- Autocomplete options will be populated here -->
+          </div>
+        </div>
+      </div>
+      
+      <!-- Action Buttons -->
+      <div class="space-y-1">
+        <button id="save-button" class="w-full bg-green-600 hover:bg-green-700 text-white font-medium py-1 px-2 rounded-lg transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 focus:ring-offset-gray-800">
+          Save Names
+        </button>
+        <button id="skip-button" class="w-full bg-gray-700 hover:bg-gray-600 text-gray-300 font-medium py-1 px-2 rounded-lg transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 focus:ring-offset-gray-800">
+          Skip Video
+        </button>
+        <button id="delete-button" class="w-full bg-red-600 hover:bg-red-700 text-white font-medium py-1 px-2 rounded-lg transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 focus:ring-offset-gray-800">
+          Delete Video
+        </button>
+      </div>
+      
+      <!-- Video Preview -->
+      <div class="mt-1 pt-1 border-t border-gray-700">
+        <div class="text-center">
+          <div class="text-gray-400 text-xs mb-1">Video Preview</div>
+          <div class="relative bg-black rounded-lg overflow-hidden border border-gray-600" style="width: calc(100% - 8px); margin: 0 auto;">
+            <video id="video-preview" 
+                   class="w-full h-auto object-contain" 
+                   muted 
+                   loop 
+                   preload="metadata"
+                   style="filter: brightness(0.8) contrast(1.1);">
+              <source src="{{ video.file_path }}" type="{{ video.mime_type }}">
+            </video>
+            <div class="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent pointer-events-none"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  {% endif %}
+</div>
+
+<!-- Hidden data for JavaScript -->
+<div id="page-data" style="display: none;"
+     data-video-id="{% if video %}{{ video.id }}{% endif %}"
+     data-best-name="{% if best_suggestion %}{{ best_suggestion.name }}{% endif %}"
+     data-best-similarity="{% if best_suggestion %}{{ best_suggestion.confidence }}{% endif %}">
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+console.log('Video Namer Script block loaded');
+
+const autocompleteDropdown = document.getElementById('autocomplete-dropdown');
+const nameInput = document.getElementById('name-input');
+const saveButton = document.getElementById('save-button');
+const skipButton = document.getElementById('skip-button');
+const deleteButton = document.getElementById('delete-button');
+const videoPlayer = document.getElementById('video-player');
+const videoThumbnail = document.getElementById('video-thumbnail');
+const currentTimeDisplay = document.getElementById('current-time');
+
+// Get page data
+const pageData = document.getElementById('page-data');
+const currentVideoId = pageData ? pageData.getAttribute('data-video-id') : null;
+const bestName = pageData ? pageData.getAttribute('data-best-name') : '';
+const bestSimilarity = pageData ? pageData.getAttribute('data-best-similarity') : '';
+
+// Track selected faces for multi-select
+let selectedFaces = new Set();
+let isMultiSelectMode = false;
+
+// Track face names
+let faceNames = {};
+
+// Autocomplete data
+let autocompleteData = [];
+
+// Video state
+let isVideoPlaying = false;
+let currentTime = 0;
+
+// Load autocomplete data
+function loadAutocompleteData() {
+    console.log('Loading autocomplete data...');
+    fetch('/api/people')
+        .then(response => response.json())
+        .then(data => {
+            console.log('Autocomplete response:', data);
+            if (data.success && data.people) {
+                autocompleteData = data.people.sort((a, b) => (b.video_count || 0) - (a.video_count || 0));
+                console.log('Loaded', autocompleteData.length, 'people for autocomplete');
+            } else {
+                console.error('Invalid response format from /api/people');
+            }
+        })
+        .catch(error => {
+            console.error('Error loading autocomplete data:', error);
+        });
+}
+
+// Setup video player
+function setupVideoPlayer() {
+    if (!videoPlayer) return;
+    
+    console.log('Setting up video player...');
+    console.log('Video src:', videoPlayer.src);
+    console.log('Video currentSrc:', videoPlayer.currentSrc);
+    console.log('Video sources:', videoPlayer.querySelectorAll('source'));
+    
+    // Check if video has a valid source
+    if (!videoPlayer.src && !videoPlayer.currentSrc) {
+        console.error('Video has no source!');
+        return;
+    }
+    
+    // Store original thumbnail source
+    originalThumbnailSrc = videoThumbnail.src;
+    
+    // Ensure video metadata is loaded
+    videoPlayer.load();
+    
+    // Add a timeout to check if video loads
+    setTimeout(() => {
+        console.log('Video check after 2 seconds:');
+        console.log('  Duration:', videoPlayer.duration);
+        console.log('  ReadyState:', videoPlayer.readyState);
+        console.log('  NetworkState:', videoPlayer.networkState);
+        console.log('  Error:', videoPlayer.error);
+        
+        if (isNaN(videoPlayer.duration)) {
+            console.log('Video still not loaded, trying to reload...');
+            videoPlayer.load();
+        }
+    }, 2000);
+    
+    videoPlayer.addEventListener('loadedmetadata', function() {
+        console.log('Video metadata loaded, duration:', videoPlayer.duration);
+        console.log('Video readyState:', videoPlayer.readyState);
+        console.log('Video networkState:', videoPlayer.networkState);
+        
+        // Start at 1 second into the video
+        videoPlayer.currentTime = 1.0;
+        
+        updateTimeDisplay();
+        
+        // Keep original thumbnail for proper bounding box alignment
+        console.log('Using original thumbnail for face detection alignment');
+    });
+    
+    videoPlayer.addEventListener('canplay', function() {
+        console.log('Video can play, duration:', videoPlayer.duration);
+        console.log('Video readyState:', videoPlayer.readyState);
+        
+        // Ensure we have a valid duration
+        if (!isNaN(videoPlayer.duration) && videoPlayer.duration > 0) {
+            console.log('Video is ready for navigation');
+        }
+    });
+    
+    videoPlayer.addEventListener('error', function(e) {
+        console.error('Video error:', e);
+        console.error('Video error code:', videoPlayer.error ? videoPlayer.error.code : 'unknown');
+        console.error('Video error message:', videoPlayer.error ? videoPlayer.error.message : 'unknown');
+    });
+    
+    videoPlayer.addEventListener('timeupdate', function() {
+        currentTime = videoPlayer.currentTime;
+        updateTimeDisplay();
+    });
+    
+    videoPlayer.addEventListener('play', function() {
+        isVideoPlaying = true;
+        videoThumbnail.classList.add('hidden');
+        videoPlayer.classList.remove('hidden');
+    });
+    
+    videoPlayer.addEventListener('pause', function() {
+        isVideoPlaying = false;
+        videoThumbnail.classList.remove('hidden');
+        videoPlayer.classList.add('hidden');
+    });
+}
+
+// Setup video preview
+function setupVideoPreview() {
+    const videoPreview = document.getElementById('video-preview');
+    if (!videoPreview) return;
+    
+    console.log('Setting up video preview...');
+    
+    // Set low quality settings for preview
+    videoPreview.muted = true;
+    videoPreview.loop = true;
+    videoPreview.preload = 'metadata';
+    
+    // Set normal playback speed
+    videoPreview.playbackRate = 1.0; // Normal speed
+    
+    // Start playing the preview when metadata is loaded
+    videoPreview.addEventListener('loadedmetadata', function() {
+        console.log('Video preview metadata loaded');
+        
+        // Calculate aspect ratio and set container dimensions
+        const aspectRatio = videoPreview.videoWidth / videoPreview.videoHeight;
+        const maxHeight = 400; // Cap maximum height (doubled from 200)
+        const maxWidth = videoPreview.parentElement.offsetWidth;
+        
+        // Calculate dimensions based on aspect ratio
+        let containerWidth = maxWidth;
+        let containerHeight = maxWidth / aspectRatio;
+        
+        // If height exceeds max, shrink width proportionally
+        if (containerHeight > maxHeight) {
+            containerHeight = maxHeight;
+            containerWidth = maxHeight * aspectRatio;
+        }
+        
+        // Set the container dimensions
+        videoPreview.parentElement.style.width = containerWidth + 'px';
+        videoPreview.parentElement.style.height = containerHeight + 'px';
+        
+        console.log(`Video preview: ${videoPreview.videoWidth}x${videoPreview.videoHeight}, aspect ratio: ${aspectRatio.toFixed(2)}, container: ${containerWidth.toFixed(0)}x${containerHeight.toFixed(0)}`);
+        
+        // Start at the beginning of the video
+        videoPreview.currentTime = 0;
+        
+        // Play the preview
+        videoPreview.play().catch(error => {
+            console.log('Video preview autoplay prevented:', error);
+        });
+    });
+    
+    // Handle errors
+    videoPreview.addEventListener('error', function(e) {
+        console.log('Video preview error:', e);
+    });
+    
+    // Restart preview when it ends (for loop)
+    videoPreview.addEventListener('ended', function() {
+        videoPreview.currentTime = 0;
+        videoPreview.play().catch(error => {
+            console.log('Video preview restart error:', error);
+        });
+    });
+}
+
+// Update time display
+function updateTimeDisplay() {
+    if (!currentTimeDisplay || !videoPlayer) return;
+    
+    const minutes = Math.floor(videoPlayer.currentTime / 60);
+    const seconds = Math.floor(videoPlayer.currentTime % 60);
+    currentTimeDisplay.textContent = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+}
+
+// Track if thumbnail has been moved from original position
+let thumbnailMoved = false;
+let originalThumbnailSrc = null;
+
+// Update thumbnail to show current video frame
+function updateThumbnailFromVideo() {
+    if (!videoPlayer || !videoThumbnail) return;
+    
+    // Create a canvas to capture the current video frame
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    
+    // Set canvas size to match video dimensions
+    canvas.width = videoPlayer.videoWidth;
+    canvas.height = videoPlayer.videoHeight;
+    
+    // Draw the current video frame to canvas
+    ctx.drawImage(videoPlayer, 0, 0, canvas.width, canvas.height);
+    
+    // Convert canvas to data URL and update thumbnail with high quality
+    const dataURL = canvas.toDataURL('image/jpeg', 0.95);  // Increased quality from 0.8 to 0.95
+    videoThumbnail.src = dataURL;
+    
+    // Mark that thumbnail has been moved
+    thumbnailMoved = true;
+    
+    // Clear all face data since we're showing a different frame
+    clearAllFaceData();
+    
+    // Hide face detection results since we're showing a different frame
+    hideFaceDetectionResults();
+    
+    console.log('Updated thumbnail to show frame at', videoPlayer.currentTime.toFixed(3), 's');
+}
+
+// Update thumbnail to show current video frame (preserves face data)
+function updateThumbnailFromVideoPreserveFaces() {
+    if (!videoPlayer || !videoThumbnail) return;
+    
+    // Create a canvas to capture the current video frame
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    
+    // Set canvas size to match video dimensions
+    canvas.width = videoPlayer.videoWidth;
+    canvas.height = videoPlayer.videoHeight;
+    
+    // Draw the current video frame to canvas
+    ctx.drawImage(videoPlayer, 0, 0, canvas.width, canvas.height);
+    
+    // Convert canvas to data URL and update thumbnail with high quality
+    const dataURL = canvas.toDataURL('image/jpeg', 0.95);
+    videoThumbnail.src = dataURL;
+    
+    // DON'T mark thumbnail as moved or clear face data for automatic replacement
+    // This preserves the original face detection results
+    
+    console.log('Updated thumbnail to high quality while preserving face data');
+}
+
+// Generate high-quality thumbnail from video
+function generateHighQualityThumbnail() {
+    if (!videoPlayer || !videoThumbnail) return;
+    
+    console.log('Generating high-quality thumbnail from video...');
+    
+    // Ensure video is at 1 second
+    videoPlayer.currentTime = 1.0;
+    
+    // Wait for video to seek to the correct position
+    videoPlayer.addEventListener('seeked', function onSeeked() {
+        videoPlayer.removeEventListener('seeked', onSeeked);
+        
+        // Update thumbnail with high quality but preserve face data
+        updateThumbnailFromVideoPreserveFaces();
+        
+        console.log('High-quality thumbnail generated automatically');
+    }, { once: true });
+}
+
+
+// Hide face detection results
+function hideFaceDetectionResults() {
+    const faceOverlay = document.getElementById('face-overlay');
+    const faceNameDisplay = document.getElementById('face-name-display');
+    const suggestionsList = document.getElementById('suggestions-list');
+    const reprocessBtn = document.getElementById('reprocess-faces-btn');
+    const aiSuggestionsList = document.getElementById('ai-suggestions-list');
+    const overlaySuggestions = document.getElementById('overlay-suggestions');
+    
+    if (faceOverlay) faceOverlay.style.display = 'none';
+    if (faceNameDisplay) faceNameDisplay.style.display = 'none';
+    if (suggestionsList) suggestionsList.style.display = 'none';
+    if (aiSuggestionsList) aiSuggestionsList.style.display = 'none';
+    if (overlaySuggestions) overlaySuggestions.style.display = 'none';
+    if (reprocessBtn) reprocessBtn.style.display = 'block';
+}
+
+// Show face detection results
+function showFaceDetectionResults() {
+    const faceOverlay = document.getElementById('face-overlay');
+    const faceNameDisplay = document.getElementById('face-name-display');
+    const suggestionsList = document.getElementById('suggestions-list');
+    const reprocessBtn = document.getElementById('reprocess-faces-btn');
+    const aiSuggestionsList = document.getElementById('ai-suggestions-list');
+    const overlaySuggestions = document.getElementById('overlay-suggestions');
+    
+    if (faceOverlay) faceOverlay.style.display = 'block';
+    if (faceNameDisplay) faceNameDisplay.style.display = 'block';
+    if (suggestionsList) suggestionsList.style.display = 'block';
+    if (aiSuggestionsList) aiSuggestionsList.style.display = 'block';
+    if (overlaySuggestions) overlaySuggestions.style.display = 'block';
+    if (reprocessBtn) reprocessBtn.style.display = 'none';
+}
+
+// Frame navigation functions
+function navigateFrame(direction) {
+    console.log('navigateFrame called with direction:', direction);
+    console.log('videoPlayer:', videoPlayer);
+    console.log('videoPlayer.duration:', videoPlayer ? videoPlayer.duration : 'undefined');
+    
+    if (!videoPlayer) {
+        console.log('Video player not found');
+        return;
+    }
+    
+    // Ensure video is loaded and ready
+    if (!videoPlayer.duration || videoPlayer.duration === 0 || isNaN(videoPlayer.duration)) {
+        console.log('Video not ready for frame navigation - duration:', videoPlayer.duration);
+        console.log('Video readyState:', videoPlayer.readyState);
+        
+        // Try to load the video first
+        videoPlayer.load();
+        
+        // Wait a bit and try again
+        setTimeout(() => {
+            console.log('Retrying frame navigation after load...');
+            console.log('Video duration after load:', videoPlayer.duration);
+            console.log('Video readyState after load:', videoPlayer.readyState);
+            
+            if (videoPlayer.duration && videoPlayer.duration > 0 && !isNaN(videoPlayer.duration)) {
+                navigateFrame(direction);
+            } else {
+                console.log('Video still not ready after load attempt');
+            }
+        }, 1000);
+        return;
+    }
+    
+    const frameRate = 30; // Assume 30fps, could be made dynamic
+    const frameTime = 1 / frameRate;
+    
+    if (direction === 'prev') {
+        videoPlayer.currentTime = Math.max(0, videoPlayer.currentTime - frameTime);
+    } else {
+        videoPlayer.currentTime = Math.min(videoPlayer.duration, videoPlayer.currentTime + frameTime);
+    }
+    
+    // Update the thumbnail to show the current frame
+    updateThumbnailFromVideo();
+    
+    console.log(`Navigated ${direction} frame to ${videoPlayer.currentTime.toFixed(3)}s`);
+}
+
+function navigateSecond(direction) {
+    console.log('navigateSecond called with direction:', direction);
+    console.log('videoPlayer:', videoPlayer);
+    console.log('videoPlayer.duration:', videoPlayer ? videoPlayer.duration : 'undefined');
+    
+    if (!videoPlayer) {
+        console.log('Video player not found');
+        return;
+    }
+    
+    // Ensure video is loaded and ready
+    if (!videoPlayer.duration || videoPlayer.duration === 0 || isNaN(videoPlayer.duration)) {
+        console.log('Video not ready for second navigation - duration:', videoPlayer.duration);
+        console.log('Video readyState:', videoPlayer.readyState);
+        
+        // Try to load the video first
+        videoPlayer.load();
+        
+        // Wait a bit and try again
+        setTimeout(() => {
+            console.log('Retrying second navigation after load...');
+            console.log('Video duration after load:', videoPlayer.duration);
+            console.log('Video readyState after load:', videoPlayer.readyState);
+            
+            if (videoPlayer.duration && videoPlayer.duration > 0 && !isNaN(videoPlayer.duration)) {
+                navigateSecond(direction);
+            } else {
+                console.log('Video still not ready after load attempt');
+            }
+        }, 1000);
+        return;
+    }
+    
+    if (direction === 'prev') {
+        videoPlayer.currentTime = Math.max(0, videoPlayer.currentTime - 1);
+    } else {
+        videoPlayer.currentTime = Math.min(videoPlayer.duration, videoPlayer.currentTime + 1);
+    }
+    
+    // Update the thumbnail to show the current frame
+    updateThumbnailFromVideo();
+    
+    console.log(`Navigated ${direction} second to ${videoPlayer.currentTime.toFixed(3)}s`);
+}
+
+// Setup frame navigation buttons
+function setupFrameNavigation() {
+    const prevFrameBtn = document.getElementById('prev-frame');
+    const prevSecondBtn = document.getElementById('prev-second');
+    const nextSecondBtn = document.getElementById('next-second');
+    const nextFrameBtn = document.getElementById('next-frame');
+    
+    if (prevFrameBtn) {
+        prevFrameBtn.addEventListener('click', () => navigateFrame('prev'));
+    }
+    if (prevSecondBtn) {
+        prevSecondBtn.addEventListener('click', () => navigateSecond('prev'));
+    }
+    if (nextSecondBtn) {
+        nextSecondBtn.addEventListener('click', () => navigateSecond('next'));
+    }
+    if (nextFrameBtn) {
+        nextFrameBtn.addEventListener('click', () => navigateFrame('next'));
+    }
+}
+
+// Handle autocomplete
+function setupAutocomplete() {
+    if (!nameInput) return;
+
+    // Clear input on click if it has the default value
+    nameInput.addEventListener('click', function() {
+        if (this.value && this.value === bestName) {
+            this.value = '';
+            this.select();
+        }
+    });
+
+    nameInput.addEventListener('focus', function() {
+        if (this.value.length > 0) {
+            showAutocomplete(this.value);
+        }
+    });
+
+    nameInput.addEventListener('input', function() {
+        if (this.value.length > 0) {
+            showAutocomplete(this.value);
+        } else {
+            hideAutocomplete();
+        }
+    });
+
+    nameInput.addEventListener('blur', function() {
+        setTimeout(hideAutocomplete, 200);
+    });
+}
+
+let isSaving = false;
+window.saveName = function() {
+    if (isSaving) {
+        console.log('Save already in progress, ignoring duplicate.');
+        return;
+    }
+    if (!nameInput || !saveButton) {
+        alert('Name input or save button not found!');
+        return;
+    }
+    isSaving = true;
+    const names = nameInput.value.trim();
+    if (!names || !currentVideoId) {
+        alert('Please enter at least one name');
+        isSaving = false;
+        return;
+    }
+    
+    saveButton.disabled = true;
+    saveButton.textContent = 'Saving...';
+    
+    // Parse comma-separated names from input
+    const nameList = names.split(',').map(name => name.trim()).filter(name => name.length > 0);
+    
+    // Get all face names from the overlay and combine with the input names
+    const allNames = [...nameList];
+    
+    // Remove duplicates while preserving order
+    const uniqueNames = [...new Set(allNames)];
+    
+    console.log('Saving names:', uniqueNames);
+    
+    const requestData = {
+        video_id: parseInt(currentVideoId),
+        names: uniqueNames
+    };
+    
+    fetch('/api/video-namer/save_multiple', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(requestData)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            if (data.redirect_to) {
+                console.log('Redirecting to:', data.redirect_to);
+                window.location.href = data.redirect_to;
+            } else {
+                window.location.href = '/video-namer';
+            }
+        } else {
+            alert('Error: ' + (data.error || 'Failed to save names'));
+            saveButton.disabled = false;
+            saveButton.textContent = 'Save Names';
+            isSaving = false;
+        }
+    })
+    .catch(error => {
+        alert('Error saving names. Please try again.');
+        saveButton.disabled = false;
+        saveButton.textContent = 'Save Names';
+        isSaving = false;
+    });
+};
+
+// Handle delete
+window.deleteVideo = function() {
+    console.log('Delete function called');
+    if (!currentVideoId) {
+        window.location.href = '/video-namer';
+        return;
+    }
+    
+    // Confirm deletion
+    if (!confirm('Are you sure you want to delete this video? This action cannot be undone.')) {
+        return;
+    }
+    
+    // Request video deletion from backend
+    fetch('/api/video-namer/delete_video', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ video_id: parseInt(currentVideoId) })
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.success) {
+            console.log('Video deleted successfully');
+            // Move to next video
+            window.location.href = '/video-namer';
+        } else {
+            alert('Error: ' + (data.error || 'Failed to delete video'));
+        }
+    })
+    .catch(err => {
+        console.error('Error deleting video:', err);
+        alert('Error deleting video. Please try again.');
+    });
+}
+
+// Handle skip
+window.skipVideo = function() {
+    console.log('Skip function called');
+    if (!currentVideoId) {
+        window.location.href = '/video-namer';
+        return;
+    }
+    
+    // Add "skipped" tag to video in database (persistent across sessions)
+    fetch('/api/video-namer/skip', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ video_id: currentVideoId })
+    })
+    .then(res => res.json())
+    .then(data => {
+        console.log('Skip response:', data);
+        if (data.success) {
+            // Request next video from backend
+            fetch('/api/video-namer/next_video', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ skipped_ids: [] })  // Backend handles skipped tags
+            })
+            .then(res => res.json())
+            .then(data => {
+                console.log('Next video response:', data);
+                if (data.video && data.video.id) {
+                    window.location.href = `/video-namer?video_id=${data.video.id}`;
+                } else {
+                    // No more videos
+                    window.location.href = '/video-namer';
+                }
+            })
+            .catch(err => {
+                console.error('Error fetching next video:', err);
+                window.location.href = '/video-namer';
+            });
+        } else {
+            console.error('Failed to skip video:', data.error);
+            window.location.href = '/video-namer';
+        }
+    })
+    .catch(err => {
+        console.error('Error skipping video:', err);
+        window.location.href = '/video-namer';
+    });
+}
+
+function showAutocomplete(query) {
+    if (!autocompleteDropdown) {
+        console.error('autocompleteDropdown not found!');
+        return;
+    }
+    autocompleteDropdown.style.display = 'block';
+    autocompleteDropdown.classList.remove('hidden');
+    const filtered = autocompleteData.filter(person =>
+        person.name.toLowerCase().startsWith(query.toLowerCase())
+    ).slice(0, 10);
+    autocompleteDropdown.innerHTML = '';
+    filtered.forEach(person => {
+        const item = document.createElement('div');
+        item.className = 'px-4 py-2 hover:bg-gray-600 cursor-pointer text-white';
+        item.textContent = `${person.name} (${person.video_count || 0} videos)`;
+        item.addEventListener('click', function() {
+            if (!nameInput) return;
+            nameInput.value = person.name;
+            hideAutocomplete();
+            nameInput.focus();
+            window.saveName();
+        });
+        autocompleteDropdown.appendChild(item);
+    });
+    if (filtered.length === 0) {
+        hideAutocomplete();
+    }
+}
+
+function hideAutocomplete() {
+    if (autocompleteDropdown) {
+        autocompleteDropdown.style.display = 'none';
+        autocompleteDropdown.classList.add('hidden');
+    }
+}
+
+// Setup rotation controls
+const rotateLeftBtn = document.getElementById('rotate-left');
+const rotateRightBtn = document.getElementById('rotate-right');
+
+if (rotateLeftBtn) {
+    rotateLeftBtn.addEventListener('click', () => rotateVideo(-90));
+}
+
+if (rotateRightBtn) {
+    rotateRightBtn.addEventListener('click', () => rotateVideo(90));
+}
+
+// Rotate video function
+function rotateVideo(degrees) {
+    const video = document.getElementById('video-player');
+    const thumbnail = document.getElementById('video-thumbnail');
+    
+    if (!video || !thumbnail) {
+        console.error('Video player or thumbnail not found');
+        return;
+    }
+    
+    console.log(`Rotating video by ${degrees} degrees`);
+    
+    // Send rotation request to server
+    fetch('/api/video-namer/rotate', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            video_id: thumbnail.getAttribute('data-video-id'),
+            degrees: degrees
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            console.log('Video rotated successfully');
+            
+            // Update both video and thumbnail sources
+            if (data.video_path) {
+                video.src = data.video_path;
+                console.log('Updated video source to:', data.video_path);
+                
+                // Force video to reload and re-initialize
+                video.load();
+                
+                // Update video preview with new rotated video
+                const videoPreview = document.getElementById('video-preview');
+                if (videoPreview) {
+                    videoPreview.src = data.video_path;
+                    videoPreview.load();
+                    console.log('Updated video preview source to:', data.video_path);
+                }
+                
+                // Re-initialize video player for navigation to work
+                setTimeout(() => {
+                    setupVideoPlayer();
+                    setupVideoPreview(); // Re-initialize preview as well
+                    console.log('Video player and preview re-initialized after rotation');
+                    
+                    // Wait for video to be ready before allowing navigation
+                    const checkVideoReady = () => {
+                        if (video.duration && !isNaN(video.duration)) {
+                            console.log('Rotated video is ready for navigation, duration:', video.duration);
+                        } else {
+                            console.log('Waiting for rotated video to load...');
+                            setTimeout(checkVideoReady, 200);
+                        }
+                    };
+                    checkVideoReady();
+                }, 100);
+            }
+            
+            if (data.thumbnail_path) {
+                thumbnail.src = data.thumbnail_path;
+                console.log('Updated thumbnail source to:', data.thumbnail_path);
+                
+                // Clear face data and hide face detection results
+                clearAllFaceData();
+                hideFaceDetectionResults();
+                
+                // Reprocess faces on the new thumbnail
+                setTimeout(() => {
+                    reprocessFaces();
+                }, 500);
+            }
+            
+            // Show success notification
+            showNotification('Video rotated successfully', 'success');
+        } else {
+            console.error('Rotation failed:', data.error);
+            showNotification('Rotation failed: ' + data.error, 'error');
+        }
+    })
+    .catch(error => {
+        console.error('Error rotating video:', error);
+        alert('Error rotating video: ' + error.message);
+    });
+}
+
+// Setup event listeners
+if (saveButton) {
+    console.log('Setting up save button listener');
+    saveButton.addEventListener('click', function(e) {
+        console.log('Save button clicked (event listener)');
+        e.preventDefault();
+        saveName();
+    });
+} else {
+    console.error('Save button not found!');
+}
+
+if (skipButton) {
+    console.log('Setting up skip button listener');
+    skipButton.addEventListener('click', function(e) {
+        console.log('Skip button clicked (event listener)');
+        e.preventDefault();
+        skipVideo();
+    });
+} else {
+    console.error('Skip button not found!');
+}
+
+if (deleteButton) {
+    console.log('Setting up delete button listener');
+    deleteButton.addEventListener('click', function(e) {
+        console.log('Delete button clicked (event listener)');
+        e.preventDefault();
+        deleteVideo();
+    });
+} else {
+    console.error('Delete button not found!');
+}
+
+// Setup AI suggestion buttons
+function setupAISuggestions() {
+    const aiSuggestionButtons = document.querySelectorAll('.ai-suggestion-btn');
+    aiSuggestionButtons.forEach(button => {
+        button.addEventListener('click', function() {
+            const name = this.getAttribute('data-name');
+            if (name && nameInput) {
+                nameInput.value = name;
+                console.log('AI suggestion clicked:', name);
+                // Auto-save and move to next
+                window.saveName();
+            }
+        });
+    });
+    console.log('Setup', aiSuggestionButtons.length, 'AI suggestion buttons');
+}
+
+// Setup keyboard shortcuts
+function setupKeyboardShortcuts() {
+    document.addEventListener('keydown', function(e) {
+        // Don't trigger shortcuts when typing in input fields
+        if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') {
+            return;
+        }
+
+        switch(e.key) {
+            case 'Enter':
+                e.preventDefault();
+                console.log('Enter key pressed - saving names');
+                window.saveName();
+                break;
+
+            case ' ':
+                e.preventDefault();
+                console.log('Space key pressed - skipping video');
+                window.skipVideo();
+                break;
+
+            case 'Delete':
+            case 'Backspace':
+                e.preventDefault();
+                console.log('Delete/Backspace key pressed - deleting video');
+                window.deleteVideo();
+                break;
+
+            case 'ArrowLeft':
+                e.preventDefault();
+                if (e.shiftKey) {
+                    navigateSecond('prev');
+                } else {
+                    navigateFrame('prev');
+                }
+                break;
+
+            case 'ArrowRight':
+                e.preventDefault();
+                if (e.shiftKey) {
+                    navigateSecond('next');
+                } else {
+                    navigateFrame('next');
+                }
+                break;
+
+            case 'Tab':
+                e.preventDefault();
+                if (nameInput) {
+                    nameInput.focus();
+                    nameInput.select();
+                }
+                break;
+
+            case '1':
+            case '2':
+            case '3':
+            case '4':
+            case '5':
+                e.preventDefault();
+                const suggestionIndex = parseInt(e.key) - 1;
+                const aiSuggestionButtons = document.querySelectorAll('.ai-suggestion-btn');
+                if (aiSuggestionButtons[suggestionIndex]) {
+                    console.log(`Number key ${e.key} pressed - selecting AI suggestion ${suggestionIndex + 1}`);
+                    aiSuggestionButtons[suggestionIndex].click();
+                }
+                break;
+        }
+    });
+
+    console.log('Keyboard shortcuts setup complete');
+}
+
+// Draw face bounding boxes on thumbnail
+function drawFaceBoxes() {
+    const thumbnail = document.getElementById('video-thumbnail');
+    const overlay = document.getElementById('face-overlay');
+    
+    if (!thumbnail || !overlay) return;
+    
+    // Wait for image to load
+    if (thumbnail.naturalWidth === 0) {
+        setTimeout(drawFaceBoxes, 100);
+        return;
+    }
+    
+    const facesData = thumbnail.getAttribute('data-faces');
+    if (!facesData) return;
+    
+    try {
+        const faces = JSON.parse(facesData);
+        if (!Array.isArray(faces) || faces.length === 0) return;
+        
+        // Calculate scale and offset due to object-contain
+        const scale = Math.min(
+            thumbnail.clientWidth / thumbnail.naturalWidth,
+            thumbnail.clientHeight / thumbnail.naturalHeight
+        );
+        const displayWidth = thumbnail.naturalWidth * scale;
+        const displayHeight = thumbnail.naturalHeight * scale;
+        const offsetX = (thumbnail.clientWidth - displayWidth) / 2;
+        const offsetY = (thumbnail.clientHeight - displayHeight) / 2;
+        
+        // Clear overlay
+        overlay.innerHTML = '';
+        
+        // Draw each face box
+        faces.forEach((face, index) => {
+            if (!face || !face.x || !face.y || !face.width || !face.height) return;
+            
+            // Scale face coordinates
+            const x = face.x * scale + offsetX;
+            const y = face.y * scale + offsetY;
+            const width = face.width * scale;
+            const height = face.height * scale;
+            
+            // Create bounding box element
+            const box = document.createElement('div');
+            box.className = 'absolute border-2 border-blue-400 bg-blue-400 bg-opacity-10 cursor-pointer hover:bg-opacity-20 transition-all duration-200';
+            box.style.left = x + 'px';
+            box.style.top = y + 'px';
+            box.style.width = width + 'px';
+            box.style.height = height + 'px';
+            box.setAttribute('data-face-index', index);
+            
+            // Add face number label with best guess
+            const label = document.createElement('div');
+            label.className = 'absolute -top-6 left-0 bg-green-400 text-white text-xs px-2 py-1 rounded font-bold';
+            const bestGuessesData = thumbnail.getAttribute('data-face-best-guesses');
+            const bestGuesses = bestGuessesData ? JSON.parse(bestGuessesData) : [];
+            const faceName = bestGuesses[index] || `Face ${index + 1}`;
+            
+            console.log(`Face ${index}: bestGuesses[${index}] = "${bestGuesses[index]}", final name = "${faceName}"`);
+            
+            label.textContent = faceName;
+            box.appendChild(label);
+            
+            // Add click handlers for face selection
+            box.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const faceIndex = parseInt(box.getAttribute('data-face-index'));
+                
+                if (e.shiftKey) {
+                    // Shift+click: toggle selection
+                    if (selectedFaces.has(faceIndex)) {
+                        selectedFaces.delete(faceIndex);
+                    } else {
+                        selectedFaces.add(faceIndex);
+                    }
+                } else {
+                    // Regular click: clear all selections and select only this face
+                    selectedFaces.clear();
+                    selectedFaces.add(faceIndex);
+                }
+                
+                updateFaceSelection();
+                updateNameInputFromSelection();
+            });
+            
+            // Add right-click handler for face suggestions
+            box.addEventListener('contextmenu', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                const faceIndex = parseInt(box.getAttribute('data-face-index'));
+                showFaceSuggestionsMenu(e, faceIndex);
+            });
+            
+            overlay.appendChild(box);
+        });
+        
+        console.log(`Drew ${faces.length} face bounding boxes on video thumbnail`);
+    } catch (error) {
+        console.error('Error parsing faces data:', error);
+    }
+}
+
+// Update face selection styling
+function updateFaceSelection() {
+    const overlay = document.getElementById('face-overlay');
+    if (!overlay) return;
+    
+    const faceBoxes = overlay.querySelectorAll('[data-face-index]');
+    faceBoxes.forEach(box => {
+        const faceIndex = parseInt(box.getAttribute('data-face-index'));
+        const isSelected = selectedFaces.has(faceIndex);
+        
+        if (isSelected) {
+            box.className = box.className.replace('border-blue-400 bg-blue-400', 'border-green-400 bg-green-400');
+        } else {
+            box.className = box.className.replace('border-green-400 bg-green-400', 'border-blue-400 bg-blue-400');
+        }
+    });
+}
+
+// Reprocess faces on current thumbnail
+function reprocessFaces() {
+    console.log('Reprocessing faces on current thumbnail...');
+    
+    // Clear all previous face data
+    clearAllFaceData();
+    
+    // Reset thumbnail moved flag
+    thumbnailMoved = false;
+    
+    // Get current thumbnail data
+    const thumbnail = document.getElementById('video-thumbnail');
+    if (!thumbnail) {
+        console.error('Thumbnail not found');
+        return;
+    }
+    
+    // Send current thumbnail to server for face detection
+    processThumbnailForFaces(thumbnail.src);
+}
+
+// Clear all face detection data and UI elements
+function clearAllFaceData() {
+    console.log('Clearing all previous face data...');
+    
+    // Clear face overlay
+    const faceOverlay = document.getElementById('face-overlay');
+    if (faceOverlay) {
+        faceOverlay.innerHTML = '';
+    }
+    
+    // Clear face name display
+    const faceNameDisplay = document.getElementById('face-name-display');
+    if (faceNameDisplay) {
+        faceNameDisplay.innerHTML = '';
+    }
+    
+    // Clear suggestions
+    const suggestionsList = document.getElementById('suggestions-list');
+    if (suggestionsList) {
+        suggestionsList.innerHTML = '';
+    }
+    
+    // Clear name input
+    const nameInput = document.getElementById('name-input');
+    if (nameInput) {
+        nameInput.value = '';
+        nameInput.placeholder = 'Enter name...';
+    }
+    
+    // Clear AI suggestions list
+    const aiSuggestionsList = document.getElementById('ai-suggestions-list');
+    if (aiSuggestionsList) {
+        aiSuggestionsList.innerHTML = '';
+    }
+    
+    // Clear overlay suggestions
+    const overlaySuggestions = document.getElementById('overlay-suggestions');
+    if (overlaySuggestions) {
+        overlaySuggestions.innerHTML = '';
+    }
+    
+    // Clear selected face names display
+    const selectedFaceNames = document.getElementById('selected-face-names');
+    if (selectedFaceNames) {
+        selectedFaceNames.innerHTML = '';
+    }
+    
+    // Reset face data attributes
+    const thumbnail = document.getElementById('video-thumbnail');
+    if (thumbnail) {
+        thumbnail.setAttribute('data-face-bbox', 'null');
+        thumbnail.setAttribute('data-all-faces', '[]');
+        thumbnail.setAttribute('data-face-best-guesses', '[]');
+        thumbnail.setAttribute('data-faces', '[]');
+        thumbnail.setAttribute('data-face-suggestions', '[]');
+    }
+    
+    console.log('All face data cleared');
+}
+
+// Process thumbnail for face detection
+function processThumbnailForFaces(imageDataUrl) {
+    console.log('Sending thumbnail to server for face detection...');
+    
+    // Show loading icon
+    const loadingIcon = document.getElementById('reprocess-loading');
+    const reprocessBtn = document.getElementById('reprocess-faces-btn');
+    if (loadingIcon) loadingIcon.style.display = 'block';
+    if (reprocessBtn) reprocessBtn.style.display = 'none';
+    
+    // Create FormData to send the image
+    const formData = new FormData();
+    
+    // Convert data URL to blob
+    fetch(imageDataUrl)
+        .then(res => res.blob())
+        .then(blob => {
+            formData.append('image', blob, 'current_frame.jpg');
+            formData.append('video_id', document.getElementById('video-thumbnail').getAttribute('data-video-id'));
+            
+            // Send to server for face detection
+            return fetch('/detect_faces_from_image', {
+                method: 'POST',
+                body: formData
+            });
+        })
+        .then(response => response.json())
+        .then(data => {
+            console.log('Face detection response:', data);
+            
+            // Hide loading icon
+            if (loadingIcon) loadingIcon.style.display = 'none';
+            
+            if (data.success) {
+                // Update thumbnail with new face data
+                updateThumbnailWithFaceData(data);
+                
+                // Show face detection results
+                showFaceDetectionResults();
+                
+                // Draw face boxes and setup selection
+                drawFaceBoxes();
+                autoSelectLargestFace();
+                updateFaceSelection();
+                updateNameInputFromSelection();
+                
+                console.log('Face reprocessing complete');
+            } else {
+                console.error('Face detection failed:', data.error);
+                alert('Face detection failed: ' + data.error);
+            }
+        })
+        .catch(error => {
+            console.error('Error processing thumbnail:', error);
+            alert('Error processing thumbnail: ' + error.message);
+            
+            // Hide loading icon on error
+            if (loadingIcon) loadingIcon.style.display = 'none';
+        });
+}
+
+// Update thumbnail with new face detection data
+function updateThumbnailWithFaceData(data) {
+    const thumbnail = document.getElementById('video-thumbnail');
+    if (!thumbnail) return;
+    
+    console.log('Received face data from server:', data);
+    console.log('Face best guesses:', data.face_best_guesses);
+    console.log('Suggestions:', data.suggestions);
+    
+    // Update data attributes with new face data
+    thumbnail.setAttribute('data-face-bbox', JSON.stringify(data.face_bbox || null));
+    thumbnail.setAttribute('data-all-faces', JSON.stringify(data.all_faces || []));
+    thumbnail.setAttribute('data-face-best-guesses', JSON.stringify(data.face_best_guesses || []));
+    thumbnail.setAttribute('data-faces', JSON.stringify(data.faces || []));
+    thumbnail.setAttribute('data-face-suggestions', JSON.stringify(data.suggestions || []));
+    
+    console.log('Updated thumbnail with new face data');
+}
+
+// Initialize everything
+loadAutocompleteData();
+setupAutocomplete();
+setupAISuggestions();
+setupKeyboardShortcuts();
+setupVideoPlayer();
+setupVideoPreview();
+setupFrameNavigation();
+
+// Setup reprocess button
+const reprocessBtn = document.getElementById('reprocess-faces-btn');
+if (reprocessBtn) {
+    reprocessBtn.addEventListener('click', reprocessFaces);
+}
+
+// OPTIMIZATION: Add global key listener for immediate typing without clicking
+document.addEventListener('keydown', function(e) {
+    // If user starts typing and input is not focused, focus it and clear default value
+    if (e.target.tagName !== 'INPUT' && e.target.tagName !== 'TEXTAREA' && 
+        nameInput && !nameInput.matches(':focus') && 
+        e.key.length === 1 && !e.ctrlKey && !e.altKey && !e.metaKey) {
+        
+        nameInput.focus();
+        // Clear the current value when user starts typing
+        nameInput.value = '';
+        // Set the typed character
+        nameInput.value = e.key;
+        // Prevent the default behavior to avoid double typing
+        e.preventDefault();
+    }
+});
+
+// Draw face boxes after everything is loaded
+setTimeout(() => {
+    drawFaceBoxes();
+    autoSelectLargestFace();
+    updateFaceSelection();
+}, 200);
+
+// Auto-select the largest face when page loads
+function autoSelectLargestFace() {
+    const allFacesData = document.getElementById('video-thumbnail').getAttribute('data-all-faces');
+    if (!allFacesData) return;
+    
+    try {
+        const allFaces = JSON.parse(allFacesData);
+        if (!Array.isArray(allFaces) || allFaces.length === 0) return;
+        
+        // Get face best guesses data
+        const bestGuessesData = document.getElementById('video-thumbnail').getAttribute('data-face-best-guesses');
+        const bestGuesses = bestGuessesData ? JSON.parse(bestGuessesData) : [];
+        
+        console.log('Auto-selecting largest face - all faces:', allFaces);
+        console.log('Auto-selecting largest face - best guesses:', bestGuesses);
+        
+        // Find the largest face by area (width * height) that is NOT unknown
+        let largestFaceIndex = -1;
+        let largestArea = 0;
+        
+        allFaces.forEach((face, index) => {
+            if (face && face.width && face.height) {
+                const area = face.width * face.height;
+                // Only consider faces that are not "Unknown"
+                const faceName = bestGuesses[index] || `Face ${index + 1}`;
+                console.log(`Face ${index}: area=${area}, name="${faceName}"`);
+                if (faceName !== 'Unknown' && area > largestArea) {
+                    largestArea = area;
+                    largestFaceIndex = index;
+                }
+            }
+        });
+        
+        if (largestFaceIndex === -1) {
+            console.log('No non-unknown faces found, not auto-selecting any face');
+            return;
+        }
+        
+        // Auto-select the largest non-unknown face
+        selectedFaces.clear();
+        selectedFaces.add(largestFaceIndex);
+        updateFaceSelection();
+        updateNameInputFromSelection();
+        
+        console.log(`Auto-selected largest non-unknown face (index ${largestFaceIndex}) with area ${largestArea}`);
+    } catch (error) {
+        console.error('Error auto-selecting largest face:', error);
+    }
+}
+
+// Update name input based on selected faces
+function updateNameInputFromSelection() {
+    if (!nameInput) return;
+    
+    if (selectedFaces.size === 0) {
+        // No faces selected, use best suggestion
+        nameInput.value = bestName || '';
+        return;
+    }
+    
+    // Get names for selected faces
+    const bestGuessesData = document.getElementById('video-thumbnail').getAttribute('data-face-best-guesses');
+    const bestGuesses = bestGuessesData ? JSON.parse(bestGuessesData) : [];
+    
+    const selectedNames = Array.from(selectedFaces).map(index => {
+        return bestGuesses[index] || `Face ${index + 1}`;
+    });
+    
+    nameInput.value = selectedNames.join(', ');
+}
+
+// Show face suggestions context menu
+function showFaceSuggestionsMenu(event, faceIndex) {
+    console.log(`Right-clicked face ${faceIndex + 1}`);
+    
+    const menu = document.getElementById('face-suggestions-menu');
+    const suggestionsList = document.getElementById('face-suggestions-list');
+    
+    if (!menu || !suggestionsList) return;
+    
+    // Position the menu at the click location
+    menu.style.left = event.clientX + 'px';
+    menu.style.top = event.clientY + 'px';
+    menu.style.display = 'block';
+    
+    // Clear previous suggestions
+    suggestionsList.innerHTML = '';
+    
+    // Get suggestions for this specific face
+    getFaceSuggestions(faceIndex).then(suggestions => {
+        if (suggestions && suggestions.length > 0) {
+            suggestions.forEach((suggestion, index) => {
+                const item = document.createElement('div');
+                item.className = 'px-3 py-2 hover:bg-gray-100 cursor-pointer flex justify-between items-center';
+                item.innerHTML = `
+                    <span class="text-sm">${suggestion.name}</span>
+                    <span class="text-xs text-gray-500">${(suggestion.confidence * 100).toFixed(1)}%</span>
+                `;
+                
+                item.addEventListener('click', () => {
+                    selectFaceSuggestion(faceIndex, suggestion.name);
+                    hideFaceSuggestionsMenu();
+                });
+                
+                suggestionsList.appendChild(item);
+            });
+        } else {
+            const noSuggestions = document.createElement('div');
+            noSuggestions.className = 'px-3 py-2 text-sm text-gray-500';
+            noSuggestions.textContent = 'No suggestions available';
+            suggestionsList.appendChild(noSuggestions);
+        }
+    }).catch(error => {
+        console.error('Error getting face suggestions:', error);
+        const errorItem = document.createElement('div');
+        errorItem.className = 'px-3 py-2 text-sm text-red-500';
+        errorItem.textContent = 'Error loading suggestions';
+        suggestionsList.appendChild(errorItem);
+    });
+    
+    // Add click outside to close menu
+    const closeMenu = (e) => {
+        if (!menu.contains(e.target)) {
+            hideFaceSuggestionsMenu();
+            document.removeEventListener('click', closeMenu);
+        }
+    };
+    
+    setTimeout(() => {
+        document.addEventListener('click', closeMenu);
+    }, 100);
+}
+
+// Hide face suggestions menu
+function hideFaceSuggestionsMenu() {
+    const menu = document.getElementById('face-suggestions-menu');
+    if (menu) {
+        menu.style.display = 'none';
+    }
+}
+
+// Get suggestions for a specific face
+async function getFaceSuggestions(faceIndex) {
+    try {
+        const thumbnail = document.getElementById('video-thumbnail');
+        if (!thumbnail) return [];
+        
+        // Get the current thumbnail image data
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        canvas.width = thumbnail.naturalWidth;
+        canvas.height = thumbnail.naturalHeight;
+        ctx.drawImage(thumbnail, 0, 0);
+        const imageDataUrl = canvas.toDataURL('image/jpeg', 0.8);
+        
+        // Send to server to get suggestions for this specific face
+        const response = await fetch('/api/get_face_suggestions', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                image_data: imageDataUrl,
+                face_index: faceIndex,
+                video_id: thumbnail.getAttribute('data-video-id')
+            })
+        });
+        
+        const data = await response.json();
+        return data.suggestions || [];
+        
+    } catch (error) {
+        console.error('Error getting face suggestions:', error);
+        return [];
+    }
+}
+
+// Select a face suggestion
+function selectFaceSuggestion(faceIndex, newName) {
+    console.log(`Changing face ${faceIndex + 1} to: ${newName}`);
+    
+    // Update the face best guesses data
+    const thumbnail = document.getElementById('video-thumbnail');
+    if (!thumbnail) return;
+    
+    const bestGuessesData = thumbnail.getAttribute('data-face-best-guesses');
+    const bestGuesses = bestGuessesData ? JSON.parse(bestGuessesData) : [];
+    
+    // Update the specific face
+    bestGuesses[faceIndex] = newName;
+    
+    // Update the data attribute
+    thumbnail.setAttribute('data-face-best-guesses', JSON.stringify(bestGuesses));
+    
+    // Redraw face boxes to update labels
+    drawFaceBoxes();
+    
+    // Update name input if this face is selected
+    if (selectedFaces.has(faceIndex)) {
+        updateNameInputFromSelection();
+    }
+    
+    console.log(`Face ${faceIndex + 1} updated to: ${newName}`);
+}
+
+// Show notification
+function showNotification(message, type = 'info') {
+    // Create notification element
+    const notification = document.createElement('div');
+    notification.className = `fixed top-4 right-4 px-4 py-2 rounded-lg text-white z-50 ${
+        type === 'success' ? 'bg-green-600' : 
+        type === 'error' ? 'bg-red-600' : 
+        'bg-blue-600'
+    }`;
+    notification.textContent = message;
+    
+    document.body.appendChild(notification);
+    
+    // Remove after 3 seconds
+    setTimeout(() => {
+        notification.remove();
+    }, 3000);
+}
+
+// Setup context menu cancel button
+document.addEventListener('DOMContentLoaded', function() {
+    const cancelBtn = document.getElementById('face-suggestions-cancel');
+    if (cancelBtn) {
+        cancelBtn.addEventListener('click', hideFaceSuggestionsMenu);
+    }
+});
+
+// Update face selection visual feedback
+// Call auto-select after drawing face boxes
+setTimeout(autoSelectLargestFace, 300);
+
+console.log('Video Namer initialization complete');
+</script>
+{% endblock %}

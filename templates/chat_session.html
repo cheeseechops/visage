@@ -1,0 +1,295 @@
+{% extends "base.html" %}
+
+{% block title %}Chat Session #{{ session.id }} - Visage{% endblock %}
+
+{% block content %}
+<div class="min-h-screen bg-gray-900 flex flex-col">
+  <!-- Header -->
+  <div class="bg-gray-800 border-b border-gray-700 px-6 py-4">
+    <div class="max-w-4xl mx-auto flex items-center justify-between">
+      <div class="flex items-center">
+        <a href="/chat" class="text-gray-400 hover:text-gray-200 mr-4">
+          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
+          </svg>
+        </a>
+        <h1 class="text-xl font-semibold text-gray-100">Chat Session #{{ session.id }}</h1>
+      </div>
+      <div class="text-sm text-gray-400">
+        Created: {{ session.created_at[:10] if session.created_at else 'Unknown' }}
+      </div>
+    </div>
+  </div>
+
+  <!-- Chat Container -->
+  <div class="flex-1 max-w-4xl mx-auto w-full px-6 py-6">
+    <!-- Personality Info -->
+    <div class="bg-gray-800 rounded-lg p-4 mb-6 border border-gray-700">
+      <div class="flex items-center justify-between mb-4">
+        <div class="flex items-center">
+          <div class="w-12 h-12 rounded-full overflow-hidden mr-4 border-2 border-gray-600">
+            <img src="{{ image.image_url if image else '/static/uploads/default.jpg' }}" alt="Profile" class="w-full h-full object-cover">
+          </div>
+          <div>
+            <h3 class="text-sm font-medium text-gray-400">Personality</h3>
+            <p class="text-gray-300 text-sm">{{ session.personality_description }}</p>
+          </div>
+        </div>
+        <div class="flex space-x-2">
+          <button onclick="showSystemPromptViewer()" class="text-xs text-gray-400 hover:text-gray-300">View System Prompt</button>
+          <button onclick="showSystemPromptEditor()" class="text-xs text-primary hover:text-primary-light">Edit System Prompt</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Messages Container -->
+    <div id="messages-container" class="flex-1 space-y-4 mb-6 max-h-96 overflow-y-auto">
+      {% if messages %}
+        {% for message in messages %}
+        <div class="flex {% if message.role == 'user' %}justify-end{% else %}justify-start{% endif %}">
+          <div class="max-w-xs lg:max-w-md {% if message.role == 'user' %}bg-primary text-white{% else %}bg-gray-700 text-gray-100{% endif %} rounded-lg px-4 py-2">
+            <p class="text-sm">{{ message.content }}</p>
+            <p class="text-xs {% if message.role == 'user' %}text-primary-100{% else %}text-gray-400{% endif %} mt-1">
+              {{ message.created_at[11:16] if message.created_at else '' }}
+            </p>
+          </div>
+        </div>
+        {% endfor %}
+      {% else %}
+        <div class="text-center py-8">
+          <div class="w-16 h-16 bg-gray-800 rounded-full flex items-center justify-center mx-auto mb-4">
+            <svg class="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"></path>
+            </svg>
+          </div>
+          <p class="text-gray-400">Start the conversation!</p>
+        </div>
+      {% endif %}
+    </div>
+
+    <!-- Message Input -->
+    <div class="bg-gray-800 rounded-lg border border-gray-700 p-4">
+      <form id="message-form" class="flex space-x-4">
+        <input 
+          type="text" 
+          id="message-input" 
+          placeholder="Type your message..." 
+          class="flex-1 bg-gray-700 border border-gray-600 rounded-md px-4 py-2 text-gray-100 placeholder-gray-400 focus:outline-none focus:border-primary"
+          autocomplete="off"
+        >
+        <button 
+          type="submit" 
+          id="send-button"
+          class="bg-primary text-white px-6 py-2 rounded-md hover:bg-primary-dark transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          Send
+        </button>
+      </form>
+    </div>
+  </div>
+</div>
+
+<script>
+const sessionId = {{ session.id }};
+const messagesContainer = document.getElementById('messages-container');
+const messageForm = document.getElementById('message-form');
+const messageInput = document.getElementById('message-input');
+const sendButton = document.getElementById('send-button');
+
+function scrollToBottom() {
+  messagesContainer.scrollTop = messagesContainer.scrollHeight;
+}
+
+function addMessage(message, isUser = false) {
+  const messageDiv = document.createElement('div');
+  messageDiv.className = `flex ${isUser ? 'justify-end' : 'justify-start'}`;
+  
+  const time = new Date().toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit' });
+  
+  messageDiv.innerHTML = `
+    <div class="max-w-xs lg:max-w-md ${isUser ? 'bg-primary text-white' : 'bg-gray-700 text-gray-100'} rounded-lg px-4 py-2">
+      <p class="text-sm">${message}</p>
+      <p class="text-xs ${isUser ? 'text-primary-100' : 'text-gray-400'} mt-1">${time}</p>
+    </div>
+  `;
+  
+  messagesContainer.appendChild(messageDiv);
+  scrollToBottom();
+}
+
+function sendMessage() {
+  const message = messageInput.value.trim();
+  if (!message) return;
+  
+  // Disable input and button
+  messageInput.disabled = true;
+  sendButton.disabled = true;
+  sendButton.textContent = 'Sending...';
+  
+  // Add user message immediately
+  addMessage(message, true);
+  messageInput.value = '';
+  
+  // Send to server
+  fetch('/api/chat/send_message', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      session_id: sessionId,
+      message: message
+    })
+  })
+  .then(response => response.json())
+  .then(data => {
+    if (data.success) {
+      // Add assistant response
+      addMessage(data.assistant_message.content, false);
+    } else {
+      addMessage('Sorry, I encountered an error. Please try again.', false);
+    }
+  })
+  .catch(error => {
+    console.error('Error:', error);
+    addMessage('Sorry, I encountered an error. Please try again.', false);
+  })
+  .finally(() => {
+    // Re-enable input and button
+    messageInput.disabled = false;
+    sendButton.disabled = false;
+    sendButton.textContent = 'Send';
+    messageInput.focus();
+  });
+}
+
+messageForm.addEventListener('submit', function(e) {
+  e.preventDefault();
+  sendMessage();
+});
+
+messageInput.addEventListener('keypress', function(e) {
+  if (e.key === 'Enter' && !e.shiftKey) {
+    e.preventDefault();
+    sendMessage();
+  }
+});
+
+// Scroll to bottom on page load
+document.addEventListener('DOMContentLoaded', function() {
+  scrollToBottom();
+  messageInput.focus();
+});
+
+function showSystemPromptViewer() {
+  // Create system prompt viewer modal
+  const modal = document.createElement('div');
+  modal.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50';
+  modal.innerHTML = `
+    <div class="bg-gray-800 rounded-lg p-6 w-full max-w-4xl mx-4 max-h-[90vh] overflow-y-auto">
+      <h3 class="text-lg font-medium text-gray-100 mb-4">System Prompt</h3>
+      <p class="text-gray-300 mb-4">Current AI personality configuration:</p>
+      
+      <div class="mb-4">
+        <label class="block text-sm font-medium text-gray-400 mb-2">Original Personality Description:</label>
+        <div class="bg-gray-700 p-3 rounded-md text-gray-300 text-sm">{{ session.personality_description }}</div>
+      </div>
+      
+      <div class="mb-6">
+        <label class="block text-sm font-medium text-gray-400 mb-2">Current System Prompt:</label>
+        <div class="bg-gray-700 p-4 rounded-md text-gray-100 text-sm font-mono whitespace-pre-wrap max-h-96 overflow-y-auto">{{ session.system_prompt }}</div>
+        <p class="text-xs text-gray-500 mt-1">This is the detailed personality configuration that guides the AI's responses.</p>
+      </div>
+      
+      <div class="flex justify-end space-x-3">
+        <button onclick="closeSystemPromptViewer()" class="px-4 py-2 text-gray-300 hover:text-gray-100">Close</button>
+        <button onclick="showSystemPromptEditor()" class="px-4 py-2 bg-primary text-white rounded-md hover:bg-primary-dark">Edit Prompt</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(modal);
+}
+
+function closeSystemPromptViewer() {
+  const modal = document.querySelector('.fixed.inset-0.bg-black');
+  if (modal) {
+    modal.remove();
+  }
+}
+
+function showSystemPromptEditor() {
+  // Create system prompt editor modal
+  const modal = document.createElement('div');
+  modal.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50';
+  modal.innerHTML = `
+    <div class="bg-gray-800 rounded-lg p-6 w-full max-w-4xl mx-4 max-h-[90vh] overflow-y-auto">
+      <h3 class="text-lg font-medium text-gray-100 mb-4">Edit System Prompt</h3>
+      <p class="text-gray-300 mb-4">Modify the AI's personality and behavior:</p>
+      
+      <div class="mb-4">
+        <label class="block text-sm font-medium text-gray-400 mb-2">Original Personality Description:</label>
+        <div class="bg-gray-700 p-3 rounded-md text-gray-300 text-sm">{{ session.personality_description }}</div>
+      </div>
+      
+      <div class="mb-6">
+        <label class="block text-sm font-medium text-gray-400 mb-2">Current System Prompt:</label>
+        <textarea id="system-prompt-edit" class="w-full h-64 p-3 bg-gray-700 border border-gray-600 rounded-md text-gray-100 placeholder-gray-400 resize-none text-sm font-mono" placeholder="System prompt will appear here...">{{ session.system_prompt }}</textarea>
+        <p class="text-xs text-gray-500 mt-1">Changes will take effect immediately for new messages.</p>
+      </div>
+      
+      <div class="flex justify-end space-x-3">
+        <button onclick="closeSystemPromptEditor()" class="px-4 py-2 text-gray-300 hover:text-gray-100">Cancel</button>
+        <button onclick="updateSystemPrompt()" class="px-4 py-2 bg-primary text-white rounded-md hover:bg-primary-dark">Update</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(modal);
+}
+
+function closeSystemPromptEditor() {
+  const modal = document.querySelector('.fixed.inset-0.bg-black');
+  if (modal) {
+    modal.remove();
+  }
+}
+
+function updateSystemPrompt() {
+  const systemPromptEdit = document.getElementById('system-prompt-edit');
+  const updatedPrompt = systemPromptEdit.value.trim();
+  
+  if (!updatedPrompt) {
+    alert('System prompt cannot be empty.');
+    return;
+  }
+  
+  // Update the system prompt
+  fetch(`/api/chat/update_system_prompt/${sessionId}`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      system_prompt: updatedPrompt
+    })
+  })
+  .then(response => response.json())
+  .then(data => {
+    if (data.success) {
+      closeSystemPromptEditor();
+      // Show success message
+      const successMsg = document.createElement('div');
+      successMsg.className = 'fixed top-4 right-4 bg-green-600 text-white px-4 py-2 rounded-md z-50';
+      successMsg.textContent = 'System prompt updated!';
+      document.body.appendChild(successMsg);
+      setTimeout(() => successMsg.remove(), 3000);
+    } else {
+      alert('Error updating system prompt: ' + data.error);
+    }
+  })
+  .catch(error => {
+    console.error('Error:', error);
+    alert('Error updating system prompt. Please try again.');
+  });
+}
+</script>
+{% endblock %}

@@ -1,0 +1,270 @@
+{% extends "base.html" %}
+
+{% block title %}Stats - People Viewer{% endblock %}
+
+{% block content %}
+<div class="space-y-8">
+    <!-- Page Header -->
+    <div class="bg-gray-800 rounded-lg shadow-sm border border-gray-700 p-6">
+        <h1 class="text-2xl font-bold text-gray-100 mb-2">Statistics & Analytics</h1>
+        <p class="text-gray-400">Overview of your people and images database</p>
+    </div>
+
+    <!-- Key Metrics -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div class="bg-gray-800 rounded-lg shadow-sm border border-gray-700 p-6">
+            <div class="flex items-center">
+                <div class="flex-shrink-0">
+                    <svg class="h-8 w-8 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path>
+                    </svg>
+                </div>
+                <div class="ml-4">
+                    <p class="text-sm font-medium text-gray-400">Total People</p>
+                    <p class="text-2xl font-semibold text-gray-100">{{ stats.total_people }}</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-gray-800 rounded-lg shadow-sm border border-gray-700 p-6">
+            <div class="flex items-center">
+                <div class="flex-shrink-0">
+                    <svg class="h-8 w-8 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                    </svg>
+                </div>
+                <div class="ml-4">
+                    <p class="text-sm font-medium text-gray-400">Total Images</p>
+                    <p class="text-2xl font-semibold text-gray-100">{{ stats.total_images }}</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-gray-800 rounded-lg shadow-sm border border-gray-700 p-6">
+            <div class="flex items-center">
+                <div class="flex-shrink-0">
+                    <svg class="h-8 w-8 text-yellow-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z"></path>
+                    </svg>
+                </div>
+                <div class="ml-4">
+                    <p class="text-sm font-medium text-gray-400">Favorite Images</p>
+                    <p class="text-2xl font-semibold text-gray-100">{{ stats.favorite_images }}</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-gray-800 rounded-lg shadow-sm border border-gray-700 p-6">
+            <div class="flex items-center">
+                <div class="flex-shrink-0">
+                    <svg class="h-8 w-8 text-purple-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z"></path>
+                    </svg>
+                </div>
+                <div class="ml-4">
+                    <p class="text-sm font-medium text-gray-400">Group Images</p>
+                    <p class="text-2xl font-semibold text-gray-100">{{ stats.multi_person_images }}</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Charts Row -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <!-- People Status Chart -->
+        <div class="bg-gray-800 rounded-lg shadow-sm border border-gray-700 p-6">
+            <h3 class="text-lg font-semibold text-gray-100 mb-4">People Status</h3>
+            <div class="relative" style="height: 300px;">
+                <canvas id="peopleStatusChart"></canvas>
+            </div>
+        </div>
+
+        <!-- Image Size Distribution -->
+        <div class="bg-gray-800 rounded-lg shadow-sm border border-gray-700 p-6">
+            <h3 class="text-lg font-semibold text-gray-100 mb-4">Image Size Distribution</h3>
+            <div class="relative" style="height: 300px;">
+                <canvas id="imageSizeChart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- Top People Chart -->
+    <div class="bg-gray-800 rounded-lg shadow-sm border border-gray-700 p-6">
+        <h3 class="text-lg font-semibold text-gray-100 mb-4">Top 20 People by Image Count</h3>
+        <div class="relative" style="height: 400px;">
+            <canvas id="topPeopleChart"></canvas>
+        </div>
+    </div>
+
+    <!-- Detailed Stats Table -->
+    <div class="bg-gray-800 rounded-lg shadow-sm border border-gray-700 p-6">
+        <h3 class="text-lg font-semibold text-gray-100 mb-4">Detailed Statistics</h3>
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-700">
+                <thead class="bg-gray-700">
+                    <tr>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Metric</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Value</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Percentage</th>
+                    </tr>
+                </thead>
+                <tbody class="bg-gray-800 divide-y divide-gray-700">
+                    <tr>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-100">Confirmed People</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-400">{{ stats.confirmed_people }}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-400">{{ "%.1f"|format(stats.confirmed_people / stats.total_people * 100) }}%</td>
+                    </tr>
+                    <tr>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-100">Unidentified People</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-400">{{ stats.unidentified_people }}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-400">{{ "%.1f"|format(stats.unidentified_people / stats.total_people * 100) }}%</td>
+                    </tr>
+                    <tr>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-100">Favorite Images</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-400">{{ stats.favorite_images }}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-400">{{ "%.1f"|format(stats.favorite_images / stats.total_images * 100) }}%</td>
+                    </tr>
+                    <tr>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-100">Group Images</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-400">{{ stats.multi_person_images }}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-400">{{ "%.1f"|format(stats.multi_person_images / stats.total_images * 100) }}%</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<script>
+// Dark mode chart colors
+const darkColors = {
+    text: '#9CA3AF',
+    grid: '#374151',
+    background: 'rgba(31, 41, 55, 0.8)'
+};
+
+// People Status Chart
+const peopleStatusCtx = document.getElementById('peopleStatusChart').getContext('2d');
+new Chart(peopleStatusCtx, {
+    type: 'doughnut',
+    data: {
+        labels: ['Confirmed', 'Unidentified'],
+        datasets: [{
+            data: [{{ stats.confirmed_people }}, {{ stats.unidentified_people }}],
+            backgroundColor: ['#10B981', '#F59E0B'],
+            borderWidth: 0
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: {
+                position: 'bottom',
+                labels: {
+                    color: darkColors.text,
+                    padding: 20,
+                    usePointStyle: true
+                }
+            }
+        }
+    }
+});
+
+// Image Size Distribution Chart
+const imageSizeCtx = document.getElementById('imageSizeChart').getContext('2d');
+new Chart(imageSizeCtx, {
+    type: 'bar',
+    data: {
+        labels: {{ stats.size_ranges.keys() | list | tojson }},
+        datasets: [{
+            label: 'Number of Images',
+            data: {{ stats.size_ranges.values() | list | tojson }},
+            backgroundColor: ['#3B82F6', '#10B981', '#F59E0B', '#EF4444'],
+            borderWidth: 0,
+            borderRadius: 4
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: {
+                display: false
+            }
+        },
+        scales: {
+            y: {
+                beginAtZero: true,
+                grid: {
+                    color: darkColors.grid
+                },
+                ticks: {
+                    color: darkColors.text
+                }
+            },
+            x: {
+                grid: {
+                    color: darkColors.grid
+                },
+                ticks: {
+                    color: darkColors.text
+                }
+            }
+        }
+    }
+});
+
+// Top People Chart
+const topPeopleCtx = document.getElementById('topPeopleChart').getContext('2d');
+new Chart(topPeopleCtx, {
+    type: 'bar',
+    data: {
+        labels: {{ stats.top_people | map(attribute='name') | list | tojson }},
+        datasets: [{
+            label: 'Image Count',
+            data: {{ stats.top_people | map(attribute='image_count') | list | tojson }},
+            backgroundColor: function(context) {
+                const person = {{ stats.top_people | tojson }}[context.dataIndex];
+                return person.is_confirmed ? '#10B981' : '#F59E0B';
+            },
+            borderWidth: 0,
+            borderRadius: 4
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: {
+                display: false
+            }
+        },
+        scales: {
+            y: {
+                beginAtZero: true,
+                grid: {
+                    color: darkColors.grid
+                },
+                ticks: {
+                    color: darkColors.text
+                }
+            },
+            x: {
+                grid: {
+                    color: darkColors.grid
+                },
+                ticks: {
+                    color: darkColors.text,
+                    maxRotation: 45,
+                    minRotation: 45
+                }
+            }
+        }
+    }
+});
+</script>
+{% endblock %} 

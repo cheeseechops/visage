@@ -1,0 +1,618 @@
+{% extends "base.html" %}
+
+{% block title %}Manual Tagging - People Viewer{% endblock %}
+
+{% block content %}
+<div class="min-h-screen bg-gray-50 py-8">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <!-- Header -->
+        <div class="mb-8">
+            <h1 class="text-3xl font-bold text-gray-900">Manual Tagging</h1>
+            <p class="mt-2 text-gray-600">Identify people in your imported images using AI suggestions</p>
+        </div>
+
+        {% if images %}
+        <!-- Main Content -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <!-- Left: Image Display -->
+            <div class="lg:col-span-2">
+                <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+                    <!-- Image Container -->
+                    <div class="relative mb-6">
+                        <img id="current-image" 
+                             src="" 
+                             alt="Current image" 
+                             class="w-full max-h-[600px] object-contain rounded-lg border border-gray-200">
+                        
+                        <!-- Face Bounding Box Overlay -->
+                        <div id="face-overlay" class="absolute inset-0 pointer-events-none">
+                            <!-- Face bounding boxes will be drawn here -->
+                        </div>
+                    </div>
+
+                    <!-- Face Recognition Suggestions -->
+                    <div id="recognition-suggestions" class="space-y-3">
+                        <h3 class="text-lg font-medium text-gray-900">AI Recognition Results</h3>
+                        <div id="suggestions-list" class="space-y-2">
+                            <!-- Suggestions will be populated by JavaScript -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right: Assignment Panel -->
+            <div class="lg:col-span-1">
+                <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+                    <!-- Navigation -->
+                    <div class="flex items-center justify-between mb-6">
+                        <div class="text-sm text-gray-600">
+                            <span id="current-index">1</span> of <span id="total-count">{{ images|length }}</span>
+                        </div>
+                        <div class="flex space-x-2">
+                            <button id="prev-btn" onclick="previousImage()"
+                                    class="px-3 py-1 text-sm border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed">
+                                ← Previous
+                            </button>
+                            <button id="next-btn" onclick="nextImage()"
+                                    class="px-3 py-1 text-sm border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed">
+                                Next →
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Top 5 Suggestions -->
+                    <div class="mb-6">
+                        <h3 class="text-lg font-medium text-gray-900 mb-4">Top Suggestions</h3>
+                        <div id="top-suggestions" class="space-y-3">
+                            <!-- Top 5 suggestions will be populated here -->
+                        </div>
+                    </div>
+
+                    <!-- Create New Person -->
+                    <div class="border-t border-gray-200 pt-6">
+                        <h3 class="text-lg font-medium text-gray-900 mb-4">Add New Person</h3>
+                        <div class="space-y-3">
+                            <div class="relative">
+                                <input type="text" id="new-person-name" 
+                                       placeholder="Type to search existing people or enter new name..."
+                                       class="w-full block border-gray-300 rounded-md shadow-sm focus:ring-primary focus:border-primary sm:text-sm">
+                                <div id="autocomplete-dropdown" class="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg hidden max-h-60 overflow-y-auto">
+                                    <!-- Autocomplete suggestions will appear here -->
+                                </div>
+                            </div>
+                            <button onclick="createNewPerson()"
+                                    class="w-full inline-flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-primary hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary">
+                                Create & Assign
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Action Buttons -->
+                    <div class="border-t border-gray-200 pt-6 mt-6">
+                        <div class="space-y-3">
+                            <button onclick="skipCurrentImage()"
+                                    class="w-full inline-flex items-center justify-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary">
+                                Skip Image
+                            </button>
+                            <button onclick="markAsUnidentified()"
+                                    class="w-full inline-flex items-center justify-center px-4 py-2 border border-orange-300 text-sm font-medium rounded-md text-orange-700 bg-white hover:bg-orange-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-500">
+                                Mark as Unidentified
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Current Status -->
+                    <div id="assignment-status" class="mt-6 p-4 bg-gray-50 rounded-lg">
+                        <h3 class="text-sm font-medium text-gray-900 mb-2">Current Status</h3>
+                        <p class="text-sm text-gray-600">No assignment made yet</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Progress Bar -->
+        <div class="mt-8 bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+            <div class="flex items-center justify-between mb-2">
+                <span class="text-sm font-medium text-gray-700">Progress</span>
+                <span class="text-sm text-gray-500"><span id="progress-text">0</span> of {{ images|length }} completed</span>
+            </div>
+            <div class="w-full bg-gray-200 rounded-full h-2">
+                <div id="progress-bar" class="bg-primary h-2 rounded-full transition-all duration-300" style="width: 0%"></div>
+            </div>
+        </div>
+
+        {% else %}
+        <!-- Empty State -->
+        <div class="text-center py-12">
+            <svg class="mx-auto h-12 w-12 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+            </svg>
+            <h3 class="mt-2 text-sm font-medium text-gray-900">All images identified!</h3>
+            <p class="mt-1 text-sm text-gray-500">Great job! All people have been identified and tagged.</p>
+            <div class="mt-6">
+                <a href="/" class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-primary hover:bg-primary/90">
+                    View All People
+                </a>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<script>
+let currentImageIndex = 0;
+let images = {{ images|tojson }};
+let completedCount = 0;
+let allPeople = []; // For autocomplete
+
+// Initialize the interface
+document.addEventListener('DOMContentLoaded', function() {
+    if (images.length > 0) {
+        showImage(0);
+        updateNavigation();
+        updateProgress();
+        loadAllPeople(); // Load people for autocomplete
+    }
+});
+
+function loadAllPeople() {
+    fetch('/api/people')
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                allPeople = data.people.sort((a, b) => a.name.localeCompare(b.name));
+                setupAutocomplete();
+            }
+        })
+        .catch(error => {
+            console.error('Error loading people:', error);
+        });
+}
+
+function setupAutocomplete() {
+    const input = document.getElementById('new-person-name');
+    const dropdown = document.getElementById('autocomplete-dropdown');
+    
+    input.addEventListener('input', function() {
+        const query = this.value.toLowerCase().trim();
+        if (query.length < 1) {
+            dropdown.classList.add('hidden');
+            return;
+        }
+        
+        const matches = allPeople.filter(person => 
+            person.name.toLowerCase().includes(query)
+        ).slice(0, 10);
+        
+        if (matches.length > 0) {
+            dropdown.innerHTML = matches.map(person => `
+                <div class="px-3 py-2 hover:bg-gray-100 cursor-pointer border-b border-gray-100 last:border-b-0"
+                     onclick="selectPerson(${person.id}, '${person.name}')">
+                    <div class="font-medium">${person.name}</div>
+                    <div class="text-sm text-gray-600">${person.image_count} images ${person.is_confirmed ? '✓' : ''}</div>
+                </div>
+            `).join('');
+            dropdown.classList.remove('hidden');
+        } else {
+            dropdown.classList.add('hidden');
+        }
+    });
+    
+    // Hide dropdown when clicking outside
+    document.addEventListener('click', function(e) {
+        if (!input.contains(e.target) && !dropdown.contains(e.target)) {
+            dropdown.classList.add('hidden');
+        }
+    });
+}
+
+function selectPerson(personId, personName) {
+    document.getElementById('new-person-name').value = personName;
+    document.getElementById('autocomplete-dropdown').classList.add('hidden');
+    assignToPerson(personId, personName);
+}
+
+function showImage(index) {
+    if (index < 0 || index >= images.length) return;
+    
+    currentImageIndex = index;
+    const image = images[index];
+    
+    // Update image display
+    const imgElement = document.getElementById('current-image');
+    imgElement.src = image.image_url;
+    document.getElementById('current-index').textContent = index + 1;
+    document.getElementById('total-count').textContent = images.length;
+    
+    // Wait for image to load, then detect faces and draw bounding boxes
+    imgElement.onload = function() {
+        detectFacesAndDrawBoxes(image.id);
+    };
+    
+    // Get face recognition suggestions
+    getFaceSuggestions(image.id);
+    
+    // Update navigation buttons
+    updateNavigation();
+    
+    // Reset assignment status
+    document.getElementById('assignment-status').innerHTML = `
+        <h3 class="text-sm font-medium text-gray-900 mb-2">Current Status</h3>
+        <p class="text-sm text-gray-600">No assignment made yet</p>
+    `;
+}
+
+function detectFacesAndDrawBoxes(imageId) {
+    const overlay = document.getElementById('face-overlay');
+    const imgElement = document.getElementById('current-image');
+
+    // Wait for image to be fully loaded
+    if (imgElement.naturalWidth === 0) {
+        setTimeout(() => drawFaceBoxes(faces), 100);
+        return;
+    }
+
+    overlay.innerHTML = '';
+
+    // Get the actual displayed dimensions and offsets
+    const container = imgElement.parentElement;
+    const containerRect = container.getBoundingClientRect();
+    const imgRect = imgElement.getBoundingClientRect();
+
+    // Calculate scale and offset due to object-contain
+    const scale = Math.min(
+        imgElement.clientWidth / imgElement.naturalWidth,
+        imgElement.clientHeight / imgElement.naturalHeight
+    );
+    const displayWidth = imgElement.naturalWidth * scale;
+    const displayHeight = imgElement.naturalHeight * scale;
+    const offsetX = (imgElement.clientWidth - displayWidth) / 2;
+    const offsetY = (imgElement.clientHeight - displayHeight) / 2;
+
+    fetch(`/api/detect_faces/${imageId}`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success && data.faces.length > 0) {
+                drawFaceBoxes(data.faces);
+            }
+        })
+        .catch(error => {
+            console.error('Error detecting faces:', error);
+        });
+}
+
+function drawFaceBoxes(faces) {
+    const overlay = document.getElementById('face-overlay');
+    const imgElement = document.getElementById('current-image');
+
+    // Wait for image to be fully loaded
+    if (imgElement.naturalWidth === 0) {
+        setTimeout(() => drawFaceBoxes(faces), 100);
+        return;
+    }
+
+    overlay.innerHTML = '';
+
+    // Get the actual displayed dimensions and offsets
+    const container = imgElement.parentElement;
+    const containerRect = container.getBoundingClientRect();
+    const imgRect = imgElement.getBoundingClientRect();
+
+    // Calculate scale and offset due to object-contain
+    const scale = Math.min(
+        imgElement.clientWidth / imgElement.naturalWidth,
+        imgElement.clientHeight / imgElement.naturalHeight
+    );
+    const displayWidth = imgElement.naturalWidth * scale;
+    const displayHeight = imgElement.naturalHeight * scale;
+    const offsetX = (imgElement.clientWidth - displayWidth) / 2;
+    const offsetY = (imgElement.clientHeight - displayHeight) / 2;
+
+    faces.forEach((face, index) => {
+        // Scale face coordinates
+        const x = face.x * scale + offsetX;
+        const y = face.y * scale + offsetY;
+        const width = face.width * scale;
+        const height = face.height * scale;
+
+        // Create bounding box element
+        const box = document.createElement('div');
+        box.className = 'absolute border-2 border-green-400 bg-green-400 bg-opacity-20';
+        box.style.left = x + 'px';
+        box.style.top = y + 'px';
+        box.style.width = width + 'px';
+        box.style.height = height + 'px';
+
+        // Add face number label
+        const label = document.createElement('div');
+        label.className = 'absolute -top-6 left-0 bg-green-400 text-white text-xs px-2 py-1 rounded';
+        label.textContent = `Face ${index + 1}`;
+        box.appendChild(label);
+
+        overlay.appendChild(box);
+    });
+}
+
+function getFaceSuggestions(imageId) {
+    console.log('Getting face suggestions for image:', imageId);
+    
+    // Show loading state
+    const suggestionsList = document.getElementById('suggestions-list');
+    const topSuggestions = document.getElementById('top-suggestions');
+    
+    suggestionsList.innerHTML = '<p class="text-sm text-gray-500">Loading AI suggestions...</p>';
+    topSuggestions.innerHTML = '<p class="text-sm text-gray-500">Loading...</p>';
+    
+    // Call the API
+    fetch(`/api/face_suggestions/${imageId}`)
+        .then(response => {
+            console.log('API response status:', response.status);
+            return response.json();
+        })
+        .then(data => {
+            console.log('API response data:', data);
+            if (data.success) {
+                updateSuggestions(data.suggestions);
+                updateTopSuggestions(data.suggestions);
+            } else {
+                console.error('API error:', data.error);
+                suggestionsList.innerHTML = '<p class="text-sm text-gray-500">No AI suggestions available</p>';
+                topSuggestions.innerHTML = '<p class="text-sm text-gray-500">No suggestions available</p>';
+            }
+        })
+        .catch(error => {
+            console.error('Error getting face suggestions:', error);
+            suggestionsList.innerHTML = '<p class="text-sm text-gray-500">Error loading AI suggestions</p>';
+            topSuggestions.innerHTML = '<p class="text-sm text-gray-500">Error loading suggestions</p>';
+        });
+}
+
+function updateSuggestions(suggestions) {
+    // Sort suggestions by name
+    suggestions = suggestions.slice().sort((a, b) => a.name.localeCompare(b.name));
+    const suggestionsList = document.getElementById('suggestions-list');
+    if (suggestions && suggestions.length > 0) {
+        suggestionsList.innerHTML = suggestions.map(suggestion => `
+            <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                <div class="flex items-center">
+                    <div class="mr-3">
+                        <div class="font-medium text-gray-900">${suggestion.name}</div>
+                        <div class="text-sm text-gray-600">${Math.round(suggestion.confidence * 100)}% confidence</div>
+                    </div>
+                    ${suggestion.is_confirmed ? '<span class="text-xs bg-green-100 text-green-800 px-2 py-1 rounded">Confirmed</span>' : ''}
+                </div>
+                <button onclick="assignToPerson(${suggestion.person_id}, '${suggestion.name}')"
+                        class="inline-flex items-center px-3 py-1 border border-green-300 rounded-md text-sm font-medium text-green-700 bg-white hover:bg-green-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500">
+                    Assign
+                </button>
+            </div>
+        `).join('');
+    } else {
+        suggestionsList.innerHTML = '<p class="text-sm text-gray-500">No AI suggestions available</p>';
+    }
+}
+
+function updateTopSuggestions(suggestions) {
+    const topSuggestions = document.getElementById('top-suggestions');
+    
+    if (suggestions && suggestions.length > 0) {
+        // Show only top 5 unique suggestions
+        const seenNames = new Set();
+        const uniqueSuggestions = [];
+        
+        for (const suggestion of suggestions) {
+            if (!seenNames.has(suggestion.name) && uniqueSuggestions.length < 5) {
+                seenNames.add(suggestion.name);
+                uniqueSuggestions.push(suggestion);
+            }
+        }
+        
+        topSuggestions.innerHTML = uniqueSuggestions.map(suggestion => `
+            <button onclick="assignToPerson(${suggestion.person_id}, '${suggestion.name}')"
+                    class="w-full flex items-center p-3 border border-gray-300 rounded-lg hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary transition-colors">
+                <div class="w-10 h-10 bg-gray-200 rounded-full flex items-center justify-center mr-3">
+                    <span class="text-sm font-medium text-gray-600">${suggestion.name.charAt(0).toUpperCase()}</span>
+                </div>
+                <div class="text-left flex-1">
+                    <div class="font-medium text-gray-900">${suggestion.name}</div>
+                    <div class="text-sm text-gray-600">${Math.round(suggestion.confidence * 100)}% match</div>
+                </div>
+                ${suggestion.is_confirmed ? '<span class="text-xs bg-green-100 text-green-800 px-2 py-1 rounded">✓</span>' : ''}
+            </button>
+        `).join('');
+    } else {
+        topSuggestions.innerHTML = '<p class="text-sm text-gray-500">No suggestions available</p>';
+    }
+}
+
+function updateNavigation() {
+    const prevBtn = document.getElementById('prev-btn');
+    const nextBtn = document.getElementById('next-btn');
+    
+    prevBtn.disabled = currentImageIndex === 0;
+    nextBtn.disabled = currentImageIndex === images.length - 1;
+    
+    if (prevBtn.disabled) {
+        prevBtn.classList.add('opacity-50', 'cursor-not-allowed');
+    } else {
+        prevBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+    }
+    
+    if (nextBtn.disabled) {
+        nextBtn.classList.add('opacity-50', 'cursor-not-allowed');
+    } else {
+        nextBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+    }
+}
+
+function updateProgress() {
+    const progressText = document.getElementById('progress-text');
+    const progressBar = document.getElementById('progress-bar');
+    const percentage = (completedCount / images.length) * 100;
+    
+    progressText.textContent = completedCount;
+    progressBar.style.width = percentage + '%';
+}
+
+function previousImage() {
+    if (currentImageIndex > 0) {
+        showImage(currentImageIndex - 1);
+    }
+}
+
+function nextImage() {
+    if (currentImageIndex < images.length - 1) {
+        showImage(currentImageIndex + 1);
+    }
+}
+
+function assignToPerson(personId, personName) {
+    const currentImage = images[currentImageIndex];
+
+    // Make API call to assign the image
+    fetch(`/api/assign_image/${currentImage.id}/${personId}`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // Immediately advance to next image
+            images.splice(currentImageIndex, 1);
+            completedCount++;
+            updateProgress();
+            if (images.length === 0) {
+                window.location.reload();
+            } else if (currentImageIndex >= images.length) {
+                showImage(images.length - 1);
+            } else {
+                showImage(currentImageIndex);
+            }
+        } else {
+            alert('Error assigning image: ' + data.message);
+        }
+    })
+    .catch(error => {
+        console.error('Error assigning image:', error);
+        alert('Error assigning image. Please try again.');
+    });
+}
+
+function createNewPerson() {
+    const nameInput = document.getElementById('new-person-name');
+    const name = nameInput.value.trim();
+
+    if (!name) {
+        alert('Please enter a name for the new person');
+        return;
+    }
+
+    createNewPersonWithName(name);
+    nameInput.value = '';
+}
+
+function createNewPersonWithName(name) {
+    const currentImage = images[currentImageIndex];
+
+    // Make API call to create new person and assign image
+    fetch('/api/create_person', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            name: name,
+            image_id: currentImage.id
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // Immediately advance to next image
+            images.splice(currentImageIndex, 1);
+            completedCount++;
+            updateProgress();
+            if (images.length === 0) {
+                window.location.reload();
+            } else if (currentImageIndex >= images.length) {
+                showImage(images.length - 1);
+            } else {
+                showImage(currentImageIndex);
+            }
+        } else {
+            alert('Error creating person: ' + data.message);
+        }
+    })
+    .catch(error => {
+        console.error('Error creating person:', error);
+        alert('Error creating person. Please try again.');
+    });
+}
+
+function skipCurrentImage() {
+    const currentImage = images[currentImageIndex];
+    
+    // Here you would make an API call to mark image as skipped
+    console.log(`Skipping image ${currentImage.id}`);
+    
+    // Remove current image from the list
+    images.splice(currentImageIndex, 1);
+    completedCount++;
+    
+    // Update progress
+    updateProgress();
+    
+    // Show next image or completion
+    if (images.length === 0) {
+        // All images completed
+        window.location.reload();
+    } else if (currentImageIndex >= images.length) {
+        // We were at the last image, go to the new last image
+        showImage(images.length - 1);
+    } else {
+        // Show the next image
+        showImage(currentImageIndex);
+    }
+}
+
+function markAsUnidentified() {
+    const currentImage = images[currentImageIndex];
+    
+    // Here you would make an API call to mark image as unidentified
+    console.log(`Marking image ${currentImage.id} as unidentified`);
+    
+    // Remove current image from the list
+    images.splice(currentImageIndex, 1);
+    completedCount++;
+    
+    // Update progress
+    updateProgress();
+    
+    // Show next image or completion
+    if (images.length === 0) {
+        // All images completed
+        window.location.reload();
+    } else if (currentImageIndex >= images.length) {
+        // We were at the last image, go to the new last image
+        showImage(images.length - 1);
+    } else {
+        // Show the next image
+        showImage(currentImageIndex);
+    }
+}
+
+// Keyboard navigation
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'ArrowLeft') {
+        previousImage();
+    } else if (e.key === 'ArrowRight') {
+        nextImage();
+    } else if (e.key === ' ') {
+        e.preventDefault();
+        skipCurrentImage();
+    }
+});
+</script>
+{% endblock %} 
