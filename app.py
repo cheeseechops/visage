@@ -8380,6 +8380,48 @@ def test_ollama():
         'error': 'Ollama chat has been removed from this application.'
     }), 503
 
+# ===== ADMIN UPLOAD ROUTES (Temporary - for initial data migration) =====
+
+@app.route('/api/admin/upload-db', methods=['POST'])
+def upload_database():
+    """Admin route to upload database file (temporary - remove after use)"""
+    import sqlite3
+    import shutil
+    
+    if 'file' not in request.files:
+        return jsonify({'error': 'No file provided'}), 400
+    
+    file = request.files['file']
+    if file.filename == '':
+        return jsonify({'error': 'No file selected'}), 400
+    
+    if not file.filename.endswith('.db'):
+        return jsonify({'error': 'File must be a .db file'}), 400
+    
+    try:
+        # Save uploaded database
+        db_path = 'visage.db'
+        # Backup existing if it exists
+        if os.path.exists(db_path):
+            shutil.copy2(db_path, f'{db_path}.backup')
+        
+        file.save(db_path)
+        
+        # Verify it's a valid SQLite database
+        conn = sqlite3.connect(db_path)
+        cursor = conn.cursor()
+        cursor.execute("SELECT name FROM sqlite_master WHERE type='table';")
+        tables = cursor.fetchall()
+        conn.close()
+        
+        return jsonify({
+            'success': True,
+            'message': f'Database uploaded successfully. Found {len(tables)} tables.',
+            'tables': [t[0] for t in tables]
+        })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
 # ===== VIDEO MANAGEMENT ROUTES =====
 
 @app.route('/video')
