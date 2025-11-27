@@ -106,26 +106,10 @@ with app.app_context():
     db.create_all()
     print("[Startup] Database tables created/verified")
 
-# --- Face recognition model warmup ---
-from face_recognition_module import get_face_db
-face_db = get_face_db()
-
-with app.app_context():
-    try:
-        from models import Image  # Import models only after app context is set up
-        real_image = None
-        img = Image.query.filter(Image.original_path.isnot(None)).order_by(Image.id.desc()).first()
-        print(f"[Startup] img from original_path query: {img} (type: {type(img)})")
-        if img is not None and hasattr(img, 'original_path') and img.original_path and os.path.exists(img.original_path.replace('/static/', 'static/')):
-            real_image = img.original_path.replace('/static/', 'static/')
-        if real_image:
-            print(f"[Startup] Warming up face recognition model with real image: {real_image}")
-            face_db.detect_faces(real_image)
-            print("[Startup] FaceRecognitionDB ran detection on real image to warm up model.")
-        else:
-            print("[Startup] No real image found for model warmup. Skipping warmup.")
-    except Exception as e:
-        print(f"[Startup] Error during real image face detection warmup: {e}")
+# --- Face recognition model loading (LAZY - only load when needed) ---
+# Models are NOT loaded at startup to save memory on Render's free tier
+# They will be loaded on first use via get_face_db() and get_yolo_detector()
+print("[Startup] Models will be loaded lazily on first use to save memory")
 
 # Global singleton instance of FaceRecognitionDB
 _face_db_instance = None
