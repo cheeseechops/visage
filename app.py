@@ -101,6 +101,11 @@ app.config['MAX_CONTENT_LENGTH'] = MAX_FILE_SIZE
 
 db.init_app(app)
 
+# --- Initialize database tables ---
+with app.app_context():
+    db.create_all()
+    print("[Startup] Database tables created/verified")
+
 # --- Face recognition model warmup ---
 from face_recognition_module import get_face_db
 face_db = get_face_db()
