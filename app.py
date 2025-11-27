@@ -70,8 +70,9 @@ from utils.performance_logger import time_operation, time_function, get_performa
 
 from utils.phash_db import build_phash_db, get_all_phashes, find_similar_phash, compute_phash
 
-# Import Ollama chat functionality
-from ollama_chat import OllamaChat
+# Import Ollama chat functionality (disabled - not needed)
+OLLAMA_AVAILABLE = False
+OllamaChat = None
 
 # Import PyChromecast for Chromecast support
 try:
@@ -8225,21 +8226,11 @@ def create_chat_session():
         
         print(f"[Chat] Creating session for image {image_id}, path: {image_path}")
         
-        # Test Ollama connection
-        ollama = OllamaChat()
-        connection_ok, message = ollama.test_connection()
-        if not connection_ok:
-            return jsonify({'success': False, 'error': f'Ollama connection failed: {message}'}), 500
+        # Chat functionality disabled - Ollama not available
+        return jsonify({'success': False, 'error': 'Chat functionality is disabled. Ollama chat is not available.'}), 503
         
-        print(f"[Chat] Ollama connection OK: {message}")
-        
-        # Generate system prompt using Llama
-        print(f"[Chat] Generating system prompt with Llama...")
-        system_prompt = ollama.generate_system_prompt(image_path, personality_description)
-        if not system_prompt:
-            return jsonify({'success': False, 'error': 'Failed to generate system prompt - Llama model may be busy or image processing failed'}), 500
-        
-        print(f"[Chat] System prompt generated successfully ({len(system_prompt)} chars)")
+        # Generate system prompt using Llama (disabled)
+        system_prompt = f"Default system prompt for {personality_description}"
         
         # Create chat session
         session = ChatSession(
@@ -8304,28 +8295,11 @@ def send_chat_message():
                 'content': msg.content
             })
         
-        # Get response from Dolphin
-        ollama = OllamaChat()
-        response_content = ollama.chat_with_dolphin(
-            session.system_prompt, 
-            message_content, 
-            conversation_history
-        )
-        
-        # Save assistant response
-        assistant_message = ChatMessage(
-            session_id=session_id,
-            role='assistant',
-            content=response_content
-        )
-        db.session.add(assistant_message)
-        db.session.commit()
-        
+        # Chat functionality disabled - Ollama not available
         return jsonify({
-            'success': True,
-            'user_message': user_message.to_dict(),
-            'assistant_message': assistant_message.to_dict()
-        })
+            'success': False, 
+            'error': 'Chat functionality is disabled. Ollama chat is not available.'
+        }), 503
         
     except Exception as e:
         db.session.rollback()
@@ -8394,49 +8368,12 @@ def update_system_prompt(session_id):
 
 @app.route('/api/chat/test_ollama')
 def test_ollama():
-    """Test Ollama connection and model availability"""
-    try:
-        ollama = OllamaChat()
-        connection_ok, message = ollama.test_connection()
-        
-        # Test basic text generation
-        test_result = None
-        if connection_ok:
-            try:
-                print("[Chat] Testing basic text generation...")
-                response = requests.post(
-                    f"{ollama.base_url}/api/generate",
-                    json={
-                        "model": ollama.llama_model,
-                        "prompt": "Say 'Hello, Ollama is working!'",
-                        "stream": False,
-                        "options": {
-                            "temperature": 0.7,
-                            "max_tokens": 50
-                        }
-                    },
-                    timeout=30
-                )
-                if response.status_code == 200:
-                    result = response.json()
-                    test_result = result.get('response', '').strip()
-                    print(f"[Chat] Basic test successful: {test_result}")
-                else:
-                    test_result = f"HTTP {response.status_code}: {response.text}"
-                    print(f"[Chat] Basic test failed: {test_result}")
-            except Exception as e:
-                test_result = f"Test error: {str(e)}"
-                print(f"[Chat] Basic test error: {e}")
-        
-        return jsonify({
-            'success': connection_ok,
-            'message': message,
-            'llama_model': ollama.llama_model,
-            'dolphin_model': ollama.dolphin_model,
-            'test_result': test_result
-        })
-    except Exception as e:
-        return jsonify({'success': False, 'error': str(e)}), 500
+    """Test Ollama connection and model availability (disabled)"""
+    return jsonify({
+        'success': False,
+        'message': 'Chat functionality is disabled. Ollama chat is not available.',
+        'error': 'Ollama chat has been removed from this application.'
+    }), 503
 
 # ===== VIDEO MANAGEMENT ROUTES =====
 
