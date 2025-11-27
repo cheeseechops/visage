@@ -1,13 +1,13 @@
-# Railway deployment requirements
-# Uses CPU version of ONNX Runtime (no GPU on Railway)
+# Railway/Render deployment requirements
+# Uses CPU version of ONNX Runtime (no GPU on cloud platforms)
 Flask==2.3.3
 Flask-SQLAlchemy==3.0.5
-Pillow==10.2.0
+Pillow>=10.4.0  # Updated for Python 3.13 compatibility
 Werkzeug==2.3.7
 insightface==0.7.3
 opencv-python==4.8.1.78
 numpy==1.26.4
-onnxruntime==1.22.1  # CPU version for Railway (no GPU available)
+onnxruntime==1.22.1  # CPU version for cloud (no GPU available)
 psutil==5.9.6
 ultralytics==8.0.196
 imagehash==4.3.1
