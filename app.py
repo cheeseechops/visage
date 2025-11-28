@@ -2176,8 +2176,14 @@ def yolo_detect():
         temp_path = os.path.join(temp_dir, secure_filename(file.filename))
         file.save(temp_path)
         
-        # Get YOLO detector
+        # Get YOLO detector (may be None if unavailable)
         detector = get_yolo_detector()
+        if detector is None:
+            return jsonify({
+                'success': False, 
+                'error': 'YOLO detector is not available. It may have failed to load due to memory constraints.',
+                'suggestion': 'YOLO requires significant memory. Consider disabling it or upgrading your plan.'
+            }), 503
         
         # Detect persons
         persons = detector.detect_persons(temp_path)
@@ -2214,8 +2220,14 @@ def yolo_process():
         file_path = os.path.join(app.config['UPLOAD_FOLDER'], base_name)
         file.save(file_path)
         
-        # Get YOLO detector
+        # Get YOLO detector (may be None if unavailable)
         detector = get_yolo_detector()
+        if detector is None:
+            return jsonify({
+                'success': False, 
+                'error': 'YOLO detector is not available. It may have failed to load due to memory constraints.',
+                'suggestion': 'YOLO requires significant memory. Consider disabling it or upgrading your plan.'
+            }), 503
         
         # Process image
         output_dir = os.path.join(app.config['UPLOAD_FOLDER'], 'cropped_magic')
@@ -2254,8 +2266,14 @@ def yolo_process_imported():
         if not os.path.exists(file_path):
             return jsonify({'success': False, 'error': 'Image file not found'}), 404
         
-        # Get YOLO detector
+        # Get YOLO detector (may be None if unavailable)
         detector = get_yolo_detector()
+        if detector is None:
+            return jsonify({
+                'success': False, 
+                'error': 'YOLO detector is not available. It may have failed to load due to memory constraints.',
+                'suggestion': 'YOLO requires significant memory. Consider disabling it or upgrading your plan.'
+            }), 503
         
         # Create cropped folder if it doesn't exist
         cropped_folder = os.path.join(app.config['UPLOAD_FOLDER'], 'cropped')
@@ -2424,8 +2442,14 @@ def yolo_process_url():
             return jsonify({'success': False, 'error': 'Invalid image_url'}), 400
         if not os.path.exists(file_path):
             return jsonify({'success': False, 'error': 'File not found'}), 404
-        # Get YOLO detector
+        # Get YOLO detector (may be None if unavailable)
         detector = get_yolo_detector()
+        if detector is None:
+            return jsonify({
+                'success': False, 
+                'error': 'YOLO detector is not available. It may have failed to load due to memory constraints.',
+                'suggestion': 'YOLO requires significant memory. Consider disabling it or upgrading your plan.'
+            }), 503
         # Process image
         output_dir = os.path.join(app.config['UPLOAD_FOLDER'], 'cropped_magic')
         result = detector.process_image(file_path, output_dir, confidence_threshold=0.5)
@@ -3720,6 +3744,8 @@ def api_cropper_yolo():
         # Reopen for actual processing
         with PILImage.open(file_path) as img:
             detector = get_yolo_detector()
+            if detector is None:
+                return jsonify({'success': False, 'error': 'YOLO detector is not available'}), 503
             result = detector.detect_persons(file_path)
             crops = []
             for box in result:
@@ -3780,6 +3806,9 @@ def api_cropper_save():
         db.session.delete(img)
     from yolo_detector import get_yolo_detector
     detector = get_yolo_detector()
+    if detector is None:
+        flash('YOLO detector is not available. Person detection disabled.', 'warning')
+        return redirect(url_for('cropper'))
     result = detector.detect_persons(file_path)
     next_image = Image.query.filter(Image.tags.contains('uncropped'), Image.id > image.id).order_by(Image.id.asc()).first()
     
@@ -3908,6 +3937,8 @@ def api_cropper_save_multi():
         return jsonify({'success': False, 'error': 'File not found'})
     from yolo_detector import get_yolo_detector
     detector = get_yolo_detector()
+    if detector is None:
+        return jsonify({'success': False, 'error': 'YOLO detector is not available'}), 503
     result = detector.detect_persons(file_path)
     def remove_uncropped_and_names(img, keep_names=False):
         tags = json.loads(img.tags) if img.tags else []
@@ -5880,6 +5911,8 @@ def detect_clothing(image_id):
         return jsonify({'success': False, 'error': 'Image file not found'}), 404
     from yolo_detector import get_yolo_detector
     detector = get_yolo_detector()
+    if detector is None:
+        return jsonify({'success': False, 'error': 'YOLO detector is not available'}), 503
     clothing_items = detector.detect_clothing(file_path)
     tags = list({item['class_name'] for item in clothing_items})
     if not tags:
@@ -5895,6 +5928,8 @@ def detect_clothing_batch():
     import json
     from yolo_detector import get_yolo_detector
     detector = get_yolo_detector()
+    if detector is None:
+        return jsonify({'success': False, 'error': 'YOLO detector is not available'}), 503
     images = Image.query.all()
     results = []
     for image in images:

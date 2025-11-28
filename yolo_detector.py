@@ -304,16 +304,59 @@ class YOLODetector:
 
 # Global instance for reuse
 _yolo_detector = None
+_yolo_available = True
+_yolo_error = None
 
 def get_yolo_detector(force_reload=False):
     """Get or create global YOLO detector instance
     
     Args:
         force_reload: If True, force recreation of the detector (useful after GPU setup changes)
+    
+    Returns:
+        YOLODetector instance or None if unavailable (memory/import errors)
     """
-    global _yolo_detector
+    global _yolo_detector, _yolo_available, _yolo_error
+    
+    # Check if YOLO is disabled via environment variable
+    import os
+    if os.getenv('DISABLE_YOLO', 'false').lower() == 'true':
+        if _yolo_detector is None:
+            print("[YOLO] YOLO is disabled via DISABLE_YOLO environment variable")
+            _yolo_available = False
+        return None
+    
+    if not _yolo_available:
+        return None
+    
     if _yolo_detector is None or force_reload:
-        if force_reload:
-            print("Forcing YOLO detector reload...")
-        _yolo_detector = YOLODetector()
-    return _yolo_detector 
+        try:
+            if force_reload:
+                print("Forcing YOLO detector reload...")
+            print("[YOLO] Loading YOLO detector (this may use significant memory)...")
+            _yolo_detector = YOLODetector()
+            print("[YOLO] YOLO detector loaded successfully")
+        except MemoryError as e:
+            print(f"[YOLO] Memory error loading YOLO: {e}")
+            print("[YOLO] YOLO functionality will be disabled for this session")
+            _yolo_available = False
+            _yolo_error = str(e)
+            _yolo_detector = None
+            return None
+        except Exception as e:
+            print(f"[YOLO] Error loading YOLO detector: {e}")
+            print("[YOLO] YOLO functionality will be disabled")
+            _yolo_available = False
+            _yolo_error = str(e)
+            _yolo_detector = None
+            return None
+    
+    return _yolo_detector
+
+def is_yolo_available():
+    """Check if YOLO is available"""
+    return _yolo_available and _yolo_detector is not None
+
+def get_yolo_error():
+    """Get the error message if YOLO failed to load"""
+    return _yolo_error 
